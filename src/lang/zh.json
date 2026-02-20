@@ -1,0 +1,9 @@
+{
+    "open_settings_failed": "无法打开设置。请手动打开设置并允许此应用访问相机。",
+    "open_settings": "打开设置",
+    "close": "关闭",
+    "welcome": "欢迎",
+    "camera_permission": "需要访问您的相机权限才能扫描二维码",
+    "grant permission": "授权权限",
+    "camera_permission_denied": "相机权限被拒绝。请前往设置并允许此应用访问相机。"
+}

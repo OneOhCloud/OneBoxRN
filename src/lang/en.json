@@ -1,0 +1,9 @@
+{
+    "open_settings_failed": "Failed to open settings. Please open settings manually and allow camera access for this app.",
+    "open_settings": "Open Settings",
+    "close": "Close",
+    "welcome": "Welcome",
+    "camera_permission": "Camera permission is required to scan QR codes",
+    "grant permission": "Grant Permission",
+    "camera_permission_denied": "Camera permission denied. Please go to settings and allow camera access for this app."
+}

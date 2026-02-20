@@ -1,7 +1,7 @@
 import i18n from '@/constants/language';
 import { BarcodeScanningResult, CameraType, CameraView, useCameraPermissions } from 'expo-camera';
-import { useState } from 'react';
-import { Alert, Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type CameraQRProps = {
     onHandleClose: () => void;
@@ -9,23 +9,72 @@ type CameraQRProps = {
 export default function CameraQR(props: CameraQRProps) {
     const [facing, setFacing] = useState<CameraType>('back');
     const [permission, requestPermission] = useCameraPermissions();
+    const [requestedOnce, setRequestedOnce] = useState(false);
     const [scanned, setScanned] = useState(false);
     const [qrData, setQrData] = useState<string | null>(null);
+
+    useEffect(() => {
+        // 自动请求一次权限：初次加载或在可再次请求的情况下自动尝试
+        if (!permission && !requestedOnce) {
+            requestPermission();
+            setRequestedOnce(true);
+            return;
+        }
+
+        if (permission && !permission.granted && permission.canAskAgain && !requestedOnce) {
+            requestPermission();
+            setRequestedOnce(true);
+        }
+    }, [permission, requestPermission, requestedOnce]);
+    console.log('Camera permission status:', permission);
 
     if (!permission) {
         // Camera permissions are still loading.
         return <View />;
     }
 
-    if (!permission.granted) {
-        // Camera permissions are not granted yet.
+    // 权限被明确拒绝且不能再次请求：提示用户手动打开系统设置
+    if (!permission.granted && !permission.canAskAgain) {
+        async function openSettings() {
+            try {
+                await Linking.openSettings();
+            } catch (e) {
+                Alert.alert(i18n.t('error'), i18n.t('open_settings_failed'));
+            }
+        }
+
         return (
             <View style={styles.container}>
-                <Text style={styles.message}>{i18n.t("camera_permission")}</Text>
-                <Button onPress={requestPermission} title="grant permission" />
+                <Text style={styles.message}>{i18n.t("camera_permission_denied")}</Text>
+                <View style={styles.buttonContainer}>
+                    <TouchableOpacity style={styles.button} onPress={openSettings}>
+                        <Text style={styles.text}>{i18n.t('open_settings')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.button} onPress={props.onHandleClose}>
+                        <Text style={styles.text}>{i18n.t('close')}</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         );
     }
+
+    // 权限未授予但可以再次请求：展示一个按钮供用户触发请求（自动请求已在 useEffect 做一次尝试）
+    if (!permission.granted && permission.canAskAgain) {
+        return (
+            <View style={styles.container}>
+                <Text style={styles.message}>{i18n.t("camera_permission")}</Text>
+                <View style={styles.buttonContainer}>
+                    <TouchableOpacity style={styles.button} onPress={requestPermission}>
+                        <Text style={styles.text}>{i18n.t('grant_permission')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.button} onPress={props.onHandleClose}>
+                        <Text style={styles.text}>{i18n.t('close')}</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+    }
+
 
     function toggleCameraFacing() {
         setFacing(current => (current === 'back' ? 'front' : 'back'));
@@ -70,6 +119,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     message: {
+        color: 'white',
         textAlign: 'center',
         paddingBottom: 10,
     },
