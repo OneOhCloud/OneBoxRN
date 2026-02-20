@@ -1,7 +1,25 @@
 import i18n from '@/constants/language';
 import { BarcodeScanningResult, CameraType, CameraView, useCameraPermissions } from 'expo-camera';
-import { useEffect, useState } from 'react';
+import { router } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+const SCHEME = 'oneoh-networktools://config';
+
+function resolveQRData(raw: string): { data: string } | null {
+    // 已经是 deep link 格式
+    if (raw.startsWith(SCHEME)) {
+        const url = new URL(raw);
+        const data = url.searchParams.get('data');
+        if (data) return { data };
+    }
+    // https 链接，转成 base64
+    if (raw.startsWith('https://')) {
+        const data = btoa(raw);
+        return { data };
+    }
+    return null;
+}
 
 type CameraQRProps = {
     onHandleClose: () => void;
@@ -10,8 +28,7 @@ export default function CameraQR(props: CameraQRProps) {
     const [facing, setFacing] = useState<CameraType>('back');
     const [permission, requestPermission] = useCameraPermissions();
     const [requestedOnce, setRequestedOnce] = useState(false);
-    const [scanned, setScanned] = useState(false);
-    const [qrData, setQrData] = useState<string | null>(null);
+    const scannedRef = useRef(false);
 
     useEffect(() => {
         // 自动请求一次权限：初次加载或在可再次请求的情况下自动尝试
@@ -26,7 +43,6 @@ export default function CameraQR(props: CameraQRProps) {
             setRequestedOnce(true);
         }
     }, [permission, requestPermission, requestedOnce]);
-    console.log('Camera permission status:', permission);
 
     if (!permission) {
         // Camera permissions are still loading.
@@ -78,12 +94,18 @@ export default function CameraQR(props: CameraQRProps) {
     }
 
     function handleBarCodeScanned(result: BarcodeScanningResult) {
-        if (scanned) return;
-        setScanned(true);
-        setQrData(result.data);
-        Alert.alert('二维码内容', result.data, [
-            { text: '确定', onPress: () => setScanned(false) }
-        ]);
+        if (scannedRef.current) return;
+        scannedRef.current = true;
+
+        const resolved = resolveQRData(result.data);
+        if (resolved) {
+            props.onHandleClose();
+            router.push(`/config?data=${encodeURIComponent(resolved.data)}`);
+        } else {
+            Alert.alert('无法识别', '二维码内容不是有效的链接', [
+                { text: '确定', onPress: () => { scannedRef.current = false; } }
+            ]);
+        }
     }
 
     return (
@@ -101,11 +123,6 @@ export default function CameraQR(props: CameraQRProps) {
                     <Text style={styles.text}>{i18n.t("close")}</Text>
                 </TouchableOpacity>
             </View>
-            {qrData && (
-                <View style={styles.qrResult}>
-                    <Text style={styles.qrText}>扫描结果: {qrData}</Text>
-                </View>
-            )}
         </View>
     );
 }
@@ -140,19 +157,5 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: 'white',
     },
-    qrResult: {
-        position: 'absolute',
-        top: 60,
-        left: 0,
-        right: 0,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        padding: 16,
-        marginHorizontal: 16,
-        borderRadius: 8,
-        alignItems: 'center',
-    },
-    qrText: {
-        color: 'white',
-        fontSize: 18,
-    },
+
 });

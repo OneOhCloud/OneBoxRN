@@ -2,8 +2,9 @@ import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Text, View } from "react-native";
 
-export default function ConfigScreen() {
+export default function Index() {
     // npx uri-scheme open "oneoh-networktools://config?data=aHR0cHM6Ly93d3cuZ29vZ2xlLmNvbQ==" --ios
+    // oneoh-networktools://config?data=aHR0cHM6Ly93d3cuZ29vZ2xlLmNvbQ==
     const { data } = useLocalSearchParams<{ data: string }>();
 
     const prevDataRef = useRef<string>("");
