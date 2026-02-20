@@ -1,4 +1,5 @@
 {
+    "grant_permission": "Grant Permission",
     "open_settings_failed": "Failed to open settings. Please open settings manually and allow camera access for this app.",
     "open_settings": "Open Settings",
     "close": "Close",

@@ -64,9 +64,6 @@ export default function CameraQR(props: CameraQRProps) {
             <View style={styles.container}>
                 <Text style={styles.message}>{i18n.t("camera_permission")}</Text>
                 <View style={styles.buttonContainer}>
-                    <TouchableOpacity style={styles.button} onPress={requestPermission}>
-                        <Text style={styles.text}>{i18n.t('grant_permission')}</Text>
-                    </TouchableOpacity>
                     <TouchableOpacity style={styles.button} onPress={props.onHandleClose}>
                         <Text style={styles.text}>{i18n.t('close')}</Text>
                     </TouchableOpacity>

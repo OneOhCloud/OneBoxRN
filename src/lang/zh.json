@@ -1,4 +1,5 @@
 {
+    "grant_permission": "授权权限",
     "open_settings_failed": "无法打开设置。请手动打开设置并允许此应用访问相机。",
     "open_settings": "打开设置",
     "close": "关闭",
