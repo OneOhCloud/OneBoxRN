@@ -5,6 +5,7 @@ import { ThemedView } from '@/components/themed-view';
 import CameraQR from '@/components/ui/camera-qr';
 import { WebBadge } from '@/components/web-badge';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { getSingBoxUserAgent } from '@/utils';
 import * as Device from 'expo-device';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -48,7 +49,7 @@ export default function HomeScreen() {
 
 
         <ThemedText type="code" style={styles.code}>
-          get started
+          {getSingBoxUserAgent()}
         </ThemedText>
 
         <ThemedView type="backgroundElement" style={styles.stepContainer}>
