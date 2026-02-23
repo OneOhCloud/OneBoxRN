@@ -8,22 +8,10 @@ import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import * as Device from 'expo-device';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Appearance, Button, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Button, Modal, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-function ThemeToggle() {
-  const toggleTheme = () => {
-    Appearance.setColorScheme(
-      Appearance.getColorScheme() === "dark" ? "light" : "dark"
-    );
-  };
 
-  return (
-    <Pressable onPress={toggleTheme} className="p-4 bg-gray-200 dark:bg-gray-800">
-      <Text className="text-black dark:text-white">Toggle Theme</Text>
-    </Pressable>
-  );
-}
 
 function getDevMenuHint() {
   if (Platform.OS === 'web') {
@@ -57,7 +45,7 @@ export default function HomeScreen() {
             扫&nbsp;二维码
           </ThemedText>
         </ThemedView>
-        <ThemeToggle />
+
 
         <ThemedText type="code" style={styles.code}>
           get started

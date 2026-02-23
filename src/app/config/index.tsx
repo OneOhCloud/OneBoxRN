@@ -1,3 +1,4 @@
+import { SBConfig } from "@/database/kv";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Text, View } from "react-native";
@@ -7,6 +8,7 @@ export default function Index() {
     // oneoh-networktools://config?data=aHR0cHM6Ly93d3cuZ29vZ2xlLmNvbQ==
     const { data } = useLocalSearchParams<{ data: string }>();
 
+
     const prevDataRef = useRef<string>("");
 
     useEffect(() => {
@@ -14,6 +16,7 @@ export default function Index() {
         if (data && prevDataRef.current !== data) {
             console.log('Received deep link data:', data);
             prevDataRef.current = data;
+            SBConfig.setConfigLink(data);
         }
         return () => {
             console.log('Cleaning up deep link data');
