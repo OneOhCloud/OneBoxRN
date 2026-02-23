@@ -36,26 +36,32 @@
     "expo-system-ui": "~55.0.6",
     "expo-web-browser": "~55.0.6",
     "i18n-js": "^4.5.2",
+    "nativewind": "^5.0.0-preview.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-native": "0.83.2",
+    "react-native-css": "^3.0.3",
     "react-native-gesture-handler": "~2.30.0",
     "react-native-mmkv": "^4.1.2",
     "react-native-nitro-modules": "^0.33.9",
-    "react-native-reanimated": "~4.2.2",
+    "react-native-reanimated": "~4.2.1",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.23.0",
     "react-native-web": "~0.21.2",
     "react-native-worklets": "0.7.2"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.0",
     "@types/react": "~19.2.14",
-    "typescript": "~5.9.3",
-    "eslint": "^9.39.2",
-    "eslint-config-expo": "~55.0.0"
+    "eslint": "^10.0.1",
+    "eslint-config-expo": "~55.0.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.2.0",
+    "typescript": "~5.9.3"
   },
   "private": true,
   "overrides": {
-    "hermes-compiler": "250829098.0.4"
+    "hermes-compiler": "250829098.0.4",
+    "lightningcss": "1.30.1"
   }
 }
