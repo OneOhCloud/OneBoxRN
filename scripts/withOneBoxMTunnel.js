@@ -109,6 +109,9 @@ extension_target.frameworks_build_phase.add_file_reference(libbox_ref, true)
 end
 
 # 7. 配置 build settings
+# ⚠️  关键：保持 Automatic 签名，与 Xcode 本地构建行为一致
+# 不设置 CODE_SIGN_STYLE = Manual，不设置 PROVISIONING_PROFILE_SPECIFIER
+# EAS local build 会继承 Xcode 的 Automatic 签名，由 Apple 自动匹配 Profile
 extension_target.build_configurations.each do |config|
   config.build_settings['DEVELOPMENT_TEAM'] = 'GN2W3N34TM'
   config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = EXTENSION_BUNDLE_ID
@@ -123,7 +126,7 @@ extension_target.build_configurations.each do |config|
   config.build_settings['FRAMEWORK_SEARCH_PATHS'] = ['$(inherited)', "\\"#{EXTENSION_RELATIVE_PATH}\\""]
   config.build_settings['OTHER_LDFLAGS'] = '$(inherited) -ObjC'
   config.build_settings['DEFINES_MODULE'] = 'YES'
-  config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'  # 重要：允许脚本运行
+  config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
 end
 
 # 8. 将扩展添加为主应用的依赖
@@ -140,9 +143,12 @@ if main_target
   embed_phase.dst_path = ''
   
   # 添加扩展产物到 embed 阶段
+  # ⚠️  关键：必须同时加 CodeSignOnCopy + RemoveHeadersOnCopy
+  # CodeSignOnCopy 确保打包/上传 App Store 时 Extension 被正确重新签名
+  # 缺少此属性会导致 archive 或上传时签名验证失败
   product_ref = extension_target.product_reference
   build_file = embed_phase.add_file_reference(product_ref, true)
-  build_file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
+  build_file.settings = { 'ATTRIBUTES' => ['CodeSignOnCopy', 'RemoveHeadersOnCopy'] }
 end
 
 # 10. 保存项目
@@ -150,6 +156,7 @@ project.save
 
 puts "✅ Successfully added '#{TARGET_NAME}' target!"
 puts "✅ Extension will be embedded in main app"
+puts "✅ CodeSignOnCopy enabled for Extension embed phase"
 puts "✅ Current app directory structure: #{CURRENT_APP_DIR}"
 puts "\\n📝 Next steps:"
 puts "   1. Open Xcode and set signing team for #{TARGET_NAME} target"
