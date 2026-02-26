@@ -110,6 +110,7 @@ end
 
 # 7. 配置 build settings
 extension_target.build_configurations.each do |config|
+  config.build_settings['DEVELOPMENT_TEAM'] = 'GN2W3N34TM'
   config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = EXTENSION_BUNDLE_ID
   config.build_settings['PRODUCT_NAME'] = TARGET_NAME
   config.build_settings['INFOPLIST_FILE'] = "#{EXTENSION_RELATIVE_PATH}/Info.plist"

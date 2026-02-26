@@ -63,7 +63,10 @@
         "expo-build-properties",
         {
           "buildReactNativeFromSource": true,
-          "useHermesV1": true
+          "useHermesV1": true,
+          "ios": {
+            "appleTeamId": "GN2W3N34TM"
+          }
         }
       ],
       [
