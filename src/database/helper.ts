@@ -61,7 +61,7 @@ type SBJSONConfig = Map<any, any> & {
 }
 
 /**
- * 只提取 VPN 服务器节点配置合并到配置文件中
+ * 只提取配置文件中的服务器节点配置合并到配置文件中
  */
 export async function updateVPNServerConfigFromDB(dbConfigData: SBJSONConfig, newConfig: any): Promise<string> {
 
@@ -73,9 +73,9 @@ export async function updateVPNServerConfigFromDB(dbConfigData: SBJSONConfig, ne
     const outboundsUrltest = outbound_groups[outboundsUrltestIndex]["outbounds"];
 
 
-    let vpnServerList = dbConfigData.outbounds.filter((item: Item) => {
-        // zh: 只找VPN服务器的节点配置
-        // en: Only find the node configuration of the VPN server
+    let serverList = dbConfigData.outbounds.filter((item: Item) => {
+        // zh: 只找配置文件中的服务器的节点配置
+        // en: Only find the node configuration of the server in the configuration file
         let flag = item.type !== "selector" && item.type !== "urltest" && item.type !== "direct" && item.type !== "block";
 
         // zh: sing-box 1.12 版本开始，dns 类型的节点不再需要
@@ -85,20 +85,20 @@ export async function updateVPNServerConfigFromDB(dbConfigData: SBJSONConfig, ne
     });
 
 
-    for (let i = 0; i < vpnServerList.length; i++) {
-        vpnServerList[i]["domain_resolver"] = "system";
-        outboundsSelector.push(vpnServerList[i].tag);
+    for (let i = 0; i < serverList.length; i++) {
+        serverList[i]["domain_resolver"] = "system";
+        outboundsSelector.push(serverList[i].tag);
 
     }
 
     const urltestNameList: string[] = [];
-    vpnServerList.forEach((item: any) => {
+    serverList.forEach((item: any) => {
         urltestNameList.push(item.tag);
     })
 
     outboundsUrltest.push(...urltestNameList);
 
-    outbound_groups.push(...vpnServerList);
+    outbound_groups.push(...serverList);
     return JSON.stringify(newConfig);
 }
 

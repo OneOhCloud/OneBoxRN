@@ -119,7 +119,7 @@ function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPayload | null })
         </View>
       ) : (
         <ThemedText type="small" themeColor="textSecondary" style={styles.emptyHint}>
-          VPN 连接后显示实时统计
+          代理连接后显示实时统计
         </ThemedText>
       )}
     </ThemedView>

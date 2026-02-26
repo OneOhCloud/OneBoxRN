@@ -49,7 +49,7 @@ function EmptyState({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportU
         开始使用
       </ThemedText>
       <ThemedText themeColor="textSecondary" style={styles.emptySubtitle}>
-        导入订阅配置以开始使用 VPN
+        导入订阅配置以开始使用
       </ThemedText>
 
       <View style={styles.emptyActions}>
