@@ -135,7 +135,7 @@ function ConnectButton({
       opacityAnim.setValue(0.28);
       const loop = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.18, duration: 1100, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1.02, duration: 1100, useNativeDriver: true }),
           Animated.timing(pulseAnim, { toValue: 1, duration: 1100, useNativeDriver: true }),
         ])
       );
@@ -145,7 +145,7 @@ function ConnectButton({
       opacityAnim.setValue(0);
       pulseAnim.setValue(1);
     }
-  }, [connected]);
+  }, [connected, opacityAnim, pulseAnim]);
 
   const ringColor = connected ? '#34C759' : '#8E8E93';
   const bgColor = connected ? '#34C759' : theme.backgroundElement;
@@ -231,15 +231,29 @@ function ModeSelector({
 // ─────────────────────────────────────────────────────────────
 
 function NodeRow({
-  name,
+  tag,
+  delay,
   selected,
   onSelect,
 }: {
-  name: string;
+  tag: string;
+  delay: number;
   selected: boolean;
   onSelect: () => void;
 }) {
   const theme = useTheme();
+
+  // Format delay: 0 means untested
+  const delayLabel = delay === 0 ? '—' : `${delay} ms`;
+  const delayColor =
+    delay === 0
+      ? theme.textSecondary
+      : delay < 200
+        ? '#34C759'
+        : delay < 500
+          ? '#FF9F0A'
+          : '#FF3B30';
+
   return (
     <Pressable
       onPress={onSelect}
@@ -268,7 +282,12 @@ function NodeRow({
             color: selected ? theme.text : theme.textSecondary,
           },
         ]}>
-        {name}
+        {tag}
+      </ThemedText>
+      <ThemedText
+        type="small"
+        style={[styles.nodeDelay, { color: delayColor }]}>
+        {delayLabel}
       </ThemedText>
     </Pressable>
   );
@@ -384,7 +403,7 @@ export default function HomeScreen() {
   const [hasConfig, setHasConfig] = useState<boolean>(() => !!SBConfig.getConfigContent());
   const [cameraVisible, setCameraVisible] = useState(false);
   const [importUrlVisible, setImportUrlVisible] = useState(false);
-  const [nodeList, setNodeList] = useState<string[]>([]);
+  const [nodeList, setNodeList] = useState<{ tag: string; delay: number }[]>([]);
   const [currentNode, setCurrentNode] = useState<string>('');
   const [nodeError, setNodeError] = useState<string | null>(null);
 
@@ -563,12 +582,13 @@ export default function HomeScreen() {
               {nodeError ? `⚠  ${nodeError}` : connected ? '加载中…' : '暂无节点'}
             </ThemedText>
           ) : (
-            nodeList.map((name) => (
+            nodeList.map((node) => (
               <NodeRow
-                key={name}
-                name={name}
-                selected={currentNode === name}
-                onSelect={() => handleNodeSelect(name)}
+                key={node.tag}
+                tag={node.tag}
+                delay={node.delay}
+                selected={currentNode === node.tag}
+                onSelect={() => handleNodeSelect(node.tag)}
               />
             ))
           )}
@@ -770,6 +790,11 @@ const styles = StyleSheet.create({
   nodeName: {
     flex: 1,
     fontSize: 14,
+  },
+  nodeDelay: {
+    fontSize: 11,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    flexShrink: 0,
   },
 
   // ── FAB ──────────────────────────────────────────────────
