@@ -24,7 +24,11 @@
         ]
       },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleLocalizations": [
+          "en",
+          "zh"
+        ]
       }
     },
     "web": {
@@ -103,7 +107,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "d1fc3342-ea38-4207-809b-d70735bc7413"
+        "projectId": "a705f7ba-e090-4f16-a842-31f0cd5c0e89"
       }
     },
     "android": {
@@ -117,6 +121,6 @@
         "android.permission.RECORD_AUDIO"
       ]
     },
-    "owner": "OneOh Cloud LLC"
+    "owner": "oneoh-cloud-llc"
   }
 }
