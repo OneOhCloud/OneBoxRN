@@ -3,11 +3,11 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { useTheme } from '@/hooks/use-theme';
-import { GetVersion } from '@/modules/expo-onebox';
 import { TrafficUpdateEventPayload } from '@/modules/expo-onebox/src/ExpoOneBox.types';
 import { useEffect, useRef } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GetVersion } from '../../modules/expo-onebox';
 
 // ─────────────────────────────────────────────────────────────
 // Info card: version + status
