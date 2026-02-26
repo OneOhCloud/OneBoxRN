@@ -56,11 +56,14 @@ export function getDefaultConfigTemplate(mode: configType, version: string): str
 }
 
 
+type SBJSONConfig = Map<any, any> & {
+    outbounds: any
+}
 
 /**
  * 只提取 VPN 服务器节点配置合并到配置文件中
  */
-export async function updateVPNServerConfigFromDB(dbConfigData: any, newConfig: any): Promise<string> {
+export async function updateVPNServerConfigFromDB(dbConfigData: SBJSONConfig, newConfig: any): Promise<string> {
 
     const outboundsSelectorIndex = 1;
     const outboundsUrltestIndex = 2;
@@ -113,6 +116,8 @@ async function getConfigTemplate(mode: configType): Promise<any> {
 
 
 export async function getTunConfig(config: string) {
+    let configJson = JSON.parse(config)
+
     const newConfig = await getConfigTemplate('tun-rules');
 
     // 根据当前的 Stage 版本设置日志等级
@@ -154,15 +159,16 @@ export async function getTunConfig(config: string) {
 
     console.log("当前 TUN Stack:", newConfig.inbounds[0].stack);
     updateExperimentalConfig(newConfig);
-    return await updateVPNServerConfigFromDB(config, newConfig);
+    return await updateVPNServerConfigFromDB(configJson, newConfig);
 }
 
 export default async function getGlobalTunConfig(config: string) {
+    let configJson = JSON.parse(config)
     const newConfig = await getConfigTemplate('tun-global');
     let level = await getStoreValue(STAGE_VERSION_STORE_KEY) === "dev" ? "debug" : "info";
     newConfig.log.level = level;
     updateExperimentalConfig(newConfig);
-    return await updateVPNServerConfigFromDB(config, newConfig);
+    return await updateVPNServerConfigFromDB(configJson, newConfig);
 
 }
 

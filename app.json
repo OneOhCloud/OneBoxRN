@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "oneoh-networktools",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "cloud.oneoh.networktools",
@@ -92,9 +91,12 @@
         }
       ],
       "./scripts/withOneBoxMTunnel.js",
-      "expo-localization"
+      "expo-localization",
+      "expo-image",
+      "expo-web-browser"
     ],
     "experiments": {
+      "autolinkingModuleResolution": true,
       "typedRoutes": true,
       "reactCompiler": true
     },

@@ -82,17 +82,46 @@ export async function getClashApiSecret(): Promise<string> {
     const secret = await store.get(CLASH_API_SECRET);
     if (secret) {
         return secret as string;
-    } else {
-        // 使用 Web Crypto API 生成随机字节
-        const array = new Uint8Array(12);
-        crypto.getRandomValues(array);
-        const randomSecret = Array.from(array)
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('');
-        store.set(CLASH_API_SECRET, randomSecret);
-        await store.save();
-        return randomSecret;
     }
+
+    // 生成随机 hex 字符串，优先使用 Web Crypto API，
+    // 在 React Native 中尝试动态加载 polyfill（react-native-get-random-values），
+    // 若都不可用则退回到 Math.random（不够安全，但可用）。
+    async function generateRandomHex(bytes: number): Promise<string> {
+        const anyGlobal: any = globalThis;
+        const anyCrypto = anyGlobal.crypto;
+        if (anyCrypto && typeof anyCrypto.getRandomValues === 'function') {
+            const array = new Uint8Array(bytes);
+            anyCrypto.getRandomValues(array);
+            return Array.from(array).map((b: number) => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // 尝试在 React Native 环境中动态 require 一个 polyfill
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            require('react-native-get-random-values');
+            const polyCrypto = (globalThis as any).crypto;
+            if (polyCrypto && typeof polyCrypto.getRandomValues === 'function') {
+                const array = new Uint8Array(bytes);
+                polyCrypto.getRandomValues(array);
+                return Array.from(array).map((b: number) => b.toString(16).padStart(2, '0')).join('');
+            }
+        } catch (e) {
+            // ignore
+        }
+
+        // 最后的退路：使用 Math.random（不推荐用于高安全场景）
+        const arr = new Uint8Array(bytes);
+        for (let i = 0; i < bytes; i++) {
+            arr[i] = Math.floor(Math.random() * 256);
+        }
+        return Array.from(arr).map((b: number) => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    const randomSecret = await generateRandomHex(12);
+    store.set(CLASH_API_SECRET, randomSecret);
+    await store.save();
+    return randomSecret;
 }
 
 
