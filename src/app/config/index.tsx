@@ -1,10 +1,10 @@
 import { SBConfig } from "@/database/kv";
+import { useTheme } from "@/hooks/use-theme";
 import { getSingBoxUserAgent } from "@/utils";
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from "expo-router";
 import { fetch } from 'expo/fetch';
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Button, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 
 function useDownloadConfig(url: string | undefined) {
@@ -45,7 +45,7 @@ function useDownloadConfig(url: string | undefined) {
                 SBConfig.setConfigContent(content);
                 setExtraInfo({ upload, download, total, expire });
             } else {
-                const err = new Error(`Failed to fetch config content. Status: ${response.status}`);
+                const err = new Error(`下载配置失败，状态码：${response.status}`);
                 setError(err);
             }
         })
@@ -62,6 +62,7 @@ function useDownloadConfig(url: string | undefined) {
 }
 
 export default function Index() {
+    const theme = useTheme();
     const { data: deepLinkData } = useLocalSearchParams<{ data: string }>();
 
     let url: string | undefined = undefined;
@@ -76,64 +77,115 @@ export default function Index() {
 
     const { data, error, isLoading, extraInfo } = useDownloadConfig(url);
 
-    // 状态视图
+    // ── Loading ──────────────────────────────────────────────
     if (isLoading) {
         return (
-            <View style={styles.centered}>
-                <Ionicons name="cloud-download-outline" size={48} color="#4682B4" style={{ marginBottom: 16 }} />
-                <ActivityIndicator size="large" color="#4682B4" />
-                <Text style={styles.statusText}>正在下载配置...</Text>
+            <View style={[styles.centered, { backgroundColor: theme.background }]}>
+                <View style={[styles.iconCircle, { backgroundColor: theme.backgroundElement }]}>
+                    <Text style={styles.iconEmoji}>☁️</Text>
+                </View>
+                <ActivityIndicator size="large" color="#007AFF" style={{ marginTop: 24 }} />
+                <Text style={[styles.statusText, { color: theme.text }]}>正在下载配置…</Text>
+                <Text style={[styles.subText, { color: theme.textSecondary }]}>请稍候</Text>
             </View>
         );
     }
 
+    // ── Error ────────────────────────────────────────────────
     if (error) {
         return (
-            <View style={styles.centered}>
-                <MaterialIcons name="error-outline" size={48} color="#FF5252" style={{ marginBottom: 16 }} />
-                <ScrollView style={styles.errorScroll} contentContainerStyle={{ alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={styles.statusText}>下载失败</Text>
-                    <Text style={styles.errorText}>{error.message}</Text>
+            <View style={[styles.centered, { backgroundColor: theme.background }]}>
+                <View style={[styles.iconCircle, { backgroundColor: '#FF3B3015' }]}>
+                    <Text style={styles.iconEmoji}>⚠️</Text>
+                </View>
+                <Text style={[styles.statusText, { color: theme.text }]}>下载失败</Text>
+                <ScrollView style={[styles.errorBox, { backgroundColor: theme.backgroundElement }]}>
+                    <Text style={[styles.errorText, { color: '#FF3B30' }]}>{error.message}</Text>
                 </ScrollView>
+                <TouchableOpacity
+                    onPress={() => router.back()}
+                    style={[styles.button, { backgroundColor: theme.backgroundElement }]}
+                    activeOpacity={0.7}>
+                    <Text style={[styles.buttonText, { color: theme.text }]}>返回</Text>
+                </TouchableOpacity>
             </View>
         );
     }
 
+    // ── Success ──────────────────────────────────────────────
     if (data && extraInfo) {
-        // 剩余流量和日期
         const used = extraInfo.upload + extraInfo.download;
         const total = extraInfo.total;
         const expireDate = extraInfo.expire > 0 ? new Date(extraInfo.expire * 1000) : null;
         const left = total > used ? total - used : 0;
+
         function formatBytes(bytes: number) {
-            if (bytes < 1024) return bytes + 'B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + 'KB';
-            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + 'MB';
-            return (bytes / (1024 * 1024 * 1024)).toFixed(2) + 'GB';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
         }
+
+        const usedPercent = total > 0 ? Math.min((used / total) * 100, 100) : 0;
+
         return (
-            <View style={styles.centered}>
-                <Ionicons name="checkmark-circle-outline" size={48} color="#4CAF50" style={{ marginBottom: 16 }} />
-                <Text style={styles.statusText}>导入成功！</Text>
-                <View style={styles.infoBox}>
-                    <Text style={styles.infoText}>剩余流量：{formatBytes(left)} / {formatBytes(total)}</Text>
-                    <Text style={styles.infoText}>已用流量：{formatBytes(used)}</Text>
-                    <Text style={styles.infoText}>到期时间：{expireDate ? expireDate.toLocaleString() : '未知'}</Text>
-                    {/* 返回主页 */}
-                    <Button title="返回主页" onPress={() => {
-                        // clear
-                        router.dismissTo("/")
-                    }} />
+            <View style={[styles.centered, { backgroundColor: theme.background }]}>
+                <View style={[styles.iconCircle, { backgroundColor: '#34C75915' }]}>
+                    <Text style={styles.iconEmoji}>✅</Text>
+                </View>
+                <Text style={[styles.statusText, { color: theme.text }]}>导入成功</Text>
+                <Text style={[styles.subText, { color: theme.textSecondary }]}>订阅配置已更新</Text>
+
+                <View style={[styles.infoCard, { backgroundColor: theme.backgroundElement }]}>
+                    {/* Traffic bar */}
+                    {total > 0 && (
+                        <View style={styles.trafficSection}>
+                            <View style={styles.trafficRow}>
+                                <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>剩余流量</Text>
+                                <Text style={[styles.infoValue, { color: theme.text }]}>
+                                    {formatBytes(left)} / {formatBytes(total)}
+                                </Text>
+                            </View>
+                            <View style={[styles.progressBg, { backgroundColor: theme.background }]}>
+                                <View
+                                    style={[
+                                        styles.progressFill,
+                                        {
+                                            width: `${usedPercent}%` as any,
+                                            backgroundColor: usedPercent > 85 ? '#FF3B30' : '#007AFF',
+                                        },
+                                    ]}
+                                />
+                            </View>
+                            <Text style={[styles.progressHint, { color: theme.textSecondary }]}>
+                                已用 {formatBytes(used)}（{usedPercent.toFixed(1)}%）
+                            </Text>
+                        </View>
+                    )}
+
+                    {/* Expire */}
+                    <View style={[styles.infoRow, { borderTopColor: theme.background }]}>
+                        <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>到期时间</Text>
+                        <Text style={[styles.infoValue, { color: theme.text }]}>
+                            {expireDate ? expireDate.toLocaleDateString() : '无限制'}
+                        </Text>
+                    </View>
                 </View>
 
+                <TouchableOpacity
+                    onPress={() => router.dismissTo('/')}
+                    style={[styles.button, styles.buttonPrimary]}
+                    activeOpacity={0.8}>
+                    <Text style={styles.buttonPrimaryText}>开始使用</Text>
+                </TouchableOpacity>
             </View>
         );
     }
 
-    // 默认视图
+    // ── Default ──────────────────────────────────────────────
     return (
-        <View style={styles.centered}>
-            <Text style={styles.statusText}>请通过深链导入配置</Text>
+        <View style={[styles.centered, { backgroundColor: theme.background }]}>
+            <Text style={[styles.statusText, { color: theme.textSecondary }]}>请通过深链导入配置</Text>
         </View>
     );
 }
@@ -143,39 +195,103 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#F5F6FA',
         padding: 24,
     },
-    statusText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginTop: 16,
-        color: '#333',
+    iconCircle: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 8,
     },
-    errorScroll: {
+    iconEmoji: {
+        fontSize: 36,
+        lineHeight: 44,
+    },
+    statusText: {
+        fontSize: 20,
+        fontWeight: '700',
+        marginTop: 16,
+        textAlign: 'center',
+    },
+    subText: {
+        fontSize: 14,
+        marginTop: 6,
+        marginBottom: 4,
+        textAlign: 'center',
+    },
+    errorBox: {
         maxHeight: 120,
         width: '100%',
-        marginTop: 8,
-        backgroundColor: '#FFF0F0',
-        borderRadius: 8,
+        marginTop: 16,
+        borderRadius: 12,
         padding: 12,
     },
     errorText: {
-        color: '#FF5252',
-        fontSize: 16,
-        marginTop: 8,
+        fontSize: 13,
+        lineHeight: 18,
     },
-    infoBox: {
-        marginTop: 24,
-        backgroundColor: '#E8F5E9',
-        borderRadius: 8,
-        padding: 16,
+    infoCard: {
         width: '100%',
+        marginTop: 24,
+        borderRadius: 16,
+        overflow: 'hidden',
+    },
+    trafficSection: {
+        padding: 16,
+        gap: 8,
+    },
+    trafficRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
     },
-    infoText: {
+    progressBg: {
+        height: 6,
+        borderRadius: 3,
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: 6,
+        borderRadius: 3,
+    },
+    progressHint: {
+        fontSize: 12,
+        textAlign: 'right',
+    },
+    infoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    infoLabel: {
+        fontSize: 14,
+    },
+    infoValue: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    button: {
+        marginTop: 20,
+        width: '100%',
+        borderRadius: 14,
+        paddingVertical: 14,
+        alignItems: 'center',
+    },
+    buttonText: {
         fontSize: 16,
-        color: '#333',
-        marginBottom: 8,
+        fontWeight: '600',
+    },
+    buttonPrimary: {
+        backgroundColor: '#007AFF',
+    },
+    buttonPrimaryText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

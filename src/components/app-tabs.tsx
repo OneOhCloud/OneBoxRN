@@ -15,13 +15,13 @@ export default function AppTabs() {
       labelStyle={{ selected: { color: colors.text } }}>
 
       <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>连接</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="house.fill" md="home" />
       </NativeTabs.Trigger>
 
 
       <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>状态</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="gear" md="settings" />
       </NativeTabs.Trigger>
     </NativeTabs>
