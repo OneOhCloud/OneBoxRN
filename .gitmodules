@@ -1,0 +1,3 @@
+[submodule "src/modules/expo-onebox"]
+	path = src/modules/expo-onebox
+	url = https://github.com/OneOhCloud/expo-onebox.git
