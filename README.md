@@ -57,4 +57,4 @@ eas build --platform android --local
 
 cd android && open -a /Applications/Android\ Studio.app
 
-bunx expo run:android 
+npx expo run:android 
