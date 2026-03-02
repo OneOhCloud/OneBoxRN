@@ -8,15 +8,6 @@ import { SBConfig } from '@/database/kv';
 import { configType } from '@/definition';
 import { useTheme } from '@/hooks/use-theme';
 import { router, useFocusEffect } from 'expo-router';
-import {
-  BottomSheet,
-  Button,
-  Input,
-  ListGroup,
-  Separator,
-  Surface,
-  TextField,
-} from 'heroui-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -24,6 +15,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,9 +36,9 @@ import {
 function EmptyState({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportUrl: () => void }) {
   return (
     <View className="flex-1 items-center justify-center px-8">
-      <Surface variant="secondary" className="w-20 h-20 rounded-full items-center justify-center mb-6">
+      <View className="w-20 h-20 rounded-full items-center justify-center mb-6 bg-gray-100">
         <ThemedText className="text-4xl leading-11">🔒</ThemedText>
-      </Surface>
+      </View>
 
       <ThemedText type="subtitle" className="text-center mb-2">
         开始使用
@@ -56,12 +48,22 @@ function EmptyState({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportU
       </ThemedText>
 
       <View className="w-full gap-3">
-        <Button variant="primary" onPress={onScanQR}>
-          <Button.Label>扫描二维码</Button.Label>
-        </Button>
-        <Button variant="secondary" onPress={onImportUrl}>
-          <Button.Label>导入订阅链接</Button.Label>
-        </Button>
+        <Pressable
+          onPress={onScanQR}
+          className="bg-blue-500 py-3 rounded-xl active:bg-blue-600"
+        >
+          <ThemedText className="text-white text-center font-semibold">
+            扫描二维码
+          </ThemedText>
+        </Pressable>
+        <Pressable
+          onPress={onImportUrl}
+          className="bg-gray-100 py-3 rounded-xl active:opacity-80"
+        >
+          <ThemedText className="text-center font-semibold">
+            导入订阅链接
+          </ThemedText>
+        </Pressable>
       </View>
     </View>
   );
@@ -89,14 +91,14 @@ function StatusBadge({ connected, loading }: { connected: boolean; loading: bool
 function SpeedRow({ uplink, downlink }: { uplink: string; downlink: string }) {
   return (
     <View className="flex-row gap-2">
-      <Surface variant="secondary" className="flex-row items-center px-3 py-1.5 rounded-full gap-1">
+      <View className="flex-row items-center px-3 py-1.5 rounded-full gap-1 bg-backgroundElement">
         <ThemedText type="small" themeColor="textSecondary" className="text-xs font-semibold">↑</ThemedText>
         <ThemedText type="small" className="text-xs" style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>{uplink}</ThemedText>
-      </Surface>
-      <Surface variant="secondary" className="flex-row items-center px-3 py-1.5 rounded-full gap-1">
+      </View>
+      <View className="flex-row items-center px-3 py-1.5 rounded-full gap-1 bg-backgroundElement">
         <ThemedText type="small" themeColor="textSecondary" className="text-xs font-semibold">↓</ThemedText>
         <ThemedText type="small" className="text-xs" style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>{downlink}</ThemedText>
-      </Surface>
+      </View>
     </View>
   );
 }
@@ -170,14 +172,14 @@ function ModeSelector({
   ];
 
   return (
-    <Surface variant="secondary" className="flex-row rounded-2xl p-0.5 gap-0.5">
+    <View className="flex-row rounded-2xl p-0.5 gap-0.5 bg-gray-100">
       {options.map((opt) => {
         const active = mode === opt.value;
         return (
           <Pressable
             key={opt.value}
             onPress={() => onChange(opt.value)}
-            className={`flex-1 items-center py-2 rounded-xl ${active ? 'bg-background' : ''}`}>
+            className={`flex-1 items-center py-2 rounded-xl ${active ? 'bg-white' : ''}`}>
             <ThemedText
               type="small"
               className="text-sm"
@@ -187,7 +189,7 @@ function ModeSelector({
           </Pressable>
         );
       })}
-    </Surface>
+    </View>
   );
 }
 
@@ -219,29 +221,29 @@ function NodeRow({
           : '#FF3B30';
 
   return (
-    <ListGroup.Item onPress={onSelect}>
-      <ListGroup.ItemPrefix>
-        <View
-          className="w-5 h-5 rounded-full border-2 items-center justify-center flex-shrink-0"
-          style={{ borderColor: selected ? '#007AFF' : theme.textSecondary }}>
-          {selected && <View className="w-2 h-2 rounded-full bg-blue-500" />}
-        </View>
-      </ListGroup.ItemPrefix>
-      <ListGroup.ItemContent>
-        <ListGroup.ItemTitle
-          className={selected ? 'font-semibold text-foreground' : 'text-muted'}>
+    <Pressable
+      onPress={onSelect}
+      className="flex-row items-center px-4 py-3 gap-3 active:bg-gray-50"
+    >
+      <View
+        className="w-5 h-5 rounded-full border-2 items-center justify-center shrink-0"
+        style={{ borderColor: selected ? '#007AFF' : theme.textSecondary }}>
+        {selected && <View className="w-2 h-2 rounded-full bg-blue-500" />}
+      </View>
+
+      <View className="flex-1">
+        <ThemedText className={selected ? 'font-semibold' : 'text-gray-600'}>
           {tag}
-        </ListGroup.ItemTitle>
-      </ListGroup.ItemContent>
-      <ListGroup.ItemSuffix iconProps={{ size: 0 }}>
-        <ThemedText
-          type="small"
-          className="text-xs"
-          style={{ color: delayColor, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>
-          {delayLabel}
         </ThemedText>
-      </ListGroup.ItemSuffix>
-    </ListGroup.Item>
+      </View>
+
+      <ThemedText
+        type="small"
+        className="text-xs"
+        style={{ color: delayColor, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>
+        {delayLabel}
+      </ThemedText>
+    </Pressable>
   );
 }
 
@@ -264,35 +266,53 @@ function ImportUrlModal({ visible, onClose }: { visible: boolean; onClose: () =>
   }
 
   return (
-    <BottomSheet isOpen={visible} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <BottomSheet.Portal>
-        <BottomSheet.Overlay />
-        <BottomSheet.Content
-          enableDynamicSizing
-          keyboardBehavior="fillParent"
-          keyboardBlurBehavior="restore">
-          <View className="px-6 pt-2 pb-10 gap-4">
-            <BottomSheet.Title>导入订阅</BottomSheet.Title>
-            <TextField>
-              <Input
-                placeholder="粘贴订阅链接 https://"
-                value={url}
-                onChangeText={setUrl}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-                returnKeyType="go"
-                autoFocus
-                onSubmitEditing={handleImport}
-              />
-            </TextField>
-            <Button variant="primary" onPress={handleImport}>
-              <Button.Label>导入</Button.Label>
-            </Button>
+    <Modal
+      visible={visible}
+      onRequestClose={onClose}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
+      <View className="flex-1 bg-white">
+        <View className="pt-4 pb-6 px-4 border-b border-gray-200">
+          <View className="flex-row justify-between items-center">
+            <ThemedText type="subtitle" className="text-lg font-semibold">
+              导入订阅
+            </ThemedText>
+            <Pressable onPress={onClose} className="px-2 py-1">
+              <ThemedText className="text-blue-500 font-medium">取消</ThemedText>
+            </Pressable>
           </View>
-        </BottomSheet.Content>
-      </BottomSheet.Portal>
-    </BottomSheet>
+        </View>
+
+        <View className="flex-1 p-4 gap-4">
+          <View className="gap-3">
+            <TextInput
+              placeholder="粘贴订阅链接 https://"
+              value={url}
+              onChangeText={setUrl}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              returnKeyType="go"
+              autoFocus
+              onSubmitEditing={handleImport}
+              className="border border-gray-300 rounded-xl px-4 py-3"
+              placeholderTextColor="#8E8E93"
+              style={{ fontSize: 16, backgroundColor: '#f5f5f5' }}
+            />
+          </View>
+
+          <Pressable
+            onPress={handleImport}
+            className="bg-blue-500 py-3 rounded-xl active:bg-blue-600"
+          >
+            <ThemedText className="text-white text-center font-semibold">
+              导入
+            </ThemedText>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -307,35 +327,32 @@ function ImportFAB({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportUr
     <View className="absolute bottom-24 right-4 items-end z-50" pointerEvents="box-none">
       {open && (
         <>
-          <Pressable className="absolute inset-0 -bottom-[999px] -top-[999px] -left-[999px] -right-[999px]" onPress={() => setOpen(false)} />
-          <Surface
-            variant="default"
-            className="rounded-2xl mb-3 overflow-hidden shadow-lg">
-            <Button
-              variant="ghost"
-              className="justify-start px-3 py-2"
+          <Pressable className="absolute -inset-x-96 -inset-y-96" onPress={() => setOpen(false)} />
+          <View className="rounded-2xl mb-3 overflow-hidden shadow-lg bg-white">
+            <Pressable
               onPress={() => { setOpen(false); onScanQR(); }}
+              className="justify-start px-3 py-2 active:bg-backgroundElement/80"
             >
               <ThemedText type="small">扫描二维码</ThemedText>
-            </Button>
-            <Separator />
-            <Button
-              variant="ghost"
-              className="justify-start px-3 py-2"
+            </Pressable>
+            <View className="h-px bg-gray-200" />
+            <Pressable
               onPress={() => { setOpen(false); onImportUrl(); }}
+              className="justify-start px-3 py-2 active:bg-backgroundElement/80"
             >
               <ThemedText type="small">导入订阅链接</ThemedText>
-            </Button>
-          </Surface>
+            </Pressable>
+          </View>
         </>
       )}
-      <Button
-        variant="primary"
-        isIconOnly
+      <Pressable
         onPress={() => setOpen((v) => !v)}
-        className="w-14 h-14 rounded-full shadow-lg">
-        <Button.Label className="text-white text-2xl leading-7 font-light">{open ? '✕' : '+'}</Button.Label>
-      </Button>
+        className="w-14 h-14 rounded-full shadow-lg bg-blue-500 items-center justify-center active:bg-blue-600"
+      >
+        <ThemedText className="text-white text-2xl leading-7 font-light">
+          {open ? '✕' : '+'}
+        </ThemedText>
+      </Pressable>
     </View>
   );
 }
@@ -528,7 +545,7 @@ export default function HomeScreen() {
               {nodeError ? `⚠  ${nodeError}` : connected ? '加载中…' : '暂无节点'}
             </ThemedText>
           ) : (
-            <ListGroup variant="default">
+            <View className="bg-gray-100 rounded-xl overflow-hidden">
               {nodeList.map((node) => (
                 <NodeRow
                   key={node.tag}
@@ -538,7 +555,7 @@ export default function HomeScreen() {
                   onSelect={() => handleNodeSelect(node.tag)}
                 />
               ))}
-            </ListGroup>
+            </View>
           )}
         </ScrollView>
       </SafeAreaView>

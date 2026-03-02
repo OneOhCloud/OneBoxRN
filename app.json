@@ -100,12 +100,12 @@
       "./scripts/withOneBoxMTunnel.js",
       "expo-localization",
       "expo-image",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-font"
     ],
     "experiments": {
       "autolinkingModuleResolution": true,
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
     },
     "extra": {
       "router": {},

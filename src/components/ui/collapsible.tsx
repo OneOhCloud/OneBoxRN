@@ -1,7 +1,6 @@
 import { SymbolView } from 'expo-symbols';
-import { Button, Surface } from 'heroui-native';
 import { PropsWithChildren, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -13,21 +12,24 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
 
   return (
     <ThemedView>
-      <Button
-        variant="ghost"
-        className="justify-start px-0 py-2"
-        onPress={() => setIsOpen((value) => !value)}>
-        <Surface variant="secondary" className="w-6 h-6 rounded items-center justify-center mr-2">
+      <Pressable
+        onPress={() => setIsOpen((value) => !value)}
+        className="flex-row items-center justify-start px-0 py-2 active:opacity-70"
+      >
+        <View className="w-6 h-6 rounded items-center justify-center mr-2 bg-gray-100">
           <SymbolView
             name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
             size={14}
             weight="bold"
             tintColor={theme.text}
+            style={{
+              transform: [{ rotate: isOpen ? '90deg' : '0deg' }]
+            }}
           />
-        </Surface>
+        </View>
 
         <ThemedText type="small">{title}</ThemedText>
-      </Button>
+      </Pressable>
       {isOpen && (
         <View>
           <ThemedView type="backgroundElement" className="mt-3 rounded-3xl p-3">

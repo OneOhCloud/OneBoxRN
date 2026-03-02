@@ -2,9 +2,8 @@ import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { TrafficUpdateEventPayload } from '@/modules/expo-onebox/src/ExpoOneBox.types';
-import { Button, Separator, Surface } from 'heroui-native';
 import { useEffect, useRef } from 'react';
-import { Platform, ScrollView, View } from 'react-native';
+import { Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GetVersion } from '../../modules/expo-onebox';
 
@@ -16,7 +15,7 @@ function InfoCard({ connected }: { connected: boolean }) {
   const version = GetVersion();
 
   return (
-    <Surface variant="secondary" className="rounded-2xl p-4 gap-2">
+    <View className="rounded-2xl p-4 gap-2">
       <View className="flex-row justify-between items-center py-1">
         <ThemedText type="small" themeColor="textSecondary" className="text-xs font-medium">
           内核版本
@@ -28,7 +27,7 @@ function InfoCard({ connected }: { connected: boolean }) {
           {version || '—'}
         </ThemedText>
       </View>
-      <Separator />
+      <View className="h-px bg-gray-200" />
       <View className="flex-row justify-between items-center py-1">
         <ThemedText type="small" themeColor="textSecondary" className="text-xs font-medium">
           运行状态
@@ -46,7 +45,7 @@ function InfoCard({ connected }: { connected: boolean }) {
           </ThemedText>
         </View>
       </View>
-    </Surface>
+    </View>
   );
 }
 
@@ -64,7 +63,7 @@ function MetricCell({
   value: string;
 }) {
   return (
-    <Surface variant="default" className="flex-1 rounded-xl p-2.5 gap-0.5" style={{ minWidth: '45%' }}>
+    <View className="flex-1 rounded-xl p-2.5 gap-0.5" style={{ minWidth: '45%' }}>
       <ThemedText className="text-sm leading-5 font-semibold text-blue-500">
         {icon}
       </ThemedText>
@@ -79,7 +78,7 @@ function MetricCell({
       <ThemedText type="small" themeColor="textSecondary" className="text-xs leading-3">
         {label}
       </ThemedText>
-    </Surface>
+    </View>
   );
 }
 
@@ -105,7 +104,7 @@ function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPayload | null })
     : [];
 
   return (
-    <Surface variant="secondary" className="rounded-2xl p-4 gap-2">
+    <View className="rounded-2xl p-4 gap-2">
       <ThemedText className="font-semibold text-base">流量统计</ThemedText>
       {traffic ? (
         <View className="flex-row flex-wrap gap-2">
@@ -118,7 +117,7 @@ function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPayload | null })
           代理连接后显示实时统计
         </ThemedText>
       )}
-    </Surface>
+    </View>
   );
 }
 
@@ -136,16 +135,21 @@ function LogPanel({ logs, onClear }: { logs: string[]; onClear: () => void }) {
   }, [logs]);
 
   return (
-    <Surface variant="secondary" className="rounded-2xl p-4 gap-2">
+    <View className="rounded-2xl p-4 gap-2">
       <View className="flex-row justify-between items-center">
         <ThemedText className="font-semibold text-base">运行日志</ThemedText>
         {logs.length > 0 && (
-          <Button variant="ghost" onPress={onClear} className="-mr-2">
-            <Button.Label>清除</Button.Label>
-          </Button>
+          <Pressable
+            onPress={onClear}
+            className="px-3 py-1.5 bg-blue-500 rounded-lg active:bg-blue-600"
+          >
+            <ThemedText className="text-white text-sm font-medium">
+              清除
+            </ThemedText>
+          </Pressable>
         )}
       </View>
-      <Surface variant="default" className="h-[280px] rounded-xl">
+      <View className="h-80 rounded-xl">
         <ScrollView
           ref={scrollRef}
           className="flex-1"
@@ -172,8 +176,8 @@ function LogPanel({ logs, onClear }: { logs: string[]; onClear: () => void }) {
             ))
           )}
         </ScrollView>
-      </Surface>
-    </Surface>
+      </View>
+    </View>
   );
 }
 
@@ -205,7 +209,7 @@ export default function ExploreScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-background"
+      className="flex-1 bg-white"
       contentInset={insets}
       contentContainerStyle={{
         flexDirection: 'row',
@@ -213,7 +217,7 @@ export default function ExploreScreen() {
         ...contentPlatformStyle
       }}>
       <View
-        className="flex-grow px-4 pt-5 gap-3"
+        className="grow px-4 pt-5 gap-3"
         style={{ maxWidth: MaxContentWidth }}>
         <ThemedText type="subtitle" className="mb-2">
           状态
