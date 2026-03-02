@@ -8,19 +8,25 @@ import { SBConfig } from '@/database/kv';
 import { configType } from '@/definition';
 import { useTheme } from '@/hooks/use-theme';
 import { router, useFocusEffect } from 'expo-router';
-import { Button } from 'heroui-native';
+import {
+  BottomSheet,
+  Button,
+  Input,
+  ListGroup,
+  Separator,
+  Surface,
+  TextField,
+} from 'heroui-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
-  View
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -38,41 +44,26 @@ import {
 // ─────────────────────────────────────────────────────────────
 
 function EmptyState({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportUrl: () => void }) {
-  const theme = useTheme();
-
   return (
-    <View style={styles.emptyRoot}>
-      {/* Icon */}
-      <View style={[styles.emptyIconWrap, { backgroundColor: theme.backgroundElement }]}>
-        <ThemedText style={styles.emptyIcon}>🔒</ThemedText>
-      </View>
+    <View className="flex-1 items-center justify-center px-8">
+      <Surface variant="secondary" className="w-20 h-20 rounded-full items-center justify-center mb-6">
+        <ThemedText style={{ fontSize: 36, lineHeight: 44 }}>🔒</ThemedText>
+      </Surface>
 
-      <ThemedText type="subtitle" style={styles.emptyTitle}>
+      <ThemedText type="subtitle" style={{ textAlign: 'center', marginBottom: Spacing.two }}>
         开始使用
       </ThemedText>
-      <ThemedText themeColor="textSecondary" style={styles.emptySubtitle}>
+      <ThemedText themeColor="textSecondary" style={{ textAlign: 'center', lineHeight: 22, marginBottom: Spacing.five }}>
         导入订阅配置以开始使用
       </ThemedText>
 
-      <View style={styles.emptyActions}>
-        <Pressable
-          onPress={onScanQR}
-          style={({ pressed }) => [
-            styles.emptyBtn,
-            styles.emptyBtnPrimary,
-            { opacity: pressed ? 0.8 : 1 },
-          ]}>
-          <ThemedText style={styles.emptyBtnPrimaryText}>扫描二维码</ThemedText>
-        </Pressable>
-
-        <Pressable
-          onPress={onImportUrl}
-          style={({ pressed }) => [
-            styles.emptyBtn,
-            { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.8 : 1 },
-          ]}>
-          <ThemedText style={{ fontWeight: '600', fontSize: 15 }}>导入订阅链接</ThemedText>
-        </Pressable>
+      <View className="w-full gap-3">
+        <Button variant="primary" onPress={onScanQR}>
+          <Button.Label>扫描二维码</Button.Label>
+        </Button>
+        <Button variant="secondary" onPress={onImportUrl}>
+          <Button.Label>导入订阅链接</Button.Label>
+        </Button>
       </View>
     </View>
   );
@@ -86,11 +77,9 @@ function StatusBadge({ connected, loading }: { connected: boolean; loading: bool
   const dotColor = loading ? '#FF9F0A' : connected ? '#34C759' : '#8E8E93';
   const label = loading ? '处理中' : connected ? '已连接' : '未连接';
   return (
-    <View style={styles.statusBadge}>
+    <View className="flex-row items-center gap-1.5">
       <View style={[styles.statusDot, { backgroundColor: dotColor }]} />
-      <ThemedText type="small" themeColor="textSecondary">
-        {label}
-      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">{label}</ThemedText>
     </View>
   );
 }
@@ -100,17 +89,16 @@ function StatusBadge({ connected, loading }: { connected: boolean; loading: bool
 // ─────────────────────────────────────────────────────────────
 
 function SpeedRow({ uplink, downlink }: { uplink: string; downlink: string }) {
-  const theme = useTheme();
   return (
-    <View style={styles.speedRow}>
-      <View style={[styles.speedPill, { backgroundColor: theme.backgroundElement }]}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.speedArrow}>↑</ThemedText>
-        <ThemedText type="small" style={styles.speedValue}>{uplink}</ThemedText>
-      </View>
-      <View style={[styles.speedPill, { backgroundColor: theme.backgroundElement }]}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.speedArrow}>↓</ThemedText>
-        <ThemedText type="small" style={styles.speedValue}>{downlink}</ThemedText>
-      </View>
+    <View className="flex-row gap-2">
+      <Surface variant="secondary" className="flex-row items-center px-3 py-1.5 rounded-full gap-1">
+        <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 12, fontWeight: '600' }}>↑</ThemedText>
+        <ThemedText type="small" style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 12 }}>{uplink}</ThemedText>
+      </Surface>
+      <Surface variant="secondary" className="flex-row items-center px-3 py-1.5 rounded-full gap-1">
+        <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 12, fontWeight: '600' }}>↓</ThemedText>
+        <ThemedText type="small" style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 12 }}>{downlink}</ThemedText>
+      </Surface>
     </View>
   );
 }
@@ -191,7 +179,7 @@ function ConnectButton({
 }
 
 // ─────────────────────────────────────────────────────────────
-// Mode selector
+// Mode selector (segment control)
 // ─────────────────────────────────────────────────────────────
 
 function ModeSelector({
@@ -201,21 +189,20 @@ function ModeSelector({
   mode: configType;
   onChange: (m: configType) => void;
 }) {
-  const theme = useTheme();
   const options: { label: string; value: configType }[] = [
     { label: '规则路由', value: 'tun-rules' },
     { label: '全局代理', value: 'tun-global' },
   ];
 
   return (
-    <View style={[styles.modeSel, { backgroundColor: theme.backgroundElement }]}>
+    <Surface variant="secondary" className="flex-row rounded-2xl p-0.5 gap-0.5">
       {options.map((opt) => {
         const active = mode === opt.value;
         return (
           <Pressable
             key={opt.value}
             onPress={() => onChange(opt.value)}
-            style={[styles.modeOpt, active && { backgroundColor: theme.background }]}>
+            className={`flex-1 items-center py-2 rounded-xl ${active ? 'bg-background' : ''}`}>
             <ThemedText
               type="small"
               style={{ fontWeight: active ? '700' : '400', fontSize: 13 }}>
@@ -224,7 +211,7 @@ function ModeSelector({
           </Pressable>
         );
       })}
-    </View>
+    </Surface>
   );
 }
 
@@ -245,7 +232,6 @@ function NodeRow({
 }) {
   const theme = useTheme();
 
-  // Format delay: 0 means untested
   const delayLabel = delay === 0 ? '—' : `${delay} ms`;
   const delayColor =
     delay === 0
@@ -257,50 +243,38 @@ function NodeRow({
           : '#FF3B30';
 
   return (
-    <Pressable
-      onPress={onSelect}
-      style={({ pressed }) => [
-        styles.nodeRow,
-        {
-          backgroundColor: selected ? theme.backgroundSelected : theme.backgroundElement,
-          opacity: pressed ? 0.7 : 1,
-        },
-      ]}>
-      {/* Radio indicator */}
-      <View
-        style={[
-          styles.nodeRadioOuter,
-          { borderColor: selected ? '#007AFF' : theme.textSecondary },
-        ]}>
-        {selected && <View style={styles.nodeRadioInner} />}
-      </View>
-      <ThemedText
-        type="small"
-        numberOfLines={1}
-        style={[
-          styles.nodeName,
-          {
-            fontWeight: selected ? '600' : '400',
-            color: selected ? theme.text : theme.textSecondary,
-          },
-        ]}>
-        {tag}
-      </ThemedText>
-      <ThemedText
-        type="small"
-        style={[styles.nodeDelay, { color: delayColor }]}>
-        {delayLabel}
-      </ThemedText>
-    </Pressable>
+    <ListGroup.Item onPress={onSelect}>
+      <ListGroup.ItemPrefix>
+        <View
+          style={[
+            styles.nodeRadioOuter,
+            { borderColor: selected ? '#007AFF' : theme.textSecondary },
+          ]}>
+          {selected && <View style={styles.nodeRadioInner} />}
+        </View>
+      </ListGroup.ItemPrefix>
+      <ListGroup.ItemContent>
+        <ListGroup.ItemTitle
+          className={selected ? 'font-semibold text-foreground' : 'text-muted'}>
+          {tag}
+        </ListGroup.ItemTitle>
+      </ListGroup.ItemContent>
+      <ListGroup.ItemSuffix iconProps={{ size: 0 }}>
+        <ThemedText
+          type="small"
+          style={{ color: delayColor, fontSize: 11, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>
+          {delayLabel}
+        </ThemedText>
+      </ListGroup.ItemSuffix>
+    </ListGroup.Item>
   );
 }
 
 // ─────────────────────────────────────────────────────────────
-// Import URL bottom sheet modal
+// Import URL bottom sheet
 // ─────────────────────────────────────────────────────────────
 
 function ImportUrlModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const theme = useTheme();
   const [url, setUrl] = useState('');
 
   function handleImport() {
@@ -315,43 +289,35 @@ function ImportUrlModal({ visible, onClose }: { visible: boolean; onClose: () =>
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalSheetWrapper}>
-          <Pressable
-            style={[styles.modalSheet, { backgroundColor: theme.background }]}
-            onPress={(e) => e.stopPropagation()}>
-            <View style={[styles.modalHandle, { backgroundColor: theme.backgroundElement }]} />
-            <ThemedText type="subtitle" style={{ marginBottom: Spacing.three }}>
-              导入订阅
-            </ThemedText>
-            <TextInput
-              style={[styles.urlInput, { backgroundColor: theme.backgroundElement, color: theme.text }]}
-              placeholder="粘贴订阅链接 https://"
-              placeholderTextColor={theme.textSecondary}
-              value={url}
-              onChangeText={setUrl}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              returnKeyType="go"
-              autoFocus
-              onSubmitEditing={handleImport}
-            />
-            <Pressable
-              onPress={handleImport}
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                { opacity: pressed ? 0.8 : 1, marginTop: Spacing.two },
-              ]}>
-              <ThemedText style={styles.primaryBtnText}>导入</ThemedText>
-            </Pressable>
-          </Pressable>
-        </KeyboardAvoidingView>
-      </Pressable>
-    </Modal>
+    <BottomSheet isOpen={visible} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <BottomSheet.Portal>
+        <BottomSheet.Overlay />
+        <BottomSheet.Content
+          enableDynamicSizing
+          keyboardBehavior="fillParent"
+          keyboardBlurBehavior="restore">
+          <View className="px-6 pt-2 pb-10 gap-4">
+            <BottomSheet.Title>导入订阅</BottomSheet.Title>
+            <TextField>
+              <Input
+                placeholder="粘贴订阅链接 https://"
+                value={url}
+                onChangeText={setUrl}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                returnKeyType="go"
+                autoFocus
+                onSubmitEditing={handleImport}
+              />
+            </TextField>
+            <Button variant="primary" onPress={handleImport}>
+              <Button.Label>导入</Button.Label>
+            </Button>
+          </View>
+        </BottomSheet.Content>
+      </BottomSheet.Portal>
+    </BottomSheet>
   );
 }
 
@@ -360,7 +326,6 @@ function ImportUrlModal({ visible, onClose }: { visible: boolean; onClose: () =>
 // ─────────────────────────────────────────────────────────────
 
 function ImportFAB({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportUrl: () => void }) {
-  const theme = useTheme();
   const [open, setOpen] = useState(false);
 
   return (
@@ -368,29 +333,43 @@ function ImportFAB({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportUr
       {open && (
         <>
           <Pressable style={styles.fabBackdrop} onPress={() => setOpen(false)} />
-          <View style={[styles.fabMenu, { backgroundColor: theme.background, shadowColor: theme.text }]}>
-            <Pressable
+          <Surface
+            variant="default"
+            className="rounded-2xl mb-3 overflow-hidden"
+            style={styles.fabMenuShadow}>
+            <Button
+              variant="ghost"
+              className="justify-start px-3 py-2"
               onPress={() => { setOpen(false); onScanQR(); }}
-              style={({ pressed }) => [styles.fabMenuItem, pressed && { opacity: 0.7 }]}>
+              animation={{
+                opacity: { pressed: 0.7, normal: 1 },
+                transition: { duration: 150 }
+              }}>
               <ThemedText type="small">扫描二维码</ThemedText>
-            </Pressable>
-            <View style={[styles.fabMenuDivider, { backgroundColor: theme.backgroundElement }]} />
-            <Pressable
+            </Button>
+            <Separator />
+            <Button
+              variant="ghost"
+              className="justify-start px-3 py-2"
               onPress={() => { setOpen(false); onImportUrl(); }}
-              style={({ pressed }) => [styles.fabMenuItem, pressed && { opacity: 0.7 }]}>
+              animation={{
+                opacity: { pressed: 0.7, normal: 1 },
+                transition: { duration: 150 }
+              }}>
               <ThemedText type="small">导入订阅链接</ThemedText>
-            </Pressable>
-          </View>
+            </Button>
+          </Surface>
         </>
       )}
-      <Pressable
+      <Button
+        variant="primary"
+        isIconOnly
         onPress={() => setOpen((v) => !v)}
-        style={({ pressed }) => [
-          styles.fab,
-          { backgroundColor: '#007AFF', opacity: pressed ? 0.8 : 1 },
-        ]}>
-        <ThemedText style={styles.fabIcon}>{open ? '✕' : '+'}</ThemedText>
-      </Pressable>
+        className="w-14 h-14 rounded-full"
+        feedbackVariant="scale"
+        style={styles.fabShadow}>
+        <Button.Label style={styles.fabIconText}>{open ? '✕' : '+'}</Button.Label>
+      </Button>
     </View>
   );
 }
@@ -402,7 +381,6 @@ function ImportFAB({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportUr
 export default function HomeScreen() {
   const { connected, status, mode, setMode, traffic } = useVpn();
   const [localLoading, setLocalLoading] = useState(false);
-  // 本地异步调用期间 OR VPN 处于过渡状态（connecting/disconnecting）时均显示 loading
   const loading = localLoading || status === VPN_STATUS.STARTING || status === VPN_STATUS.STOPPING;
   const [hasConfig, setHasConfig] = useState<boolean>(() => !!SBConfig.getConfigContent());
   const [cameraVisible, setCameraVisible] = useState(false);
@@ -411,7 +389,6 @@ export default function HomeScreen() {
   const [currentNode, setCurrentNode] = useState<string>('');
   const [nodeError, setNodeError] = useState<string | null>(null);
 
-  // Re-check config on focus
   const isMounted = useRef(false);
   useFocusEffect(
     useCallback(() => {
@@ -437,11 +414,9 @@ export default function HomeScreen() {
 
     const fetchNodes = async () => {
       try {
-        // 统一使用 libbox CommandClient IPC 查询 ExitGateway 分组（iOS/Android 一致）
         const res = await GetProxyNodes();
         const all = res.all ?? [];
         const now = res.now ?? '';
-
         if (!cancelled) {
           failCount = 0;
           setNodeList(all);
@@ -474,7 +449,6 @@ export default function HomeScreen() {
 
   const handleNodeSelect = useCallback(async (node: string) => {
     try {
-      // 统一使用 libbox StandaloneCommandClient IPC 切换节点（iOS/Android 一致）
       await SelectProxyNode(node);
       setCurrentNode(node);
     } catch (e: any) {
@@ -548,7 +522,6 @@ export default function HomeScreen() {
           <StatusBadge connected={connected} loading={loading} />
         </View>
 
-
         {/* Hero: connect button + speed */}
         <View style={styles.heroSection}>
           <ConnectButton connected={connected} loading={loading} onPress={handleToggleConnect} />
@@ -559,21 +532,15 @@ export default function HomeScreen() {
             />
           )}
         </View>
-        <View className="bg-background flex-1">
-
-          <Button variant="primary" onPress={() => console.log('Pressed!')}>
-            点击我
-          </Button>
-        </View>
 
         {/* Mode selector */}
         <View style={styles.modeSelectorWrap}>
           <ModeSelector mode={mode} onChange={setMode} />
         </View>
 
-        {/* Nodes */}
+        {/* Nodes section header */}
         <View style={styles.nodeSectionHeader}>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.nodeSectionTitle}>
+          <ThemedText type="small" themeColor="textSecondary">
             {connected ? '节点选择' : '节点（连接后可选）'}
           </ThemedText>
           {nodeList.length > 0 && (
@@ -584,24 +551,28 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+
+        {/* Node list */}
         <ScrollView
           style={styles.nodeList}
           contentContainerStyle={styles.nodeListContent}
           showsVerticalScrollIndicator={false}>
           {nodeList.length === 0 ? (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.nodeEmptyHint}>
+            <ThemedText type="small" themeColor="textSecondary" style={{ paddingHorizontal: Spacing.one }}>
               {nodeError ? `⚠  ${nodeError}` : connected ? '加载中…' : '暂无节点'}
             </ThemedText>
           ) : (
-            nodeList.map((node) => (
-              <NodeRow
-                key={node.tag}
-                tag={node.tag}
-                delay={node.delay}
-                selected={currentNode === node.tag}
-                onSelect={() => handleNodeSelect(node.tag)}
-              />
-            ))
+            <ListGroup variant="default">
+              {nodeList.map((node) => (
+                <NodeRow
+                  key={node.tag}
+                  tag={node.tag}
+                  delay={node.delay}
+                  selected={currentNode === node.tag}
+                  onSelect={() => handleNodeSelect(node.tag)}
+                />
+              ))}
+            </ListGroup>
           )}
         </ScrollView>
       </SafeAreaView>
@@ -624,7 +595,7 @@ export default function HomeScreen() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Styles
+// Styles (only structural / animated values kept here)
 // ─────────────────────────────────────────────────────────────
 
 const BUTTON_SIZE = 140;
@@ -644,17 +615,12 @@ const styles = StyleSheet.create({
     paddingBottom: BottomTabInset + Spacing.two,
   },
 
-  // ── Header ────────────────────────────────────────────────
+  // ── Header ───────────────────────────────────────────────
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: Spacing.two,
     paddingBottom: Spacing.one,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
   },
   statusDot: {
     width: 8,
@@ -662,7 +628,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
 
-  // ── Hero ──────────────────────────────────────────────────
+  // ── Hero ─────────────────────────────────────────────────
   heroSection: {
     alignItems: 'center',
     paddingVertical: Spacing.five,
@@ -708,56 +674,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // Speed
-  speedRow: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  speedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one + 2,
-    borderRadius: 20,
-    gap: 4,
-  },
-  speedArrow: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  speedValue: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 12,
-  },
-
-  // ── Mode selector ─────────────────────────────────────────
+  // ── Mode selector ────────────────────────────────────────
   modeSelectorWrap: {
-    alignItems: 'center',
     marginBottom: Spacing.four,
   },
-  modeSel: {
-    flexDirection: 'row',
-    borderRadius: 14,
-    padding: 3,
-    gap: 2,
-  },
-  modeOpt: {
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.one + 3,
-    borderRadius: 11,
-    alignItems: 'center',
-  },
 
-  // ── Node section ──────────────────────────────────────────
+  // ── Node section ─────────────────────────────────────────
   nodeSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: Spacing.two,
     paddingHorizontal: Spacing.one,
     gap: Spacing.two,
-  },
-  nodeSectionTitle: {
-    letterSpacing: 0.2,
   },
   nodeBadge: {
     backgroundColor: 'rgba(128,128,128,0.15)',
@@ -769,20 +697,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   nodeListContent: {
-    gap: Spacing.one,
     paddingBottom: Spacing.two,
   },
-  nodeEmptyHint: {
-    paddingHorizontal: Spacing.one,
-  },
-  nodeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two + 4,
-    borderRadius: 12,
-    gap: Spacing.two + 2,
-  },
+
+  // Node radio
   nodeRadioOuter: {
     width: 18,
     height: 18,
@@ -797,15 +715,6 @@ const styles = StyleSheet.create({
     height: 9,
     borderRadius: 4.5,
     backgroundColor: '#007AFF',
-  },
-  nodeName: {
-    flex: 1,
-    fontSize: 14,
-  },
-  nodeDelay: {
-    fontSize: 11,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    flexShrink: 0,
   },
 
   // ── FAB ──────────────────────────────────────────────────
@@ -823,126 +732,23 @@ const styles = StyleSheet.create({
     left: -999,
     right: -999,
   },
-  fab: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  fabIcon: {
-    color: '#fff',
-    fontSize: 24,
-    lineHeight: 28,
-    fontWeight: '300',
-  },
-  fabMenu: {
-    borderRadius: 14,
-    marginBottom: Spacing.two,
+  fabMenuShadow: {
     minWidth: 176,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 10,
-    overflow: 'hidden',
   },
-  fabMenuItem: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two + 6,
+  fabShadow: {
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  fabMenuDivider: {
-    height: StyleSheet.hairlineWidth,
-  },
-
-  // ── Import URL modal ──────────────────────────────────────
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  modalSheetWrapper: {
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingTop: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.five + 16,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: Spacing.three,
-  },
-  urlInput: {
-    borderRadius: 12,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two + 4,
-    fontSize: 16,
-    marginBottom: Spacing.two,
-  },
-  primaryBtn: {
-    borderRadius: 12,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
-  },
-  primaryBtnText: {
+  fabIconText: {
     color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-
-  // ── Empty state ───────────────────────────────────────────
-  emptyRoot: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.five,
-  },
-  emptyIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.four,
-  },
-  emptyIcon: {
-    fontSize: 36,
-    lineHeight: 44,
-  },
-  emptyTitle: {
-    textAlign: 'center',
-    marginBottom: Spacing.two,
-  },
-  emptySubtitle: {
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: Spacing.five,
-  },
-  emptyActions: {
-    width: '100%',
-    gap: Spacing.two,
-  },
-  emptyBtn: {
-    borderRadius: 14,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-  },
-  emptyBtnPrimary: {
-    backgroundColor: '#007AFF',
-  },
-  emptyBtnPrimaryText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 15,
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: '300',
   },
 });

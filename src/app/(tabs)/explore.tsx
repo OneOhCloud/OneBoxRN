@@ -2,10 +2,10 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
-import { useTheme } from '@/hooks/use-theme';
 import { TrafficUpdateEventPayload } from '@/modules/expo-onebox/src/ExpoOneBox.types';
+import { Button, Separator, Surface } from 'heroui-native';
 import { useEffect, useRef } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GetVersion } from '../../modules/expo-onebox';
 
@@ -14,30 +14,26 @@ import { GetVersion } from '../../modules/expo-onebox';
 // ─────────────────────────────────────────────────────────────
 
 function InfoCard({ connected }: { connected: boolean }) {
-  const theme = useTheme();
   const version = GetVersion();
 
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
-      <View style={styles.cardRow}>
+    <Surface variant="secondary" className="rounded-2xl p-4 gap-2">
+      <View className="flex-row justify-between items-center py-1">
         <ThemedText type="small" themeColor="textSecondary" style={styles.rowLabel}>
           内核版本
         </ThemedText>
         <ThemedText
           type="small"
-          style={[
-            styles.rowValue,
-            { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
-          ]}>
+          style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontWeight: '500' }}>
           {version || '—'}
         </ThemedText>
       </View>
-      <View style={[styles.cardDivider, { backgroundColor: theme.background }]} />
-      <View style={styles.cardRow}>
+      <Separator />
+      <View className="flex-row justify-between items-center py-1">
         <ThemedText type="small" themeColor="textSecondary" style={styles.rowLabel}>
           运行状态
         </ThemedText>
-        <View style={styles.statusRow}>
+        <View className="flex-row items-center gap-1">
           <View
             style={[
               styles.statusDot,
@@ -51,7 +47,7 @@ function InfoCard({ connected }: { connected: boolean }) {
           </ThemedText>
         </View>
       </View>
-    </ThemedView>
+    </Surface>
   );
 }
 
@@ -68,22 +64,24 @@ function MetricCell({
   label: string;
   value: string;
 }) {
-  const theme = useTheme();
   return (
-    <View style={[styles.metricCell, { backgroundColor: theme.background }]}>
-      <ThemedText style={styles.metricIcon}>{icon}</ThemedText>
+    <Surface variant="default" className="flex-1 rounded-xl p-2.5 gap-0.5" style={{ minWidth: '45%' }}>
+      <ThemedText style={{ fontSize: 14, lineHeight: 20, fontWeight: '600', color: '#007AFF' }}>
+        {icon}
+      </ThemedText>
       <ThemedText
         numberOfLines={1}
-        style={[
-          styles.metricValue,
-          { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
-        ]}>
+        style={{
+          fontSize: 14,
+          fontWeight: '700',
+          fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        }}>
         {value}
       </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.metricLabel}>
+      <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11, lineHeight: 14 }}>
         {label}
       </ThemedText>
-    </View>
+    </Surface>
   );
 }
 
@@ -109,10 +107,10 @@ function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPayload | null })
     : [];
 
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
-      <ThemedText style={styles.cardTitle}>流量统计</ThemedText>
+    <Surface variant="secondary" className="rounded-2xl p-4 gap-2">
+      <ThemedText style={{ fontWeight: '600', fontSize: 15 }}>流量统计</ThemedText>
       {traffic ? (
-        <View style={styles.metricsGrid}>
+        <View className="flex-row flex-wrap gap-2">
           {cells.map((c) => (
             <MetricCell key={c.label} icon={c.icon} label={c.label} value={c.value} />
           ))}
@@ -122,7 +120,7 @@ function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPayload | null })
           代理连接后显示实时统计
         </ThemedText>
       )}
-    </ThemedView>
+    </Surface>
   );
 }
 
@@ -131,7 +129,6 @@ function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPayload | null })
 // ─────────────────────────────────────────────────────────────
 
 function LogPanel({ logs, onClear }: { logs: string[]; onClear: () => void }) {
-  const theme = useTheme();
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -141,45 +138,45 @@ function LogPanel({ logs, onClear }: { logs: string[]; onClear: () => void }) {
   }, [logs]);
 
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
-      <View style={styles.logHeader}>
-        <ThemedText style={styles.cardTitle}>运行日志</ThemedText>
+    <Surface variant="secondary" className="rounded-2xl p-4 gap-2">
+      <View className="flex-row justify-between items-center">
+        <ThemedText style={{ fontWeight: '600', fontSize: 15 }}>运行日志</ThemedText>
         {logs.length > 0 && (
-          <Pressable onPress={onClear} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
-            <ThemedText type="small" themeColor="textSecondary">
-              清除
-            </ThemedText>
-          </Pressable>
+          <Button variant="ghost" onPress={onClear} style={{ marginRight: -8 }}>
+            <Button.Label>清除</Button.Label>
+          </Button>
         )}
       </View>
-      <ScrollView
-        ref={scrollRef}
-        style={[styles.logScroll, { backgroundColor: theme.background }]}
-        contentContainerStyle={styles.logContent}
-        showsVerticalScrollIndicator
-        nestedScrollEnabled>
-        {logs.length === 0 ? (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.emptyHint}>
-            暂无日志
-          </ThemedText>
-        ) : (
-          logs.map((line, i) => (
-            <ThemedText
-              key={i}
-              type="small"
-              style={[
-                styles.logLine,
-                {
-                  fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-                  color: line.includes('[ERROR]') ? '#FF3B30' : theme.textSecondary,
-                },
-              ]}>
-              {line}
+      <Surface variant="default" className="h-[280px] rounded-xl">
+        <ScrollView
+          ref={scrollRef}
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.logContent}
+          showsVerticalScrollIndicator
+          nestedScrollEnabled>
+          {logs.length === 0 ? (
+            <ThemedText type="small" themeColor="textSecondary" style={styles.emptyHint}>
+              暂无日志
             </ThemedText>
-          ))
-        )}
-      </ScrollView>
-    </ThemedView>
+          ) : (
+            logs.map((line, i) => (
+              <ThemedText
+                key={i}
+                type="small"
+                themeColor={line.includes('[ERROR]') ? undefined : 'textSecondary'}
+                style={{
+                  fontSize: 11,
+                  lineHeight: 17,
+                  fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+                  ...(line.includes('[ERROR]') && { color: '#FF3B30' }),
+                }}>
+                {line}
+              </ThemedText>
+            ))
+          )}
+        </ScrollView>
+      </Surface>
+    </Surface>
   );
 }
 
@@ -189,7 +186,6 @@ function LogPanel({ logs, onClear }: { logs: string[]; onClear: () => void }) {
 
 export default function ExploreScreen() {
   const safeAreaInsets = useSafeAreaInsets();
-  const theme = useTheme();
   const { connected, traffic, logs, clearLogs } = useVpn();
 
   const insets = {
@@ -212,11 +208,11 @@ export default function ExploreScreen() {
 
   return (
     <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
+      className="flex-1 bg-background"
       contentInset={insets}
       contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
       <ThemedView style={[styles.inner, { maxWidth: MaxContentWidth }]}>
-        <ThemedText type="subtitle" style={styles.pageTitle}>
+        <ThemedText type="subtitle" style={{ marginBottom: Spacing.two }}>
           状态
         </ThemedText>
 
@@ -229,9 +225,6 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
   contentContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -242,95 +235,18 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.five,
     gap: Spacing.three,
   },
-  pageTitle: {
-    marginBottom: Spacing.two,
-  },
-
-  // ── Card ─────────────────────────────────────────────────
-  card: {
-    borderRadius: 16,
-    padding: Spacing.three,
-    gap: Spacing.two,
-  },
-  cardTitle: {
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  cardRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.one,
-  },
   rowLabel: {
     flex: 1,
-  },
-  rowValue: {
-    fontWeight: '500',
-  },
-  cardDivider: {
-    height: StyleSheet.hairlineWidth,
-  },
-
-  // ── Status ────────────────────────────────────────────────
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
   },
   statusDot: {
     width: 7,
     height: 7,
     borderRadius: 3.5,
   },
-
-  // ── Metrics ───────────────────────────────────────────────
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-  },
-  metricCell: {
-    flex: 1,
-    minWidth: '45%',
-    borderRadius: 10,
-    padding: Spacing.two + 2,
-    gap: 2,
-  },
-  metricIcon: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
-    color: '#007AFF',
-  },
-  metricValue: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  metricLabel: {
-    fontSize: 11,
-    lineHeight: 14,
-  },
-
-  // ── Log panel ─────────────────────────────────────────────
-  logHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  logScroll: {
-    height: 280,
-    borderRadius: 10,
-  },
   logContent: {
     padding: Spacing.two,
     gap: 2,
   },
-  logLine: {
-    fontSize: 11,
-    lineHeight: 17,
-  },
-
   emptyHint: {
     textAlign: 'center',
     paddingVertical: Spacing.three,
