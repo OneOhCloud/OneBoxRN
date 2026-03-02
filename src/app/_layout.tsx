@@ -3,7 +3,6 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack } from 'expo-router';
 import '../global.css';
 
-import { PortalHost } from '@rn-primitives/portal';
 import { useColorScheme } from 'react-native';
 
 export default function RootLayout() {
@@ -23,7 +22,6 @@ export default function RootLayout() {
           options={{ headerShown: true, title: '配置' }}
         />
       </Stack>
-      <PortalHost />
     </ThemeProvider>
   );
 }

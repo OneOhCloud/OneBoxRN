@@ -506,7 +506,6 @@ export default function HomeScreen() {
           <StatusBadge connected={connected} loading={loading} />
 
         </View>
-        <View className="btn">Secondary</View>
 
         {/* Hero: connect button + speed */}
         <View className="items-center py-5 gap-3">
