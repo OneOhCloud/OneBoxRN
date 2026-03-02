@@ -32,12 +32,7 @@ export async function getConfigTemplateCacheKey(mode: configType): Promise<strin
 
 
 async function rewriteConfig(newConfig: any) {
-
     newConfig["experimental"]["clash_api"] = {};
-    // 如果有 log key，则重写 disableColor 字段
-    if (newConfig.hasOwnProperty("log")) {
-        newConfig["log"]["disable-color"] = true;
-    }
 }
 
 export function getDefaultConfigTemplate(mode: configType, version: string): string {
