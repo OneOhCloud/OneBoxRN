@@ -98,7 +98,7 @@ export async function getClashApiSecret(): Promise<string> {
 
         // 尝试在 React Native 环境中动态 require 一个 polyfill
         try {
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             require('react-native-get-random-values');
             const polyCrypto = (globalThis as any).crypto;
             if (polyCrypto && typeof polyCrypto.getRandomValues === 'function') {
@@ -106,7 +106,7 @@ export async function getClashApiSecret(): Promise<string> {
                 polyCrypto.getRandomValues(array);
                 return Array.from(array).map((b: number) => b.toString(16).padStart(2, '0')).join('');
             }
-        } catch (e) {
+        } catch {
             // ignore
         }
 

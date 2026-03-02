@@ -1,19 +1,24 @@
+/**
+ * Camera QR Scanner — full-screen camera for scanning subscription QR codes.
+ * Handles permission flow: auto-request → manual settings → scan.
+ * All styles via NativeWind className, zero StyleSheet.
+ */
+import { lightImpact } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
 import { BarcodeScanningResult, CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Pressable, Text, View } from 'react-native';
 
 const SCHEME = 'oneoh-networktools://config';
 
+/** Parse QR data into a route-compatible payload */
 function resolveQRData(raw: string): { data: string } | null {
-    // 已经是 deep link 格式
     if (raw.startsWith(SCHEME)) {
         const url = new URL(raw);
         const data = url.searchParams.get('data');
         if (data) return { data };
     }
-    // https 链接，转成 base64
     if (raw.startsWith('https://')) {
         const data = btoa(raw);
         return { data };
@@ -24,138 +29,117 @@ function resolveQRData(raw: string): { data: string } | null {
 type CameraQRProps = {
     onHandleClose: () => void;
 };
-export default function CameraQR(props: CameraQRProps) {
-    const [facing, setFacing] = useState<CameraType>('back');
+
+export default function CameraQR({ onHandleClose }: CameraQRProps) {
+    const [facing] = useState<CameraType>('back');
     const [permission, requestPermission] = useCameraPermissions();
     const [requestedOnce, setRequestedOnce] = useState(false);
     const scannedRef = useRef(false);
 
     useEffect(() => {
-        // 自动请求一次权限：初次加载或在可再次请求的情况下自动尝试
         if (!permission && !requestedOnce) {
             requestPermission();
             setRequestedOnce(true);
             return;
         }
-
         if (permission && !permission.granted && permission.canAskAgain && !requestedOnce) {
             requestPermission();
             setRequestedOnce(true);
         }
     }, [permission, requestPermission, requestedOnce]);
 
+    // Loading: permissions still being checked
     if (!permission) {
-        // Camera permissions are still loading.
-        return <View />;
+        return <View className="flex-1 bg-black" />;
     }
 
-    // 权限被明确拒绝且不能再次请求：提示用户手动打开系统设置
+    // Permission denied permanently — show settings prompt
     if (!permission.granted && !permission.canAskAgain) {
         async function openSettings() {
             try {
                 await Linking.openSettings();
-            } catch (e) {
+            } catch {
                 Alert.alert(i18n.t('error'), i18n.t('open_settings_failed'));
             }
         }
 
         return (
-            <View style={styles.container}>
-                <Text style={styles.message}>{i18n.t("camera_permission_denied")}</Text>
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity style={styles.button} onPress={openSettings}>
-                        <Text style={styles.text}>{i18n.t('open_settings')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.button} onPress={props.onHandleClose}>
-                        <Text style={styles.text}>{i18n.t('close')}</Text>
-                    </TouchableOpacity>
+            <View className="flex-1 bg-black justify-center items-center px-8">
+                <Text className="text-white text-center mb-4 text-base leading-6">
+                    {i18n.t('camera_permission_denied')}
+                </Text>
+                <View className="flex-row gap-4 mt-4">
+                    <Pressable
+                        onPress={() => { lightImpact(); openSettings(); }}
+                        className="px-6 py-3 rounded-full active:opacity-70"
+                        style={{ backgroundColor: '#007AFF' }}
+                    >
+                        <Text className="text-white text-base font-semibold">{i18n.t('open_settings')}</Text>
+                    </Pressable>
+                    <Pressable
+                        onPress={() => { lightImpact(); onHandleClose(); }}
+                        className="px-6 py-3 rounded-full active:opacity-70"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+                    >
+                        <Text className="text-white text-base font-semibold">{i18n.t('close')}</Text>
+                    </Pressable>
                 </View>
             </View>
         );
     }
 
-    // 权限未授予但可以再次请求：展示一个按钮供用户触发请求（自动请求已在 useEffect 做一次尝试）
+    // Permission not yet granted but can re-ask
     if (!permission.granted && permission.canAskAgain) {
         return (
-            <View style={styles.container}>
-                <Text style={styles.message}>{i18n.t("camera_permission")}</Text>
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity style={styles.button} onPress={props.onHandleClose}>
-                        <Text style={styles.text}>{i18n.t('close')}</Text>
-                    </TouchableOpacity>
-                </View>
+            <View className="flex-1 bg-black justify-center items-center px-8">
+                <Text className="text-white text-center mb-4 text-base leading-6">
+                    {i18n.t('camera_permission')}
+                </Text>
+                <Pressable
+                    onPress={() => { lightImpact(); onHandleClose(); }}
+                    className="px-6 py-3 rounded-full active:opacity-70 mt-4"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+                >
+                    <Text className="text-white text-base font-semibold">{i18n.t('close')}</Text>
+                </Pressable>
             </View>
         );
     }
 
-
-    function toggleCameraFacing() {
-        setFacing(current => (current === 'back' ? 'front' : 'back'));
-    }
-
+    // Scan handler
     function handleBarCodeScanned(result: BarcodeScanningResult) {
         if (scannedRef.current) return;
         scannedRef.current = true;
 
         const resolved = resolveQRData(result.data);
         if (resolved) {
-            props.onHandleClose();
+            onHandleClose();
             router.push(`/config?data=${encodeURIComponent(resolved.data)}`);
         } else {
             Alert.alert('无法识别', '二维码内容不是有效的链接', [
-                { text: '确定', onPress: () => { scannedRef.current = false; } }
+                { text: '确定', onPress: () => { scannedRef.current = false; } },
             ]);
         }
     }
 
+    // Camera view with scan overlay
     return (
-        <View style={styles.container}>
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
             <CameraView
-                style={styles.camera}
+                style={{ flex: 1 }}
                 facing={facing}
-                barcodeScannerSettings={{
-                    barcodeTypes: ['qr'],
-                }}
+                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                 onBarcodeScanned={handleBarCodeScanned}
             />
-            <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.button} onPress={props.onHandleClose}>
-                    <Text style={styles.text}>{i18n.t("close")}</Text>
-                </TouchableOpacity>
+            {/* Bottom controls */}
+            <View style={{ position: 'absolute', bottom: 64, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', paddingHorizontal: 64 }}>
+                <Pressable
+                    onPress={() => { lightImpact(); onHandleClose(); }}
+                    style={({ pressed }) => ({ paddingHorizontal: 32, paddingVertical: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.15)', opacity: pressed ? 0.7 : 1 })}
+                >
+                    <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>{i18n.t('close')}</Text>
+                </Pressable>
             </View>
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-    },
-    message: {
-        color: 'white',
-        textAlign: 'center',
-        paddingBottom: 10,
-    },
-    camera: {
-        flex: 1,
-    },
-    buttonContainer: {
-        position: 'absolute',
-        bottom: 64,
-        flexDirection: 'row',
-        backgroundColor: 'transparent',
-        width: '100%',
-        paddingHorizontal: 64,
-    },
-    button: {
-        flex: 1,
-        alignItems: 'center',
-    },
-    text: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: 'white',
-    },
-
-});
