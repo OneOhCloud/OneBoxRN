@@ -65,35 +65,69 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         SetCoreLogEnabled(true);
         syncStatus();
 
-        // 跟踪上一个状态，用于检测 STARTING → STOPPED 这种启动失败场景
-        const prevStatusRef = { current: GetStatus() };
+        // isStartingUp: JS 侧独立的启动标记。
+        // 不依赖 prevStatus，因为 NEVPNStatus 可能走 connecting→disconnecting→disconnected，
+        // 导致 prevStatus 在到达 STOPPED 时是 STOPPING(3) 而非 STARTING(1)。
+        const isStartingUp = { current: false };
+        const startFailAlertShown = { current: false };
+        let startFailTimer: ReturnType<typeof setTimeout> | null = null;
+
+        // 显示启动失败弹窗的统一方法（带去重）
+        const showStartFailAlert = (errMsg: string) => {
+            if (startFailAlertShown.current) return;
+            startFailAlertShown.current = true;
+            console.warn('[VPN] Start failed:', errMsg);
+            appendLogs([`[StartFailed] ${errMsg}`]);
+            Alert.alert('VPN 启动失败', errMsg, [{ text: '确认' }]);
+        };
 
         const statusSub = addStatusChangeListener((event: { status: number; statusName: string; message: string }) => {
-            const prev = prevStatusRef.current;
-            prevStatusRef.current = event.status;
+            console.log(`[VPN] Status changed: ${event.statusName}(${event.status}), isStartingUp=${isStartingUp.current}`);
 
             setStatus(event.status);
             setConnected(event.status === VPN_STATUS.STARTED || event.status === VPN_STATUS.STARTING);
+
+            if (event.status === VPN_STATUS.STARTING) {
+                isStartingUp.current = true;
+                startFailAlertShown.current = false;
+                if (startFailTimer) { clearTimeout(startFailTimer); startFailTimer = null; }
+            }
+
+            if (event.status === VPN_STATUS.STARTED) {
+                isStartingUp.current = false;
+            }
+
             if (event.status === VPN_STATUS.STOPPED) {
                 setTraffic(null);
-                // 如果是从“正在连接”直接跳到“已停止”，说明启动失败，主动读取错误并弹窗
-                if (prev === VPN_STATUS.STARTING) {
-                    const errMsg = GetStartError();
-                    console.warn('VPN failed to start. Start error message:', errMsg);
-                    if (errMsg) {
-                        appendLogs([`[StartFailed] ${errMsg}`]);
-                        Alert.alert('VPN 启动失败', errMsg, [{ text: '确认' }]);
-                    } else {
-                        appendLogs(['[StartFailed] Extension exited during startup (no error message available)']);
-                        Alert.alert('VPN 启动失败', '启动异常退出，请检查配置文件。', [{ text: '确认' }]);
-                    }
+                const wasStarting = isStartingUp.current;
+                isStartingUp.current = false;
+                console.log(`[VPN] STOPPED received, wasStarting=${wasStarting}`);
+                // 后备机制：JS 侧检测启动中→停止，延迟读文件兜底
+                if (wasStarting) {
+                    console.log('[VPN] Detected startup failure, scheduling error file read...');
+                    startFailTimer = setTimeout(() => {
+                        startFailTimer = null;
+                        if (startFailAlertShown.current) return; // 原生事件已经弹过了
+                        const errMsg = GetStartError();
+                        console.log('[VPN] JS fallback: GetStartError() =', errMsg);
+                        if (errMsg) {
+                            showStartFailAlert(errMsg);
+                        } else {
+                            showStartFailAlert('启动异常退出，请检查配置文件。');
+                        }
+                    }, 800); // 给原生侧 500ms 先尝试推送，再等 300ms 兜底
                 }
             }
         });
 
         const errorSub = addErrorListener((event: { type: string; message: string; status?: number }) => {
-            // 错误事件统一写入日志。弹窗由上方 statusSub 检测文件方式触发，避免重复弹出。
             appendLogs([`[${event.type}] ${event.message}`]);
+            // 原生层检测到启动失败后会推送 StartServiceFailed 错误事件
+            if (event.type === 'StartServiceFailed') {
+                console.log('[VPN] Received StartServiceFailed from native:', event.message);
+                if (startFailTimer) { clearTimeout(startFailTimer); startFailTimer = null; }
+                showStartFailAlert(event.message);
+            }
         });
 
         const logSub = addLogListener((event: { message: string }) => {
@@ -105,6 +139,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         });
 
         return () => {
+            if (startFailTimer) clearTimeout(startFailTimer);
             statusSub.remove();
             errorSub.remove();
             logSub.remove();
