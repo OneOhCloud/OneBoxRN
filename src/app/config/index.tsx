@@ -4,7 +4,7 @@ import { getSingBoxUserAgent } from "@/utils";
 import { router, useLocalSearchParams } from "expo-router";
 import { fetch } from 'expo/fetch';
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 
 function useDownloadConfig(url: string | undefined) {
@@ -80,13 +80,13 @@ export default function Index() {
     // ── Loading ──────────────────────────────────────────────
     if (isLoading) {
         return (
-            <View style={[styles.centered, { backgroundColor: theme.background }]}>
-                <View style={[styles.iconCircle, { backgroundColor: theme.backgroundElement }]}>
-                    <Text style={styles.iconEmoji}>☁️</Text>
+            <View className="flex-1 items-center justify-center" style={{ backgroundColor: theme.background }}>
+                <View className="w-20 h-20 rounded-full items-center justify-center mb-6" style={{ backgroundColor: theme.backgroundElement }}>
+                    <Text className="text-4xl">☁️</Text>
                 </View>
-                <ActivityIndicator size="large" color="#007AFF" style={{ marginTop: 24 }} />
-                <Text style={[styles.statusText, { color: theme.text }]}>正在下载配置…</Text>
-                <Text style={[styles.subText, { color: theme.textSecondary }]}>请稍候</Text>
+                <ActivityIndicator size="large" color="#007AFF" className="mt-6" />
+                <Text className="text-lg font-semibold mt-4" style={{ color: theme.text }}>正在下载配置…</Text>
+                <Text className="text-sm mt-2" style={{ color: theme.textSecondary }}>请稍候</Text>
             </View>
         );
     }
@@ -94,19 +94,20 @@ export default function Index() {
     // ── Error ────────────────────────────────────────────────
     if (error) {
         return (
-            <View style={[styles.centered, { backgroundColor: theme.background }]}>
-                <View style={[styles.iconCircle, { backgroundColor: '#FF3B3015' }]}>
-                    <Text style={styles.iconEmoji}>⚠️</Text>
+            <View className="flex-1 items-center justify-center" style={{ backgroundColor: theme.background }}>
+                <View className="w-20 h-20 rounded-full items-center justify-center mb-6" style={{ backgroundColor: '#FF3B3015' }}>
+                    <Text className="text-4xl">⚠️</Text>
                 </View>
-                <Text style={[styles.statusText, { color: theme.text }]}>下载失败</Text>
-                <ScrollView style={[styles.errorBox, { backgroundColor: theme.backgroundElement }]}>
-                    <Text style={[styles.errorText, { color: '#FF3B30' }]}>{error.message}</Text>
+                <Text className="text-lg font-semibold mt-4" style={{ color: theme.text }}>下载失败</Text>
+                <ScrollView className="w-full max-w-sm mt-4 rounded-lg p-3" style={{ backgroundColor: theme.backgroundElement }}>
+                    <Text className="text-sm" style={{ color: '#FF3B30' }}>{error.message}</Text>
                 </ScrollView>
                 <TouchableOpacity
                     onPress={() => router.back()}
-                    style={[styles.button, { backgroundColor: theme.backgroundElement }]}
+                    className="mt-4 px-6 py-3 rounded-full"
+                    style={{ backgroundColor: theme.backgroundElement }}
                     activeOpacity={0.7}>
-                    <Text style={[styles.buttonText, { color: theme.text }]}>返回</Text>
+                    <Text className="text-base font-medium" style={{ color: theme.text }}>返回</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -129,44 +130,42 @@ export default function Index() {
         const usedPercent = total > 0 ? Math.min((used / total) * 100, 100) : 0;
 
         return (
-            <View style={[styles.centered, { backgroundColor: theme.background }]}>
-                <View style={[styles.iconCircle, { backgroundColor: '#34C75915' }]}>
-                    <Text style={styles.iconEmoji}>✅</Text>
+            <View className="flex-1 items-center justify-center" style={{ backgroundColor: theme.background }}>
+                <View className="w-20 h-20 rounded-full items-center justify-center mb-6" style={{ backgroundColor: '#34C75915' }}>
+                    <Text className="text-4xl">✅</Text>
                 </View>
-                <Text style={[styles.statusText, { color: theme.text }]}>导入成功</Text>
-                <Text style={[styles.subText, { color: theme.textSecondary }]}>订阅配置已更新</Text>
+                <Text className="text-lg font-semibold mt-4" style={{ color: theme.text }}>导入成功</Text>
+                <Text className="text-sm mt-2" style={{ color: theme.textSecondary }}>订阅配置已更新</Text>
 
-                <View style={[styles.infoCard, { backgroundColor: theme.backgroundElement }]}>
+                <View className="w-full max-w-sm mt-6 rounded-xl p-4" style={{ backgroundColor: theme.backgroundElement }}>
                     {/* Traffic bar */}
                     {total > 0 && (
-                        <View style={styles.trafficSection}>
-                            <View style={styles.trafficRow}>
-                                <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>剩余流量</Text>
-                                <Text style={[styles.infoValue, { color: theme.text }]}>
+                        <View className="mb-4">
+                            <View className="flex-row justify-between items-center mb-2">
+                                <Text className="text-sm font-medium" style={{ color: theme.textSecondary }}>剩余流量</Text>
+                                <Text className="text-sm font-semibold" style={{ color: theme.text }}>
                                     {formatBytes(left)} / {formatBytes(total)}
                                 </Text>
                             </View>
-                            <View style={[styles.progressBg, { backgroundColor: theme.background }]}>
+                            <View className="w-full h-2 rounded-full" style={{ backgroundColor: theme.background }}>
                                 <View
-                                    style={[
-                                        styles.progressFill,
-                                        {
-                                            width: `${usedPercent}%` as any,
-                                            backgroundColor: usedPercent > 85 ? '#FF3B30' : '#007AFF',
-                                        },
-                                    ]}
+                                    className="h-2 rounded-full"
+                                    style={{
+                                        width: `${usedPercent}%`,
+                                        backgroundColor: usedPercent > 85 ? '#FF3B30' : '#007AFF',
+                                    }}
                                 />
                             </View>
-                            <Text style={[styles.progressHint, { color: theme.textSecondary }]}>
+                            <Text className="text-xs mt-1" style={{ color: theme.textSecondary }}>
                                 已用 {formatBytes(used)}（{usedPercent.toFixed(1)}%）
                             </Text>
                         </View>
                     )}
 
                     {/* Expire */}
-                    <View style={[styles.infoRow, { borderTopColor: theme.background }]}>
-                        <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>到期时间</Text>
-                        <Text style={[styles.infoValue, { color: theme.text }]}>
+                    <View className="flex-row justify-between items-center pt-4 border-t border-opacity-50" style={{ borderTopColor: theme.background }}>
+                        <Text className="text-sm font-medium" style={{ color: theme.textSecondary }}>到期时间</Text>
+                        <Text className="text-sm font-semibold" style={{ color: theme.text }}>
                             {expireDate ? expireDate.toLocaleDateString() : '无限制'}
                         </Text>
                     </View>
@@ -174,9 +173,10 @@ export default function Index() {
 
                 <TouchableOpacity
                     onPress={() => router.dismissTo('/')}
-                    style={[styles.button, styles.buttonPrimary]}
+                    className="mt-6 px-8 py-4 rounded-full"
+                    style={{ backgroundColor: '#007AFF' }}
                     activeOpacity={0.8}>
-                    <Text style={styles.buttonPrimaryText}>开始使用</Text>
+                    <Text className="text-white text-base font-semibold">开始使用</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -184,114 +184,12 @@ export default function Index() {
 
     // ── Default ──────────────────────────────────────────────
     return (
-        <View style={[styles.centered, { backgroundColor: theme.background }]}>
-            <Text style={[styles.statusText, { color: theme.textSecondary }]}>请通过深链导入配置</Text>
+        <View className="flex-1 items-center justify-center" style={{ backgroundColor: theme.background }}>
+            <Text className="text-lg font-semibold" style={{ color: theme.textSecondary }}>请通过深链导入配置</Text>
         </View>
     );
 }
 
-const styles = StyleSheet.create({
-    centered: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-    },
-    iconCircle: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 8,
-    },
-    iconEmoji: {
-        fontSize: 36,
-        lineHeight: 44,
-    },
-    statusText: {
-        fontSize: 20,
-        fontWeight: '700',
-        marginTop: 16,
-        textAlign: 'center',
-    },
-    subText: {
-        fontSize: 14,
-        marginTop: 6,
-        marginBottom: 4,
-        textAlign: 'center',
-    },
-    errorBox: {
-        maxHeight: 120,
-        width: '100%',
-        marginTop: 16,
-        borderRadius: 12,
-        padding: 12,
-    },
-    errorText: {
-        fontSize: 13,
-        lineHeight: 18,
-    },
-    infoCard: {
-        width: '100%',
-        marginTop: 24,
-        borderRadius: 16,
-        overflow: 'hidden',
-    },
-    trafficSection: {
-        padding: 16,
-        gap: 8,
-    },
-    trafficRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    progressBg: {
-        height: 6,
-        borderRadius: 3,
-        overflow: 'hidden',
-    },
-    progressFill: {
-        height: 6,
-        borderRadius: 3,
-    },
-    progressHint: {
-        fontSize: 12,
-        textAlign: 'right',
-    },
-    infoRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderTopWidth: StyleSheet.hairlineWidth,
-    },
-    infoLabel: {
-        fontSize: 14,
-    },
-    infoValue: {
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    button: {
-        marginTop: 20,
-        width: '100%',
-        borderRadius: 14,
-        paddingVertical: 14,
-        alignItems: 'center',
-    },
-    buttonText: {
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    buttonPrimary: {
-        backgroundColor: '#007AFF',
-    },
-    buttonPrimaryText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-});
+// ─────────────────────────────────────────────────────────────
+// No more styles - using tailwindcss!
+// ─────────────────────────────────────────────────────────────

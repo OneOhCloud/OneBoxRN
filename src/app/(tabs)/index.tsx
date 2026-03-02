@@ -20,12 +20,10 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
-  Animated,
   Modal,
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -47,13 +45,13 @@ function EmptyState({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportU
   return (
     <View className="flex-1 items-center justify-center px-8">
       <Surface variant="secondary" className="w-20 h-20 rounded-full items-center justify-center mb-6">
-        <ThemedText style={{ fontSize: 36, lineHeight: 44 }}>🔒</ThemedText>
+        <ThemedText className="text-4xl leading-11">🔒</ThemedText>
       </Surface>
 
-      <ThemedText type="subtitle" style={{ textAlign: 'center', marginBottom: Spacing.two }}>
+      <ThemedText type="subtitle" className="text-center mb-2">
         开始使用
       </ThemedText>
-      <ThemedText themeColor="textSecondary" style={{ textAlign: 'center', lineHeight: 22, marginBottom: Spacing.five }}>
+      <ThemedText themeColor="textSecondary" className="text-center leading-6 mb-5">
         导入订阅配置以开始使用
       </ThemedText>
 
@@ -78,7 +76,7 @@ function StatusBadge({ connected, loading }: { connected: boolean; loading: bool
   const label = loading ? '处理中' : connected ? '已连接' : '未连接';
   return (
     <View className="flex-row items-center gap-1.5">
-      <View style={[styles.statusDot, { backgroundColor: dotColor }]} />
+      <View className="w-2 h-2 rounded-full" style={{ backgroundColor: dotColor }} />
       <ThemedText type="small" themeColor="textSecondary">{label}</ThemedText>
     </View>
   );
@@ -92,19 +90,19 @@ function SpeedRow({ uplink, downlink }: { uplink: string; downlink: string }) {
   return (
     <View className="flex-row gap-2">
       <Surface variant="secondary" className="flex-row items-center px-3 py-1.5 rounded-full gap-1">
-        <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 12, fontWeight: '600' }}>↑</ThemedText>
-        <ThemedText type="small" style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 12 }}>{uplink}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" className="text-xs font-semibold">↑</ThemedText>
+        <ThemedText type="small" className="text-xs" style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>{uplink}</ThemedText>
       </Surface>
       <Surface variant="secondary" className="flex-row items-center px-3 py-1.5 rounded-full gap-1">
-        <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 12, fontWeight: '600' }}>↓</ThemedText>
-        <ThemedText type="small" style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 12 }}>{downlink}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" className="text-xs font-semibold">↓</ThemedText>
+        <ThemedText type="small" className="text-xs" style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>{downlink}</ThemedText>
       </Surface>
     </View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────
-// Connect Button with animated halo ring
+// Connect Button
 // ─────────────────────────────────────────────────────────────
 
 function ConnectButton({
@@ -117,25 +115,6 @@ function ConnectButton({
   onPress: () => void;
 }) {
   const theme = useTheme();
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (connected) {
-      opacityAnim.setValue(0.28);
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.02, duration: 1100, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 1100, useNativeDriver: true }),
-        ])
-      );
-      loop.start();
-      return () => loop.stop();
-    } else {
-      opacityAnim.setValue(0);
-      pulseAnim.setValue(1);
-    }
-  }, [connected, opacityAnim, pulseAnim]);
 
   const ringColor = connected ? '#34C759' : '#8E8E93';
   const bgColor = connected ? '#34C759' : theme.backgroundElement;
@@ -143,36 +122,32 @@ function ConnectButton({
   const label = loading ? '...' : connected ? '已连接' : '连接';
 
   return (
-    <View style={styles.connectWrap}>
-      {/* Outer pulse ring */}
-      <Animated.View
-        style={[
-          styles.connectRingOuter,
-          {
-            borderColor: ringColor,
-            transform: [{ scale: pulseAnim }],
-            opacity: opacityAnim,
-          },
-        ]}
+    <View className="w-56 h-56 items-center justify-center">
+      {/* Outer ring */}
+      <View
+        className="absolute w-56 h-56 rounded-full border-2"
+        style={{
+          borderColor: ringColor,
+          opacity: connected ? 0.28 : 0,
+        }}
         pointerEvents="none"
       />
       {/* Inner ring border */}
       <View
-        style={[
-          styles.connectRingInner,
-          { borderColor: connected ? '#34C759' : theme.backgroundElement },
-        ]}
+        className="absolute w-44 h-44 rounded-full border border-opacity-75"
+        style={{ borderColor: connected ? '#34C759' : theme.backgroundElement }}
       />
       {/* Button */}
       <Pressable
         onPress={onPress}
         disabled={loading}
-        style={({ pressed }) => [
-          styles.connectBtn,
-          { backgroundColor: bgColor, opacity: pressed || loading ? 0.7 : 1 },
-        ]}>
-        <ThemedText style={[styles.connectPower, { color: textColor }]}>⏻</ThemedText>
-        <ThemedText style={[styles.connectLabel, { color: textColor }]}>{label}</ThemedText>
+        className="w-36 h-36 rounded-full items-center justify-center"
+        style={({ pressed }) => ({
+          backgroundColor: bgColor,
+          opacity: pressed || loading ? 0.7 : 1,
+        })}>
+        <ThemedText className="text-4xl leading-11" style={{ color: textColor }}>⏻</ThemedText>
+        <ThemedText className="text-sm font-semibold tracking-wide" style={{ color: textColor }}>{label}</ThemedText>
       </Pressable>
     </View>
   );
@@ -205,7 +180,8 @@ function ModeSelector({
             className={`flex-1 items-center py-2 rounded-xl ${active ? 'bg-background' : ''}`}>
             <ThemedText
               type="small"
-              style={{ fontWeight: active ? '700' : '400', fontSize: 13 }}>
+              className="text-sm"
+              style={{ fontWeight: active ? '700' : '400' }}>
               {opt.label}
             </ThemedText>
           </Pressable>
@@ -246,11 +222,9 @@ function NodeRow({
     <ListGroup.Item onPress={onSelect}>
       <ListGroup.ItemPrefix>
         <View
-          style={[
-            styles.nodeRadioOuter,
-            { borderColor: selected ? '#007AFF' : theme.textSecondary },
-          ]}>
-          {selected && <View style={styles.nodeRadioInner} />}
+          className="w-5 h-5 rounded-full border-2 items-center justify-center flex-shrink-0"
+          style={{ borderColor: selected ? '#007AFF' : theme.textSecondary }}>
+          {selected && <View className="w-2 h-2 rounded-full bg-blue-500" />}
         </View>
       </ListGroup.ItemPrefix>
       <ListGroup.ItemContent>
@@ -262,7 +236,8 @@ function NodeRow({
       <ListGroup.ItemSuffix iconProps={{ size: 0 }}>
         <ThemedText
           type="small"
-          style={{ color: delayColor, fontSize: 11, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>
+          className="text-xs"
+          style={{ color: delayColor, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>
           {delayLabel}
         </ThemedText>
       </ListGroup.ItemSuffix>
@@ -329,22 +304,18 @@ function ImportFAB({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportUr
   const [open, setOpen] = useState(false);
 
   return (
-    <View style={styles.fabContainer} pointerEvents="box-none">
+    <View className="absolute bottom-24 right-4 items-end z-50" pointerEvents="box-none">
       {open && (
         <>
-          <Pressable style={styles.fabBackdrop} onPress={() => setOpen(false)} />
+          <Pressable className="absolute inset-0 -bottom-[999px] -top-[999px] -left-[999px] -right-[999px]" onPress={() => setOpen(false)} />
           <Surface
             variant="default"
-            className="rounded-2xl mb-3 overflow-hidden"
-            style={styles.fabMenuShadow}>
+            className="rounded-2xl mb-3 overflow-hidden shadow-lg">
             <Button
               variant="ghost"
               className="justify-start px-3 py-2"
               onPress={() => { setOpen(false); onScanQR(); }}
-              animation={{
-                opacity: { pressed: 0.7, normal: 1 },
-                transition: { duration: 150 }
-              }}>
+            >
               <ThemedText type="small">扫描二维码</ThemedText>
             </Button>
             <Separator />
@@ -352,10 +323,7 @@ function ImportFAB({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportUr
               variant="ghost"
               className="justify-start px-3 py-2"
               onPress={() => { setOpen(false); onImportUrl(); }}
-              animation={{
-                opacity: { pressed: 0.7, normal: 1 },
-                transition: { duration: 150 }
-              }}>
+            >
               <ThemedText type="small">导入订阅链接</ThemedText>
             </Button>
           </Surface>
@@ -365,10 +333,8 @@ function ImportFAB({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportUr
         variant="primary"
         isIconOnly
         onPress={() => setOpen((v) => !v)}
-        className="w-14 h-14 rounded-full"
-        feedbackVariant="scale"
-        style={styles.fabShadow}>
-        <Button.Label style={styles.fabIconText}>{open ? '✕' : '+'}</Button.Label>
+        className="w-14 h-14 rounded-full shadow-lg">
+        <Button.Label className="text-white text-2xl leading-7 font-light">{open ? '✕' : '+'}</Button.Label>
       </Button>
     </View>
   );
@@ -496,15 +462,15 @@ export default function HomeScreen() {
   // ── Empty state ────────────────────────────────────────────
   if (!hasConfig) {
     return (
-      <ThemedView style={styles.root}>
-        <SafeAreaView style={[styles.safeArea, { justifyContent: 'center' }]}>
+      <ThemedView className="flex-1 flex-row justify-center">
+        <SafeAreaView className="flex-1 px-4 pb-8" style={{ maxWidth: MaxContentWidth, paddingBottom: BottomTabInset + Spacing.two, justifyContent: 'center' }}>
           <EmptyState
             onScanQR={() => setCameraVisible(true)}
             onImportUrl={() => setImportUrlVisible(true)}
           />
         </SafeAreaView>
-        <Modal visible={cameraVisible} animationType="slide" onRequestClose={handleCameraClose}>
-          <View style={{ flex: 1, backgroundColor: 'black' }}>
+        <Modal visible={cameraVisible} onRequestClose={handleCameraClose}>
+          <View className="flex-1 bg-black">
             <CameraQR onHandleClose={handleCameraClose} />
           </View>
         </Modal>
@@ -515,15 +481,15 @@ export default function HomeScreen() {
 
   // ── Main screen ────────────────────────────────────────────
   return (
-    <ThemedView style={styles.root}>
-      <SafeAreaView style={styles.safeArea}>
+    <ThemedView className="flex-1 flex-row justify-center">
+      <SafeAreaView className="flex-1 px-4 pb-8" style={{ maxWidth: MaxContentWidth, paddingBottom: BottomTabInset + Spacing.two }}>
         {/* Status */}
-        <View style={styles.headerRow}>
+        <View className="flex-row items-center py-2">
           <StatusBadge connected={connected} loading={loading} />
         </View>
 
         {/* Hero: connect button + speed */}
-        <View style={styles.heroSection}>
+        <View className="items-center py-5 gap-3">
           <ConnectButton connected={connected} loading={loading} onPress={handleToggleConnect} />
           {connected && traffic && (
             <SpeedRow
@@ -534,18 +500,18 @@ export default function HomeScreen() {
         </View>
 
         {/* Mode selector */}
-        <View style={styles.modeSelectorWrap}>
+        <View className="mb-4">
           <ModeSelector mode={mode} onChange={setMode} />
         </View>
 
         {/* Nodes section header */}
-        <View style={styles.nodeSectionHeader}>
+        <View className="flex-row items-center mb-2 px-1 gap-2">
           <ThemedText type="small" themeColor="textSecondary">
             {connected ? '节点选择' : '节点（连接后可选）'}
           </ThemedText>
           {nodeList.length > 0 && (
-            <View style={styles.nodeBadge}>
-              <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
+            <View className="bg-gray-400 bg-opacity-15 rounded-lg px-2 py-0.5">
+              <ThemedText type="small" themeColor="textSecondary" className="text-xs">
                 {nodeList.length}
               </ThemedText>
             </View>
@@ -554,11 +520,11 @@ export default function HomeScreen() {
 
         {/* Node list */}
         <ScrollView
-          style={styles.nodeList}
-          contentContainerStyle={styles.nodeListContent}
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: Spacing.two }}
           showsVerticalScrollIndicator={false}>
           {nodeList.length === 0 ? (
-            <ThemedText type="small" themeColor="textSecondary" style={{ paddingHorizontal: Spacing.one }}>
+            <ThemedText type="small" themeColor="textSecondary" className="px-1">
               {nodeError ? `⚠  ${nodeError}` : connected ? '加载中…' : '暂无节点'}
             </ThemedText>
           ) : (
@@ -584,8 +550,8 @@ export default function HomeScreen() {
       />
 
       {/* Modals */}
-      <Modal visible={cameraVisible} animationType="slide" onRequestClose={handleCameraClose}>
-        <View style={{ flex: 1, backgroundColor: 'black' }}>
+      <Modal visible={cameraVisible} onRequestClose={handleCameraClose}>
+        <View className="flex-1 bg-black">
           <CameraQR onHandleClose={handleCameraClose} />
         </View>
       </Modal>
@@ -595,160 +561,5 @@ export default function HomeScreen() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Styles (only structural / animated values kept here)
+// No more styles - using tailwindcss!
 // ─────────────────────────────────────────────────────────────
-
-const BUTTON_SIZE = 140;
-const RING_INNER = BUTTON_SIZE + 24;
-const RING_OUTER = BUTTON_SIZE + 64;
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  safeArea: {
-    flex: 1,
-    maxWidth: MaxContentWidth,
-    paddingHorizontal: Spacing.four,
-    paddingBottom: BottomTabInset + Spacing.two,
-  },
-
-  // ── Header ───────────────────────────────────────────────
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.one,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-
-  // ── Hero ─────────────────────────────────────────────────
-  heroSection: {
-    alignItems: 'center',
-    paddingVertical: Spacing.five,
-    gap: Spacing.three,
-  },
-
-  // Connect button + rings
-  connectWrap: {
-    width: RING_OUTER,
-    height: RING_OUTER,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  connectRingOuter: {
-    position: 'absolute',
-    width: RING_OUTER,
-    height: RING_OUTER,
-    borderRadius: RING_OUTER / 2,
-    borderWidth: 2,
-  },
-  connectRingInner: {
-    position: 'absolute',
-    width: RING_INNER,
-    height: RING_INNER,
-    borderRadius: RING_INNER / 2,
-    borderWidth: 1.5,
-  },
-  connectBtn: {
-    width: BUTTON_SIZE,
-    height: BUTTON_SIZE,
-    borderRadius: BUTTON_SIZE / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  connectPower: {
-    fontSize: 36,
-    lineHeight: 44,
-  },
-  connectLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-
-  // ── Mode selector ────────────────────────────────────────
-  modeSelectorWrap: {
-    marginBottom: Spacing.four,
-  },
-
-  // ── Node section ─────────────────────────────────────────
-  nodeSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.two,
-    paddingHorizontal: Spacing.one,
-    gap: Spacing.two,
-  },
-  nodeBadge: {
-    backgroundColor: 'rgba(128,128,128,0.15)',
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-  },
-  nodeList: {
-    flex: 1,
-  },
-  nodeListContent: {
-    paddingBottom: Spacing.two,
-  },
-
-  // Node radio
-  nodeRadioOuter: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  nodeRadioInner: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    backgroundColor: '#007AFF',
-  },
-
-  // ── FAB ──────────────────────────────────────────────────
-  fabContainer: {
-    position: 'absolute',
-    bottom: BottomTabInset + Spacing.five,
-    right: Spacing.four,
-    alignItems: 'flex-end',
-    zIndex: 100,
-  },
-  fabBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    bottom: -999,
-    top: -999,
-    left: -999,
-    right: -999,
-  },
-  fabMenuShadow: {
-    minWidth: 176,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  fabShadow: {
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  fabIconText: {
-    color: '#fff',
-    fontSize: 24,
-    lineHeight: 28,
-    fontWeight: '300',
-  },
-});

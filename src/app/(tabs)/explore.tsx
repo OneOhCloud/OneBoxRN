@@ -1,11 +1,10 @@
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { TrafficUpdateEventPayload } from '@/modules/expo-onebox/src/ExpoOneBox.types';
 import { Button, Separator, Surface } from 'heroui-native';
 import { useEffect, useRef } from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GetVersion } from '../../modules/expo-onebox';
 
@@ -19,30 +18,30 @@ function InfoCard({ connected }: { connected: boolean }) {
   return (
     <Surface variant="secondary" className="rounded-2xl p-4 gap-2">
       <View className="flex-row justify-between items-center py-1">
-        <ThemedText type="small" themeColor="textSecondary" style={styles.rowLabel}>
+        <ThemedText type="small" themeColor="textSecondary" className="text-xs font-medium">
           内核版本
         </ThemedText>
         <ThemedText
           type="small"
-          style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontWeight: '500' }}>
+          className="font-medium"
+          style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>
           {version || '—'}
         </ThemedText>
       </View>
       <Separator />
       <View className="flex-row justify-between items-center py-1">
-        <ThemedText type="small" themeColor="textSecondary" style={styles.rowLabel}>
+        <ThemedText type="small" themeColor="textSecondary" className="text-xs font-medium">
           运行状态
         </ThemedText>
         <View className="flex-row items-center gap-1">
           <View
-            style={[
-              styles.statusDot,
-              { backgroundColor: connected ? '#34C759' : '#8E8E93' },
-            ]}
+            className="w-2 h-2 rounded-full"
+            style={{ backgroundColor: connected ? '#34C759' : '#8E8E93' }}
           />
           <ThemedText
             type="small"
-            style={{ color: connected ? '#34C759' : '#8E8E93', fontWeight: '600' }}>
+            className="font-semibold"
+            style={{ color: connected ? '#34C759' : '#8E8E93' }}>
             {connected ? '运行中' : '未连接'}
           </ThemedText>
         </View>
@@ -66,19 +65,18 @@ function MetricCell({
 }) {
   return (
     <Surface variant="default" className="flex-1 rounded-xl p-2.5 gap-0.5" style={{ minWidth: '45%' }}>
-      <ThemedText style={{ fontSize: 14, lineHeight: 20, fontWeight: '600', color: '#007AFF' }}>
+      <ThemedText className="text-sm leading-5 font-semibold text-blue-500">
         {icon}
       </ThemedText>
       <ThemedText
         numberOfLines={1}
+        className="text-sm font-bold"
         style={{
-          fontSize: 14,
-          fontWeight: '700',
           fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
         }}>
         {value}
       </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11, lineHeight: 14 }}>
+      <ThemedText type="small" themeColor="textSecondary" className="text-xs leading-3">
         {label}
       </ThemedText>
     </Surface>
@@ -108,7 +106,7 @@ function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPayload | null })
 
   return (
     <Surface variant="secondary" className="rounded-2xl p-4 gap-2">
-      <ThemedText style={{ fontWeight: '600', fontSize: 15 }}>流量统计</ThemedText>
+      <ThemedText className="font-semibold text-base">流量统计</ThemedText>
       {traffic ? (
         <View className="flex-row flex-wrap gap-2">
           {cells.map((c) => (
@@ -116,7 +114,7 @@ function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPayload | null })
           ))}
         </View>
       ) : (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.emptyHint}>
+        <ThemedText type="small" themeColor="textSecondary" >
           代理连接后显示实时统计
         </ThemedText>
       )}
@@ -133,16 +131,16 @@ function LogPanel({ logs, onClear }: { logs: string[]; onClear: () => void }) {
 
   useEffect(() => {
     if (logs.length > 0) {
-      scrollRef.current?.scrollToEnd({ animated: false });
+      scrollRef.current?.scrollToEnd();
     }
   }, [logs]);
 
   return (
     <Surface variant="secondary" className="rounded-2xl p-4 gap-2">
       <View className="flex-row justify-between items-center">
-        <ThemedText style={{ fontWeight: '600', fontSize: 15 }}>运行日志</ThemedText>
+        <ThemedText className="font-semibold text-base">运行日志</ThemedText>
         {logs.length > 0 && (
-          <Button variant="ghost" onPress={onClear} style={{ marginRight: -8 }}>
+          <Button variant="ghost" onPress={onClear} className="-mr-2">
             <Button.Label>清除</Button.Label>
           </Button>
         )}
@@ -150,12 +148,12 @@ function LogPanel({ logs, onClear }: { logs: string[]; onClear: () => void }) {
       <Surface variant="default" className="h-[280px] rounded-xl">
         <ScrollView
           ref={scrollRef}
-          style={{ flex: 1 }}
-          contentContainerStyle={styles.logContent}
+          className="flex-1"
+          contentContainerStyle={{ padding: 8 }}
           showsVerticalScrollIndicator
           nestedScrollEnabled>
           {logs.length === 0 ? (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.emptyHint}>
+            <ThemedText type="small" themeColor="textSecondary" className="text-center py-8">
               暂无日志
             </ThemedText>
           ) : (
@@ -164,9 +162,8 @@ function LogPanel({ logs, onClear }: { logs: string[]; onClear: () => void }) {
                 key={i}
                 type="small"
                 themeColor={line.includes('[ERROR]') ? undefined : 'textSecondary'}
+                className="text-xs leading-4"
                 style={{
-                  fontSize: 11,
-                  lineHeight: 17,
                   fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
                   ...(line.includes('[ERROR]') && { color: '#FF3B30' }),
                 }}>
@@ -210,45 +207,26 @@ export default function ExploreScreen() {
     <ScrollView
       className="flex-1 bg-background"
       contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={[styles.inner, { maxWidth: MaxContentWidth }]}>
-        <ThemedText type="subtitle" style={{ marginBottom: Spacing.two }}>
+      contentContainerStyle={{
+        flexDirection: 'row',
+        justifyContent: 'center',
+        ...contentPlatformStyle
+      }}>
+      <View
+        className="flex-grow px-4 pt-5 gap-3"
+        style={{ maxWidth: MaxContentWidth }}>
+        <ThemedText type="subtitle" className="mb-2">
           状态
         </ThemedText>
 
         <InfoCard connected={connected} />
         <TrafficCard traffic={traffic} />
         <LogPanel logs={logs} onClear={clearLogs} />
-      </ThemedView>
+      </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  inner: {
-    flexGrow: 1,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.five,
-    gap: Spacing.three,
-  },
-  rowLabel: {
-    flex: 1,
-  },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  logContent: {
-    padding: Spacing.two,
-    gap: 2,
-  },
-  emptyHint: {
-    textAlign: 'center',
-    paddingVertical: Spacing.three,
-  },
-});
+// ─────────────────────────────────────────────────────────────
+// No more styles - using tailwindcss!
+// ─────────────────────────────────────────────────────────────
