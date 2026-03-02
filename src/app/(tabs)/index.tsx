@@ -8,6 +8,7 @@ import { SBConfig } from '@/database/kv';
 import { configType } from '@/definition';
 import { useTheme } from '@/hooks/use-theme';
 import { router, useFocusEffect } from 'expo-router';
+import { Button } from 'heroui-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -547,6 +548,7 @@ export default function HomeScreen() {
           <StatusBadge connected={connected} loading={loading} />
         </View>
 
+
         {/* Hero: connect button + speed */}
         <View style={styles.heroSection}>
           <ConnectButton connected={connected} loading={loading} onPress={handleToggleConnect} />
@@ -556,6 +558,12 @@ export default function HomeScreen() {
               downlink={traffic.downlinkDisplay || '0 B/s'}
             />
           )}
+        </View>
+        <View className="bg-background flex-1">
+
+          <Button variant="primary" onPress={() => console.log('Pressed!')}>
+            点击我
+          </Button>
         </View>
 
         {/* Mode selector */}
