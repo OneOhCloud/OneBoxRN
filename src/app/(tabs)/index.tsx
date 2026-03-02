@@ -28,7 +28,8 @@ import {
   RequestVpnPermission,
   SelectProxyNode,
   Start,
-  Stop
+  Stop,
+  VPN_STATUS
 } from '../../modules/expo-onebox';
 
 // ─────────────────────────────────────────────────────────────
@@ -398,8 +399,10 @@ function ImportFAB({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportUr
 // ─────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
-  const { connected, mode, setMode, traffic } = useVpn();
-  const [loading, setLoading] = useState(false);
+  const { connected, status, mode, setMode, traffic } = useVpn();
+  const [localLoading, setLocalLoading] = useState(false);
+  // 本地异步调用期间 OR VPN 处于过渡状态（connecting/disconnecting）时均显示 loading
+  const loading = localLoading || status === VPN_STATUS.STARTING || status === VPN_STATUS.STOPPING;
   const [hasConfig, setHasConfig] = useState<boolean>(() => !!SBConfig.getConfigContent());
   const [cameraVisible, setCameraVisible] = useState(false);
   const [importUrlVisible, setImportUrlVisible] = useState(false);
@@ -480,7 +483,7 @@ export default function HomeScreen() {
 
   const handleToggleConnect = useCallback(async () => {
     if (loading) return;
-    setLoading(true);
+    setLocalLoading(true);
     try {
       if (connected) {
         await Stop();
@@ -501,7 +504,7 @@ export default function HomeScreen() {
     } catch (e: any) {
       Alert.alert('错误', e?.message ?? '操作失败');
     } finally {
-      setLoading(false);
+      setLocalLoading(false);
     }
   }, [connected, loading]);
 

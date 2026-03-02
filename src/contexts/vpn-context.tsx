@@ -1,12 +1,13 @@
 import { SBConfig } from '@/database/kv';
 import { configType } from '@/definition';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { Alert, AppState, AppStateStatus } from 'react-native';
 import {
     addErrorListener,
     addLogListener,
     addStatusChangeListener,
     addTrafficUpdateListener,
+    GetStartError,
     GetStatus,
     SetCoreLogEnabled,
     TrafficUpdateEventPayload,
@@ -64,14 +65,35 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         SetCoreLogEnabled(true);
         syncStatus();
 
+        // 跟踪上一个状态，用于检测 STARTING → STOPPED 这种启动失败场景
+        const prevStatusRef = { current: GetStatus() };
+
         const statusSub = addStatusChangeListener((event: { status: number; statusName: string; message: string }) => {
+            const prev = prevStatusRef.current;
+            prevStatusRef.current = event.status;
+
             setStatus(event.status);
-            setConnected(event.status === VPN_STATUS.STARTED);
-            if (event.status === VPN_STATUS.STOPPED) setTraffic(null);
+            setConnected(event.status === VPN_STATUS.STARTED || event.status === VPN_STATUS.STARTING);
+            if (event.status === VPN_STATUS.STOPPED) {
+                setTraffic(null);
+                // 如果是从“正在连接”直接跳到“已停止”，说明启动失败，主动读取错误并弹窗
+                if (prev === VPN_STATUS.STARTING) {
+                    const errMsg = GetStartError();
+                    console.warn('VPN failed to start. Start error message:', errMsg);
+                    if (errMsg) {
+                        appendLogs([`[StartFailed] ${errMsg}`]);
+                        Alert.alert('VPN 启动失败', errMsg, [{ text: '确认' }]);
+                    } else {
+                        appendLogs(['[StartFailed] Extension exited during startup (no error message available)']);
+                        Alert.alert('VPN 启动失败', '启动异常退出，请检查配置文件。', [{ text: '确认' }]);
+                    }
+                }
+            }
         });
 
         const errorSub = addErrorListener((event: { type: string; message: string; status?: number }) => {
-            appendLogs([`[ERROR][${event.type}] ${event.message}`]);
+            // 错误事件统一写入日志。弹窗由上方 statusSub 检测文件方式触发，避免重复弹出。
+            appendLogs([`[${event.type}] ${event.message}`]);
         });
 
         const logSub = addLogListener((event: { message: string }) => {

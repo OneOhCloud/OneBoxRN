@@ -1,7 +1,7 @@
 // import RulesModeTemplate from "@/database/template/zh/rules.jsonc";
 import { configType, SING_BOX_MAJOR_VERSION, SING_BOX_VERSION, STAGE_VERSION_STORE_KEY } from "@/definition";
 import { SBConfig } from "./kv";
-import { getClashApiSecret, getCustomRuleSet, getStoreValue } from "./store";
+import { getCustomRuleSet, getStoreValue } from "./store";
 import TunGlobalConfig from "./template/zh/global";
 import TunRulesConfig from "./template/zh/rules";
 
@@ -31,11 +31,13 @@ export async function getConfigTemplateCacheKey(mode: configType): Promise<strin
 }
 
 
-async function updateExperimentalConfig(newConfig: any) {
-    newConfig["experimental"]["clash_api"] = {
-        "external_controller": "127.0.0.1:9191",
-        "secret": await getClashApiSecret(),
-    };
+async function rewriteConfig(newConfig: any) {
+
+    newConfig["experimental"]["clash_api"] = {};
+    // 如果有 log key，则重写 disableColor 字段
+    if (newConfig.hasOwnProperty("log")) {
+        newConfig["log"]["disable-color"] = true;
+    }
 }
 
 export function getDefaultConfigTemplate(mode: configType, version: string): string {
@@ -158,7 +160,7 @@ export async function getTunConfig(config: string) {
     }
 
     console.log("当前 TUN Stack:", newConfig.inbounds[0].stack);
-    updateExperimentalConfig(newConfig);
+    rewriteConfig(newConfig);
     return await updateVPNServerConfigFromDB(configJson, newConfig);
 }
 
@@ -167,7 +169,7 @@ export default async function getGlobalTunConfig(config: string) {
     const newConfig = await getConfigTemplate('tun-global');
     let level = await getStoreValue(STAGE_VERSION_STORE_KEY) === "dev" ? "debug" : "info";
     newConfig.log.level = level;
-    updateExperimentalConfig(newConfig);
+    rewriteConfig(newConfig);
     return await updateVPNServerConfigFromDB(configJson, newConfig);
 
 }
