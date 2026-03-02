@@ -2,6 +2,8 @@ import { getLocales } from 'expo-localization';
 import { Platform } from 'react-native';
 import { SING_BOX_VERSION } from './definition';
 
+
+
 // SFM/1.3.4 (macos aarch64 26.3.0; sing-box 1.13.0-rc.5; language zh-Hans-CN)
 const iOSTag = 'SFI';
 const AndroidTag = 'SFA';
@@ -20,3 +22,4 @@ export function getSingBoxUserAgent(): string {
     }
 
 }
+

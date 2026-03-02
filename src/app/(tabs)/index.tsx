@@ -9,6 +9,7 @@ import { configType } from '@/definition';
 import { useTheme } from '@/hooks/use-theme';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
 import {
   Alert,
   Modal,
@@ -503,6 +504,7 @@ export default function HomeScreen() {
         {/* Status */}
         <View className="flex-row items-center py-2">
           <StatusBadge connected={connected} loading={loading} />
+
         </View>
 
         {/* Hero: connect button + speed */}
