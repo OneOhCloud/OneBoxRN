@@ -7,8 +7,8 @@ import { lightImpact } from '@/components/ui/haptics';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { useTheme } from '@/hooks/use-theme';
-import { useEffect, useRef } from 'react';
-import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { useRef } from 'react';
+import { FlatList, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
@@ -173,32 +173,12 @@ export default function LogsScreen() {
     const theme = useTheme();
     const safeAreaInsets = useSafeAreaInsets();
     const { logs, clearLogs } = useVpn();
-    const scrollRef = useRef<ScrollView>(null);
-
-    // Auto-scroll to bottom on new logs
-    useEffect(() => {
-        if (logs.length > 0) {
-            scrollRef.current?.scrollToEnd({ animated: true });
-        }
-    }, [logs]);
+    const listRef = useRef<FlatList>(null);
 
     const insets = {
         ...safeAreaInsets,
         bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
     };
-
-    const contentPlatformStyle = Platform.select({
-        android: {
-            paddingTop: insets.top,
-            paddingLeft: insets.left,
-            paddingRight: insets.right,
-            paddingBottom: insets.bottom,
-        },
-        web: {
-            paddingTop: Spacing.six,
-            paddingBottom: Spacing.four,
-        },
-    });
 
     // Default text color for un-styled log text
     const defaultLogColor = theme.textSecondary ?? '#8E8E93';
@@ -233,28 +213,28 @@ export default function LogsScreen() {
             {/* Terminal log panel — fills all remaining safe-area height */}
             <View
                 className="h-screen-safe mx-2 border-gray-50 border-2 rounded-2xl overflow-hidden"
-
             >
-                <ScrollView
-                    ref={scrollRef}
-                    className="flex-1"
-                    contentContainerStyle={{ padding: 12 }}
-                    showsVerticalScrollIndicator
-                >
-                    {logs.length === 0 ? (
-                        <View className="py-10 items-center">
-                            <Text style={{ color: '#636366', fontSize: 13 }}>暂无日志</Text>
-                        </View>
-                    ) : (
-                        logs.map((line, i) => (
-                            <AnsiLine
-                                key={`log-${i}`}
-                                line={line}
-                                defaultColor={defaultLogColor}
-                            />
-                        ))
-                    )}
-                </ScrollView>
+                {logs.length === 0 ? (
+                    <View className="flex-1 py-10 items-center justify-center">
+                        <Text style={{ color: '#636366', fontSize: 13 }}>暂无日志</Text>
+                    </View>
+                ) : (
+                    <FlatList
+                        ref={listRef}
+                        data={logs}
+                        keyExtractor={(_, i) => `log-${i}`}
+                        renderItem={({ item }) => (
+                            <AnsiLine line={item} defaultColor={defaultLogColor} />
+                        )}
+                        contentContainerStyle={{ padding: 12 }}
+                        showsVerticalScrollIndicator
+                        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+                        removeClippedSubviews
+                        initialNumToRender={50}
+                        maxToRenderPerBatch={50}
+                        windowSize={10}
+                    />
+                )}
             </View>
         </View>
     );
