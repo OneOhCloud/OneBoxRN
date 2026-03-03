@@ -8,10 +8,8 @@ import { ConnectButton } from '@/components/ui/home/connect-button';
 import { EmptyState } from '@/components/ui/home/empty-state';
 import { ImportFAB } from '@/components/ui/home/import-fab';
 import { ImportUrlModal } from '@/components/ui/home/import-url-modal';
-import { ModeSelector } from '@/components/ui/home/mode-selector';
 import { NodeList } from '@/components/ui/home/node-list';
 import { SpeedRow } from '@/components/ui/home/speed-row';
-import { StatusBadge } from '@/components/ui/home/status-badge';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { getProcessedConfig } from '@/database/helper';
@@ -129,43 +127,55 @@ export default function HomeScreen() {
     // ── Main UI ────────────────────────────────────────────────
 
     return (
-        <ThemedView style={{ flex: 1, flexDirection: 'row', justifyContent: 'center' }}>
+        <ThemedView style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', }}>
             <SafeAreaView
                 style={{
+                    justifyContent: 'center',
                     flex: 1,
                     maxWidth: MaxContentWidth,
                     paddingHorizontal: 20,
                     paddingBottom: BottomTabInset + Spacing.two,
                 }}
             >
-                {/* ── Hero ──────────────────────────────────── */}
-                <View style={{ alignItems: 'center', paddingTop: 24, paddingBottom: 28, gap: 16 }}>
-                    <ConnectButton
-                        connected={connected}
-                        loading={loading}
-                        onPress={handleToggleConnect}
-                    />
-                    <StatusBadge connected={connected} loading={loading} />
-                    {connected && <SpeedRow />}
-                </View>
+                {connected ? (
+                    <>
+                        {/* ── Hero ──────────────────────────────────── */}
+                        <View style={{ alignItems: 'center', paddingTop: 24, paddingBottom: 28, gap: 16 }}>
+                            <ConnectButton
+                                connected={connected}
+                                loading={loading}
+                                onPress={handleToggleConnect}
+                            />
+                            <SpeedRow />
+                        </View>
 
-                {/* ── Divider ───────────────────────────────── */}
-                <View style={{ height: 0.5, backgroundColor: theme.backgroundElement, marginBottom: 20 }} />
+                        {/* ── Divider ───────────────────────────────── */}
+                        <View style={{ height: 0.5, backgroundColor: theme.backgroundElement, marginBottom: 20 }} />
 
-                {/* ── Mode selector ─────────────────────────── */}
-                <View style={{ marginBottom: 20 }}>
-                    <ModeSelector />
-                </View>
 
-                {/* ── Node list ─────────────────────────────── */}
-                <NodeList bottomPadding={Spacing.two} />
+
+                        {/* ── Node list ─────────────────────────────── */}
+                        <NodeList bottomPadding={Spacing.two} />
+                    </>
+                ) : (
+                    /* ── Disconnected: only show connect button centered ── */
+                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                        <ConnectButton
+                            connected={connected}
+                            loading={loading}
+                            onPress={handleToggleConnect}
+                        />
+                    </View>
+                )}
             </SafeAreaView>
 
             {/* ── FAB ───────────────────────────────────────── */}
-            <ImportFAB
-                onScanQR={() => setCameraVisible(true)}
-                onImportUrl={() => setImportUrlVisible(true)}
-            />
+            {connected && (
+                <ImportFAB
+                    onScanQR={() => setCameraVisible(true)}
+                    onImportUrl={() => setImportUrlVisible(true)}
+                />
+            )}
 
             {/* ── Modals ────────────────────────────────────── */}
             <ImportUrlModal visible={importUrlVisible} onClose={handleImportUrlClose} />

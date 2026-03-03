@@ -1,16 +1,15 @@
 /**
- * Monitor Screen — system info, traffic statistics, and runtime logs.
+ * Monitor Screen — system info and traffic statistics.
  * All data sourced from the VpnContext shared state.
  */
 import { ThemedText } from '@/components/themed-text';
-import { lightImpact } from '@/components/ui/haptics';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { ModeSelector } from '@/components/ui/home/mode-selector';
+import { MaxContentWidth } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { useTheme } from '@/hooks/use-theme';
 import { TrafficUpdateEventPayload } from '@/modules/expo-onebox/src/ExpoOneBox.types';
-import { useEffect, useRef } from 'react';
-import { Platform, Pressable, ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { GetVersion } from '../../modules/expo-onebox';
 
 const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
@@ -35,7 +34,10 @@ function InfoCard({ connected }: { connected: boolean }) {
             </View>
             {/* Separator — using whitespace instead of line for iOS feel */}
             <View className="h-px" style={{ backgroundColor: theme.background, opacity: 0.6 }} />
+            {/* ── Mode selector ─────────────────────────── */}
+
             {/* Run status */}
+
             <View className="flex-row justify-between items-center">
                 <ThemedText type="small" themeColor="textSecondary">运行状态</ThemedText>
                 <View className="flex-row items-center gap-1.5">
@@ -129,123 +131,34 @@ function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPayload | null })
     );
 }
 
-// ─── Log Panel ──────────────────────────────────────────────
-/** Scrollable log viewer with clear action */
-function LogPanel({ logs, onClear }: { logs: string[]; onClear: () => void }) {
-    const theme = useTheme();
-    const scrollRef = useRef<ScrollView>(null);
-
-    useEffect(() => {
-        if (logs.length > 0) {
-            scrollRef.current?.scrollToEnd({ animated: true });
-        }
-    }, [logs]);
-
-    return (
-        <View className="rounded-2xl p-4 gap-3" style={{ backgroundColor: theme.backgroundElement }}>
-            {/* Header with clear action */}
-            <View className="flex-row justify-between items-center">
-                <ThemedText className="text-sm font-semibold" themeColor="textSecondary">
-                    运行日志
-                </ThemedText>
-                {logs.length > 0 && (
-                    <Pressable
-                        onPress={() => { lightImpact(); onClear(); }}
-                        className="px-3 py-1.5 rounded-lg active:opacity-70"
-                        style={{ backgroundColor: '#007AFF' }}
-                    >
-                        <ThemedText style={{ color: '#ffffff' }} className="text-xs font-medium">
-                            清除
-                        </ThemedText>
-                    </Pressable>
-                )}
-            </View>
-            {/* Log content */}
-            <View className="h-72 rounded-xl overflow-hidden" style={{ backgroundColor: theme.background }}>
-                <ScrollView
-                    ref={scrollRef}
-                    className="flex-1"
-                    contentContainerStyle={{ padding: 10 }}
-                    showsVerticalScrollIndicator
-                    nestedScrollEnabled
-                >
-                    {logs.length === 0 ? (
-                        <View className="py-10 items-center">
-                            <ThemedText type="small" themeColor="textSecondary">暂无日志</ThemedText>
-                        </View>
-                    ) : (
-                        logs.map((line, i) => (
-                            <ThemedText
-                                key={`log-${i}`}
-                                type="small"
-                                themeColor={line.includes('[ERROR]') ? undefined : 'textSecondary'}
-                                className="text-xs leading-4"
-                                style={{
-                                    fontFamily: MONO_FONT,
-                                    ...(line.includes('[ERROR]') && { color: '#FF3B30' }),
-                                }}
-                            >
-                                {line}
-                            </ThemedText>
-                        ))
-                    )}
-                </ScrollView>
-            </View>
-        </View>
-    );
-}
-
 // ─────────────────────────────────────────────────────────────
 // Monitor Screen
 // ─────────────────────────────────────────────────────────────
 
 export default function MonitorScreen() {
     const theme = useTheme();
-    const safeAreaInsets = useSafeAreaInsets();
-    const { connected, traffic, logs, clearLogs } = useVpn();
+    const { connected, traffic } = useVpn();
 
-    const insets = {
-        ...safeAreaInsets,
-        bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
-    };
 
-    const contentPlatformStyle = Platform.select({
-        android: {
-            paddingTop: insets.top,
-            paddingLeft: insets.left,
-            paddingRight: insets.right,
-            paddingBottom: insets.bottom,
-        },
-        web: {
-            paddingTop: Spacing.six,
-            paddingBottom: Spacing.four,
-        },
-    });
+
+
 
     return (
-        <ScrollView
-            className="flex-1"
-            style={{ backgroundColor: theme.background }}
-            contentInset={insets}
-            contentContainerStyle={{
-                flexDirection: 'row',
-                justifyContent: 'center',
-                ...contentPlatformStyle,
-            }}
+        <SafeAreaView
+            style={{ flex: 1, backgroundColor: theme.background }}
         >
-            <View className="grow px-5 pt-6 gap-4" style={{ maxWidth: MaxContentWidth }}>
+            <View className="flex-1 px-5 pt-6 gap-4" style={{ maxWidth: MaxContentWidth }}>
                 {/* Page title */}
                 <ThemedText type="subtitle" className="mb-1">监控</ThemedText>
-
+                <View className='py-2'>
+                    <ModeSelector />
+                </View>
                 {/* Info card */}
                 <InfoCard connected={connected} />
 
                 {/* Traffic stats */}
                 <TrafficCard traffic={traffic} />
-
-                {/* Log viewer */}
-                <LogPanel logs={logs} onClear={clearLogs} />
             </View>
-        </ScrollView>
+        </SafeAreaView>
     );
 }

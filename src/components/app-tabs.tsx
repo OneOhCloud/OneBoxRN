@@ -19,12 +19,17 @@ export default function AppTabs() {
         >
             <NativeTabs.Trigger name="index">
                 <NativeTabs.Trigger.Label>连接</NativeTabs.Trigger.Label>
-                <NativeTabs.Trigger.Icon sf="shield.fill" md="home" />
+                <NativeTabs.Trigger.Icon sf="shield.fill" md="vpn_key" />
             </NativeTabs.Trigger>
 
-            <NativeTabs.Trigger name="explore">
+            <NativeTabs.Trigger name="monitor">
                 <NativeTabs.Trigger.Label>监控</NativeTabs.Trigger.Label>
-                <NativeTabs.Trigger.Icon sf="chart.bar.fill" md="settings" />
+                <NativeTabs.Trigger.Icon sf="chart.bar.fill" md="bar_chart" />
+            </NativeTabs.Trigger>
+
+            <NativeTabs.Trigger name="logs">
+                <NativeTabs.Trigger.Label>日志</NativeTabs.Trigger.Label>
+                <NativeTabs.Trigger.Icon sf="doc.text.fill" md="article" />
             </NativeTabs.Trigger>
         </NativeTabs>
     );

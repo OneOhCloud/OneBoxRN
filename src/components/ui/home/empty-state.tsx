@@ -1,8 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { lightImpact } from '@/components/ui/haptics';
 import { useTheme } from '@/hooks/use-theme';
-import { Pressable, View } from 'react-native';
-
+import { Image, Pressable, View } from 'react-native';
 interface EmptyStateProps {
     onScanQR: () => void;
     onImportUrl: () => void;
@@ -14,19 +13,11 @@ export function EmptyState({ onScanQR, onImportUrl }: EmptyStateProps) {
     return (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
             {/* Icon */}
-            <View
-                style={{
-                    width: 88,
-                    height: 88,
-                    borderRadius: 44,
-                    backgroundColor: theme.backgroundElement,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: 24,
-                }}
-            >
-                <ThemedText style={{ fontSize: 40, lineHeight: 48 }}>🔒</ThemedText>
-            </View>
+            <Image
+                source={require('../../../../assets/images/icon.png')}
+                style={{ width: 128, height: 128, borderRadius: 28, marginBottom: 24 }}
+                resizeMode="contain"
+            />
 
             {/* Text */}
             <ThemedText type="subtitle" style={{ textAlign: 'center', marginBottom: 8 }}>
@@ -65,6 +56,14 @@ export function EmptyState({ onScanQR, onImportUrl }: EmptyStateProps) {
                 >
                     <ThemedText style={{ fontWeight: '600' }}>导入订阅链接</ThemedText>
                 </Pressable>
+
+
+                <ThemedText
+                    themeColor="textSecondary"
+                    style={{ textAlign: 'center', lineHeight: 18, marginTop: 8 }}
+                >
+                    仅支持 sing-box 的订阅链接
+                </ThemedText>
             </View>
         </View>
     );

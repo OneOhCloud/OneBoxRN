@@ -22,11 +22,14 @@ export default function AppTabs() {
       <TabSlot className="h-full" />
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="home" href="/" asChild>
-            <TabButton>Home</TabButton>
+          <TabTrigger name="index" href="/" asChild>
+            <TabButton>连接</TabButton>
           </TabTrigger>
-          <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Explore</TabButton>
+          <TabTrigger name="monitor" href="/monitor" asChild>
+            <TabButton>监控</TabButton>
+          </TabTrigger>
+          <TabTrigger name="logs" href="/logs" asChild>
+            <TabButton>日志</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>
