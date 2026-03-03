@@ -12,7 +12,7 @@ export function SpeedRow() {
     const uplink = traffic?.uplinkDisplay || '0 B/s';
     const downlink = traffic?.downlinkDisplay || '0 B/s';
     return (
-        <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={{ flexDirection: 'row', gap: 24 }}>
             {[
                 { arrow: '↑', value: uplink },
                 { arrow: '↓', value: downlink },
