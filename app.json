@@ -8,6 +8,7 @@
     "scheme": "oneoh-networktools",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "buildNumber": "2",
       "supportsTablet": true,
       "bundleIdentifier": "cloud.oneoh.networktools",
       "entitlements": {
@@ -30,6 +31,18 @@
           "zh"
         ]
       }
+    },
+    "android": {
+      "versionCode": 2,
+      "package": "cloud.oneoh.networktools",
+      "permissions": [
+        "VPN_PERMISSION_REQUIRED",
+        "android.permission.VIBRATE",
+        "android.permission.WAKE_LOCK",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static"
@@ -65,7 +78,8 @@
           "buildReactNativeFromSource": true,
           "useHermesV1": true,
           "ios": {
-            "appleTeamId": "GN2W3N34TM"
+            "appleTeamId": "GN2W3N34TM",
+            "buildNumber": "1.0.5"
           },
           "android": {
             "abiFilters": [
@@ -120,17 +134,6 @@
       "eas": {
         "projectId": "a705f7ba-e090-4f16-a842-31f0cd5c0e89"
       }
-    },
-    "android": {
-      "package": "cloud.oneoh.networktools",
-      "permissions": [
-        "VPN_PERMISSION_REQUIRED",
-        "android.permission.VIBRATE",
-        "android.permission.WAKE_LOCK",
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ]
     },
     "owner": "oneoh-cloud-llc"
   }
