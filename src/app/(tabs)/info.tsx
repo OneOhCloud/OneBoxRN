@@ -4,7 +4,7 @@
  */
 import { ThemedText } from '@/components/themed-text';
 import { ModeSelector } from '@/components/ui/home/mode-selector';
-import { MaxContentWidth } from '@/constants/theme';
+import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { getStoreValue } from '@/database/store';
 import { useTheme } from '@/hooks/use-theme';
@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
 import { Platform, ScrollView, ToastAndroid, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MONO_FONT = Platform.OS === 'ios' ? 'ui-monospace' : 'monospace';
 
@@ -243,15 +243,28 @@ function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPayload | null })
 
 export default function InfoScreen() {
     const theme = useTheme();
-    const { connected, traffic } = useVpn();
+    const safeAreaInsets = useSafeAreaInsets();
 
+    const { connected, traffic } = useVpn();
+    const insets = {
+        ...safeAreaInsets,
+        bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
+    };
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-            <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, gap: 20, maxWidth: MaxContentWidth }}
-                showsVerticalScrollIndicator={false}
-            >
+        <View
+            className="flex-1"
+            style={{
+                backgroundColor: theme.background,
+                paddingTop: Platform.OS === 'web' ? Spacing.six : insets.top,
+                paddingBottom: insets.bottom,
+                paddingLeft: insets.left,
+                paddingRight: insets.right,
+            }}
+        >            <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, gap: 20, maxWidth: MaxContentWidth }}
+            showsVerticalScrollIndicator={false}
+        >
                 {/* Page title */}
                 <ThemedText type="subtitle">信息</ThemedText>
 
@@ -267,6 +280,6 @@ export default function InfoScreen() {
                 {/* Traffic stats */}
                 <TrafficCard traffic={traffic} />
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }

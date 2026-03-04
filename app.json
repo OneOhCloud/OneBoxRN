@@ -68,7 +68,8 @@
             "appleTeamId": "GN2W3N34TM"
           },
           "android": {
-            "ndkVersion": "27.1.12297006"
+            "ndkVersion": "27.1.12297006",
+            "useLegacyPackaging": false
           }
         }
       ],
