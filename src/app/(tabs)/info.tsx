@@ -256,27 +256,30 @@ export default function InfoScreen() {
             style={{
                 backgroundColor: theme.background,
                 paddingTop: Platform.OS === 'web' ? Spacing.six : insets.top,
-                paddingBottom: insets.bottom,
                 paddingLeft: insets.left,
                 paddingRight: insets.right,
             }}
         >
-            <View className="flex-row justify-between items-center px-5 ">
-                {/* Page title */}
-                <ThemedText type="subtitle">信息</ThemedText>
+            <ScrollView className="flex-1 " >
+                <View className="flex-col  px-5 gap-12 ">
+                    {/* Page title */}
+                    <ThemedText type="subtitle">信息</ThemedText>
 
-                {/* Routing mode */}
-                <View>
-                    <SectionLabel text="路由模式" />
-                    <ModeSelector hideSectionLabel />
+                    {/* Routing mode */}
+                    <View>
+                        <SectionLabel text="路由模式" />
+                        <ModeSelector hideSectionLabel />
+                    </View>
+
+                    {/* System info */}
+                    <InfoCard connected={connected} />
+
+                    {/* Traffic stats */}
+                    <TrafficCard traffic={traffic} />
                 </View>
+                <View style={{ height: insets.bottom }} />
+            </ScrollView>
 
-                {/* System info */}
-                <InfoCard connected={connected} />
-
-                {/* Traffic stats */}
-                <TrafficCard traffic={traffic} />
-            </View>
         </View>
     );
 }
