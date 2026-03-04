@@ -6,10 +6,11 @@ import { mediumImpact, notifyError, notifySuccess } from '@/components/ui/haptic
 import { SBConfig } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import { getSingBoxUserAgent } from '@/utils';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fetch } from 'expo/fetch';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─── Download Hook ──────────────────────────────────────────
@@ -101,22 +102,43 @@ function formatBytes(bytes: number): string {
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
 }
 
+// ─── Shared: Icon Orb ───────────────────────────────────────
+function IconOrb({
+    name,
+    color,
+    tint,
+}: {
+    name: keyof typeof Ionicons.glyphMap;
+    color: string;
+    tint: string;
+}) {
+    return (
+        <View
+            style={{
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                backgroundColor: tint,
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}
+        >
+            <Ionicons name={name} size={34} color={color} />
+        </View>
+    );
+}
+
 // ─── Loading State ──────────────────────────────────────────
 function LoadingView() {
     const theme = useTheme();
     return (
-        <View className="flex-1 items-center justify-center" style={{ backgroundColor: theme.background }}>
-            <View
-                className="w-20 h-20 rounded-full items-center justify-center mb-6"
-                style={{ backgroundColor: theme.backgroundElement }}
-            >
-                <Text className="text-4xl">☁️</Text>
-            </View>
-            <ActivityIndicator size="large" color="#007AFF" className="mt-6" />
-            <Text className="text-lg font-semibold mt-4" style={{ color: theme.text }}>
-                正在下载配置…
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background }}>
+            <IconOrb name="cloud-download-outline" color="#007AFF" tint="#007AFF18" />
+            <Text style={{ fontSize: 17, fontWeight: '600', color: theme.text, marginTop: 20, letterSpacing: -0.3 }}>
+                正在下载配置
             </Text>
-            <Text className="text-sm mt-2" style={{ color: theme.textSecondary }}>请稍候</Text>
+            <Text style={{ fontSize: 14, color: theme.textSecondary, marginTop: 6 }}>请稍候</Text>
+            <ActivityIndicator size="large" color="#007AFF" style={{ marginTop: 32 }} />
         </View>
     );
 }
@@ -125,32 +147,75 @@ function LoadingView() {
 function ErrorView({ message }: { message: string }) {
     const theme = useTheme();
     return (
-        <View className="flex-1 items-center justify-center px-6" style={{ backgroundColor: theme.background }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, backgroundColor: theme.background }}>
+            <IconOrb name="alert-circle" color="#FF3B30" tint="#FF3B3015" />
+            <Text style={{ fontSize: 17, fontWeight: '600', color: theme.text, marginTop: 20, letterSpacing: -0.3 }}>
+                下载失败
+            </Text>
+            <Text style={{ fontSize: 14, color: theme.textSecondary, marginTop: 6 }}>
+                无法获取订阅配置，请检查链接后重试
+            </Text>
             <View
-                className="w-20 h-20 rounded-full items-center justify-center mb-6"
-                style={{ backgroundColor: '#FF3B3012' }}
+                style={{
+                    width: '100%',
+                    maxWidth: 360,
+                    marginTop: 20,
+                    borderRadius: 14,
+                    backgroundColor: theme.backgroundElement,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                }}
             >
-                <Text className="text-4xl">⚠️</Text>
+                <ScrollView style={{ maxHeight: 110 }}>
+                    <Text style={{ fontSize: 13, color: '#FF3B30', lineHeight: 19 }}>{message}</Text>
+                </ScrollView>
             </View>
-            <Text className="text-lg font-semibold mt-4" style={{ color: theme.text }}>下载失败</Text>
-            <ScrollView
-                className="w-full max-w-sm mt-4 rounded-2xl p-4"
-                style={{ backgroundColor: theme.backgroundElement }}
-            >
-                <Text className="text-sm" style={{ color: '#FF3B30' }}>{message}</Text>
-            </ScrollView>
             <Pressable
                 onPress={() => { mediumImpact(); router.back(); }}
-                className="mt-6 px-8 py-3.5 rounded-full active:opacity-80"
-                style={{ backgroundColor: theme.backgroundElement }}
+                style={({ pressed }) => ({
+                    marginTop: 24,
+                    paddingHorizontal: 32,
+                    paddingVertical: 13,
+                    borderRadius: 100,
+                    backgroundColor: theme.backgroundElement,
+                    opacity: pressed ? 0.55 : 1,
+                })}
             >
-                <Text className="text-base font-medium" style={{ color: theme.text }}>返回</Text>
+                <Text style={{ fontSize: 15, fontWeight: '500', color: theme.text }}>返回</Text>
             </Pressable>
         </View>
     );
 }
 
 // ─── Success State ──────────────────────────────────────────
+function InfoRow({
+    label,
+    value,
+    theme,
+    isLast,
+}: {
+    label: string;
+    value: string;
+    theme: ReturnType<typeof useTheme>;
+    isLast?: boolean;
+}) {
+    return (
+        <View
+            style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingVertical: 13,
+                borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+                borderBottomColor: theme.background,
+            }}
+        >
+            <Text style={{ fontSize: 14, color: theme.textSecondary }}>{label}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: theme.text }}>{value}</Text>
+        </View>
+    );
+}
+
 function SuccessView({
     extraInfo,
 }: {
@@ -162,70 +227,96 @@ function SuccessView({
     const expireDate = extraInfo && extraInfo.expire > 0 ? new Date(extraInfo.expire * 1000) : null;
     const left = total > used ? total - used : 0;
     const usedPercent = total > 0 ? Math.min((used / total) * 100, 100) : 0;
+    const isNearLimit = usedPercent > 85;
 
     return (
-        <View className="flex-1 items-center justify-center px-6" style={{ backgroundColor: theme.background }}>
-            <View
-                className="w-20 h-20 rounded-full items-center justify-center mb-6"
-                style={{ backgroundColor: '#34C75912' }}
-            >
-                <Text className="text-4xl">✅</Text>
-            </View>
-            <Text className="text-lg font-semibold mt-4" style={{ color: theme.text }}>导入成功</Text>
-            <Text className="text-sm mt-2" style={{ color: theme.textSecondary }}>订阅配置已更新</Text>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, backgroundColor: theme.background }}>
+            <IconOrb name="checkmark-circle" color="#34C759" tint="#34C75915" />
+            <Text style={{ fontSize: 17, fontWeight: '600', color: theme.text, marginTop: 20, letterSpacing: -0.3 }}>
+                导入成功
+            </Text>
+            <Text style={{ fontSize: 14, color: theme.textSecondary, marginTop: 6 }}>
+                订阅配置已更新
+            </Text>
 
-            {/* Subscription info card */}
+            {/* Info card */}
             <View
-                className="w-full max-w-sm mt-6 rounded-2xl p-5"
-                style={{ backgroundColor: theme.backgroundElement }}
+                style={{
+                    width: '100%',
+                    maxWidth: 360,
+                    marginTop: 24,
+                    borderRadius: 16,
+                    backgroundColor: theme.backgroundElement,
+                    paddingHorizontal: 16,
+                    overflow: 'hidden',
+                }}
             >
-                {/* Traffic bar */}
+                {/* Traffic section */}
                 {total > 0 && (
-                    <View className="mb-5">
-                        <View className="flex-row justify-between items-center mb-2.5">
-                            <Text className="text-sm font-medium" style={{ color: theme.textSecondary }}>
-                                剩余流量
-                            </Text>
-                            <Text className="text-sm font-semibold" style={{ color: theme.text }}>
-                                {formatBytes(left)} / {formatBytes(total)}
+                    <View style={{ paddingTop: 14, paddingBottom: 2 }}>
+                        {/* Label row */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                            <Text style={{ fontSize: 13, color: theme.textSecondary }}>流量使用</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text }}>
+                                {formatBytes(left)} 剩余
                             </Text>
                         </View>
-                        <View className="w-full h-2 rounded-full" style={{ backgroundColor: theme.background }}>
+                        {/* Progress track */}
+                        <View style={{ width: '100%', height: 5, borderRadius: 3, backgroundColor: theme.background }}>
                             <View
-                                className="h-2 rounded-full"
                                 style={{
+                                    height: 5,
+                                    borderRadius: 3,
                                     width: `${usedPercent}%`,
-                                    backgroundColor: usedPercent > 85 ? '#FF3B30' : '#007AFF',
+                                    backgroundColor: isNearLimit ? '#FF3B30' : '#007AFF',
                                 }}
                             />
                         </View>
-                        <Text className="text-xs mt-1.5" style={{ color: theme.textSecondary }}>
-                            已用 {formatBytes(used)}（{usedPercent.toFixed(1)}%）
-                        </Text>
+                        {/* Sub labels */}
+                        <View
+                            style={{
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                marginTop: 7,
+                                paddingBottom: 13,
+                                borderBottomWidth: StyleSheet.hairlineWidth,
+                                borderBottomColor: theme.background,
+                            }}
+                        >
+                            <Text style={{ fontSize: 12, color: theme.textSecondary }}>
+                                已用 {formatBytes(used)}（{usedPercent.toFixed(1)}%）
+                            </Text>
+                            <Text style={{ fontSize: 12, color: theme.textSecondary }}>
+                                共 {formatBytes(total)}
+                            </Text>
+                        </View>
                     </View>
                 )}
 
-                {/* Expire date */}
-                <View
-                    className="flex-row justify-between items-center pt-4"
-                    style={{ borderTopWidth: 0.5, borderTopColor: theme.background }}
-                >
-                    <Text className="text-sm font-medium" style={{ color: theme.textSecondary }}>
-                        到期时间
-                    </Text>
-                    <Text className="text-sm font-semibold" style={{ color: theme.text }}>
-                        {expireDate ? expireDate.toLocaleDateString() : '无限制'}
-                    </Text>
-                </View>
+                {/* Expire row */}
+                <InfoRow
+                    label="到期时间"
+                    value={expireDate ? expireDate.toLocaleDateString('zh-CN') : '无限制'}
+                    theme={theme}
+                    isLast
+                />
             </View>
 
             {/* CTA */}
             <Pressable
                 onPress={() => { mediumImpact(); router.dismissTo('/'); }}
-                className="mt-8 px-10 py-4 rounded-full active:opacity-80"
-                style={{ backgroundColor: '#007AFF' }}
+                style={({ pressed }) => ({
+                    marginTop: 28,
+                    paddingHorizontal: 40,
+                    paddingVertical: 15,
+                    borderRadius: 100,
+                    backgroundColor: '#007AFF',
+                    opacity: pressed ? 0.72 : 1,
+                })}
             >
-                <Text style={{ color: '#ffffff' }} className="text-base font-semibold">开始使用</Text>
+                <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '600', letterSpacing: -0.2 }}>
+                    开始使用
+                </Text>
             </Pressable>
         </View>
     );
@@ -235,8 +326,9 @@ function SuccessView({
 function DefaultView() {
     const theme = useTheme();
     return (
-        <View className="flex-1 items-center justify-center" style={{ backgroundColor: theme.background }}>
-            <Text className="text-lg font-semibold" style={{ color: theme.textSecondary }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background }}>
+            <IconOrb name="link-outline" color={theme.textSecondary} tint={theme.backgroundElement} />
+            <Text style={{ fontSize: 15, color: theme.textSecondary, marginTop: 16 }}>
                 请通过深链导入配置
             </Text>
         </View>
@@ -264,15 +356,22 @@ export default function ConfigScreen() {
     const { data, error, isLoading, extraInfo } = useDownloadConfig(url);
 
     return (
-        <SafeAreaView className="flex-1" style={{ flex: 1, backgroundColor: theme.background }}>
-            {/* Back button overlay */}
-            <View className="absolute top-14 left-4 z-10">
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+            {/* Navigation bar */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4 }}>
                 <Pressable
                     onPress={() => router.back()}
-                    className="w-10 h-10 rounded-full items-center justify-center active:opacity-70"
-                    style={{ backgroundColor: theme.backgroundElement }}
+                    style={({ pressed }) => ({
+                        width: 36,
+                        height: 36,
+                        borderRadius: 18,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: theme.backgroundElement,
+                        opacity: pressed ? 0.55 : 1,
+                    })}
                 >
-                    <Text style={{ color: theme.text, fontSize: 18 }}>‹</Text>
+                    <Ionicons name="chevron-back" size={20} color={theme.text} />
                 </Pressable>
             </View>
 
