@@ -88,10 +88,8 @@
             ],
             "ndkVersion": "27.1.12297006",
             "useLegacyPackaging": false,
-            "enableProguardInReleaseBuilds": true,
-            "extraGradleArguments": [
-              "-PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64"
-            ]
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
           }
         }
       ],
