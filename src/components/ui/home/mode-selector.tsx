@@ -10,19 +10,21 @@ const OPTIONS = [
 ];
 
 /** Segmented control for routing mode: rules / global */
-export function ModeSelector() {
+export function ModeSelector({ hideSectionLabel }: { hideSectionLabel?: boolean } = {}) {
     const theme = useTheme();
     const { mode, setMode: onChange } = useVpn();
 
     return (
         <View>
-            <ThemedText
-                type="small"
-                themeColor="textSecondary"
-                style={{ marginBottom: 8, paddingHorizontal: 4 }}
-            >
-                路由模式
-            </ThemedText>
+            {!hideSectionLabel && (
+                <ThemedText
+                    type="small"
+                    themeColor="textSecondary"
+                    style={{ marginBottom: 8, paddingHorizontal: 4 }}
+                >
+                    路由模式
+                </ThemedText>
+            )}
             <View
                 style={{
                     flexDirection: 'row',

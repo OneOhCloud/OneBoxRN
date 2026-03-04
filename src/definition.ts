@@ -1,5 +1,5 @@
 export const SING_BOX_MAJOR_VERSION = "1.13";
-export const SING_BOX_MINOR_VERSION = "0-rc.5";
+export const SING_BOX_MINOR_VERSION = "0";
 // 当前版本的 sing-box 版本号，主要用于构建配置模板的缓存键，确保在 sing-box 版本更新后能够正确更新配置模板缓存
 export const SING_BOX_VERSION = `v${SING_BOX_MAJOR_VERSION}.${SING_BOX_MINOR_VERSION}`;
 

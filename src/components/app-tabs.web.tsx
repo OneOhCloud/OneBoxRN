@@ -25,8 +25,8 @@ export default function AppTabs() {
           <TabTrigger name="index" href="/" asChild>
             <TabButton>连接</TabButton>
           </TabTrigger>
-          <TabTrigger name="monitor" href="/monitor" asChild>
-            <TabButton>监控</TabButton>
+          <TabTrigger name="monitor" href="/info" asChild>
+            <TabButton>信息</TabButton>
           </TabTrigger>
           <TabTrigger name="logs" href="/logs" asChild>
             <TabButton>日志</TabButton>

@@ -22,8 +22,8 @@ export default function AppTabs() {
                 <NativeTabs.Trigger.Icon sf="shield.fill" md="vpn_key" />
             </NativeTabs.Trigger>
 
-            <NativeTabs.Trigger name="monitor">
-                <NativeTabs.Trigger.Label>监控</NativeTabs.Trigger.Label>
+            <NativeTabs.Trigger name="info">
+                <NativeTabs.Trigger.Label>信息</NativeTabs.Trigger.Label>
                 <NativeTabs.Trigger.Icon sf="chart.bar.fill" md="bar_chart" />
             </NativeTabs.Trigger>
 
