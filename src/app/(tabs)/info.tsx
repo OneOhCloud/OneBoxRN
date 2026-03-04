@@ -4,7 +4,7 @@
  */
 import { ThemedText } from '@/components/themed-text';
 import { ModeSelector } from '@/components/ui/home/mode-selector';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { getStoreValue } from '@/database/store';
 import { useTheme } from '@/hooks/use-theme';
@@ -261,11 +261,7 @@ export default function InfoScreen() {
                 paddingRight: insets.right,
             }}
         >
-            <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, gap: 20, maxWidth: MaxContentWidth }}
-                showsVerticalScrollIndicator={false}
-            >
+            <View className="flex-row justify-between items-center px-5 ">
                 {/* Page title */}
                 <ThemedText type="subtitle">信息</ThemedText>
 
@@ -280,7 +276,7 @@ export default function InfoScreen() {
 
                 {/* Traffic stats */}
                 <TrafficCard traffic={traffic} />
-            </ScrollView>
+            </View>
         </View>
     );
 }
