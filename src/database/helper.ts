@@ -1,5 +1,5 @@
 // import RulesModeTemplate from "@/database/template/zh/rules.jsonc";
-import { configType, SING_BOX_MAJOR_VERSION, SING_BOX_VERSION, STAGE_VERSION_STORE_KEY } from "@/definition";
+import { configType, SING_BOX_MAJOR_VERSION, SING_BOX_VERSION } from "@/definition";
 import { ExpoOneBox } from "@/modules/expo-onebox";
 import { SBConfig } from "./kv";
 import { getCustomRuleSet, getStoreValue, setStoreValue } from "./store";
@@ -34,31 +34,64 @@ export async function getConfigTemplateCacheKey(mode: configType): Promise<strin
 
 type Dict = any;
 
-export async function updateDHCPSettings2Config(newConfig: Dict) {
+const BEST_DNS_TIMEOUT_MS = 2000;
+const FALLBACK_DNS = "119.29.29.29";
+
+async function getBestDnsWithTimeout(fallback: string): Promise<string> {
+    try {
+        const result = await Promise.race([
+            ExpoOneBox.getBestDns(),
+            new Promise<string>((_, reject) =>
+                setTimeout(() => reject(new Error(`getBestDns 超时（${BEST_DNS_TIMEOUT_MS}ms）`)), BEST_DNS_TIMEOUT_MS)
+            ),
+        ]);
+        return result;
+    } catch (e) {
+        console.warn("getBestDns 失败或超时，降级使用 fallback DNS：", fallback, e);
+        return fallback;
+    }
+}
+
+export async function updateDNS2Config(newConfig: Dict) {
     for (let i = 0; i < newConfig.dns.servers.length; i++) {
+        console.log(`检查 DNS 服务器 ${i}，标签为 ${newConfig.dns.servers[i].tag}，类型为 ${newConfig.dns.servers[i].type}`);
         const server = newConfig.dns.servers[i];
+        console.log("当前 DNS 服务器配置：", server);
         if (server.tag === "system") {
-            let directDNS = await ExpoOneBox.getBestDns()
+            console.log("找到系统 DNS 服务器，正在获取最佳 DNS 地址...");
+            const fallback = server.server?.trim() || FALLBACK_DNS;
+            let directDNS = await getBestDnsWithTimeout(fallback);
+            console.log("获取到的最佳 DNS 地址：", directDNS);
             await setStoreValue("directDNS", directDNS);
             console.log("当前使用直连 DNS 地址：", directDNS);
             server.type = "udp";
             server.server = directDNS.trim();
             server.server_port = 53;
             console.log("启用 UDP DNS 模式, 服务器地址：", server.server);
+            return;
+        } else {
+            console.log(`跳过 DNS 服务器 ${server.tag}，类型为 ${server.type}`);
         }
     }
 }
 
 
 async function rewriteConfig(newConfig: Dict) {
+    console.log("重写配置文件，注入 DNS 设置和实验性功能");
+    try {
+        await updateDNS2Config(newConfig);
+
+    } catch (error) {
+        console.error("更新 DNS 配置失败，可能会导致 DNS 解析问题", error);
+        throw error;
+    }
     newConfig["experimental"]["clash_api"] = {};
-    updateDHCPSettings2Config(newConfig);
+    console.log("重写配置文件完成");
 }
 
 export function getDefaultConfigTemplate(mode: configType, version: string): string {
     if (version.startsWith("v1.12") || version.startsWith("v1.13")) {
         switch (mode) {
-
             case 'tun-rules':
                 return JSON.stringify(TunRulesConfig);
             case 'tun-global':
@@ -80,7 +113,7 @@ type SBJSONConfig = Map<any, any> & {
 /**
  * 只提取配置文件中的服务器节点配置合并到配置文件中
  */
-export async function updateVPNServerConfigFromDB(dbConfigData: SBJSONConfig, newConfig: any): Promise<string> {
+export async function updateVPNServerConfigFromDB(dbConfigData: SBJSONConfig, newConfig: SBJSONConfig): Promise<string> {
 
     const outboundsSelectorIndex = 1;
     const outboundsUrltestIndex = 2;
@@ -138,8 +171,8 @@ export async function getTunConfig(config: string) {
     const newConfig = await getConfigTemplate('tun-rules');
 
     // 根据当前的 Stage 版本设置日志等级
-    let level = await getStoreValue(STAGE_VERSION_STORE_KEY) === "dev" ? "debug" : "info";
-    newConfig.log.level = level;
+    // let level = await getStoreValue(STAGE_VERSION_STORE_KEY) === "dev" ? "debug" : "info";
+    // newConfig.log.level = level;
     console.log("写入[规则]TUN代理配置文件");
     // let dbConfigData = await getSubscriptionConfig(identifier);
     // const appConfigPath = await path.appConfigDir();
@@ -175,16 +208,16 @@ export async function getTunConfig(config: string) {
     }
 
     console.log("当前 TUN Stack:", newConfig.inbounds[0].stack);
-    rewriteConfig(newConfig);
+    await rewriteConfig(newConfig);
     return await updateVPNServerConfigFromDB(configJson, newConfig);
 }
 
 export default async function getGlobalTunConfig(config: string) {
     let configJson = JSON.parse(config)
     const newConfig = await getConfigTemplate('tun-global');
-    let level = await getStoreValue(STAGE_VERSION_STORE_KEY) === "dev" ? "debug" : "info";
-    newConfig.log.level = level;
-    rewriteConfig(newConfig);
+    // let level = await getStoreValue(STAGE_VERSION_STORE_KEY) === "dev" ? "debug" : "info";
+    // newConfig.log.level = level;
+    await rewriteConfig(newConfig);
     return await updateVPNServerConfigFromDB(configJson, newConfig);
 
 }

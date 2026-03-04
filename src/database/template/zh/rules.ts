@@ -2,7 +2,7 @@
 const TunRulesConfig = {
     "log": {
         "disabled": false,
-        "level": "debug",
+        "level": "info",
         "timestamp": false
     },
     "dns": {

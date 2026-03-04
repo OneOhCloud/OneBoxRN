@@ -87,12 +87,10 @@ function InfoCard({ connected }: { connected: boolean }) {
 
     useEffect(() => {
         const fetchBestDns = async () => {
-            let directDNS = await ExpoOneBox.getBestDns()
-            let dns = await getStoreValue("directDNS", directDNS);
-            setBestDns(dns);
+            setBestDns(await getStoreValue('directDNS', '未知'));
         };
         fetchBestDns();
-    }, []);
+    }, [connected]);
 
 
     const handleCopyUA = () => {

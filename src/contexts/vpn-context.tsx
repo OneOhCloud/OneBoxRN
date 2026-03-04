@@ -30,7 +30,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     const [mode, setModeState] = useState<configType>(() => SBConfig.getMode());
 
     const appendLogs = useCallback((lines: string[]) => {
-        console.log('Appending logs:', lines);
+        console.log('[sing-box]:', lines);
         setLogs((prev) => {
             const next = [...prev, ...lines];
             return next.length > MAX_LOG_LINES ? next.slice(next.length - MAX_LOG_LINES) : next;
