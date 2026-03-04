@@ -212,11 +212,16 @@ export default function LogsScreen() {
 
             {/* Terminal log panel — fills all remaining safe-area height */}
             <View
-                className="h-screen-safe mx-2 border-gray-50 border-2 rounded-2xl overflow-hidden"
+                className="h-screen-safe mx-2 rounded-2xl overflow-hidden"
+                style={{
+                    borderWidth: 2,
+                    borderColor: theme.border ?? '#E5E5EA',
+                    backgroundColor: theme.cardBackground ?? '#FFFFFF',
+                }}
             >
                 {logs.length === 0 ? (
                     <View className="flex-1 py-10 items-center justify-center">
-                        <Text style={{ color: '#636366', fontSize: 13 }}>暂无日志</Text>
+                        <Text style={{ color: theme.textSecondary ?? '#636366', fontSize: 13 }}>暂无日志</Text>
                     </View>
                 ) : (
                     <FlatList

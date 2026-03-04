@@ -8,7 +8,13 @@ import '@/global.css';
 import { Platform } from 'react-native';
 
 export const Colors = {
+
+
+
   light: {
+    // oklch(98.5% 0.002 247.839)
+    border: '#f9fafb',
+    cardBackground: '#FFFFFF',
     text: '#000000',
     background: '#ffffff',
     backgroundElement: '#F0F0F3',
@@ -16,6 +22,8 @@ export const Colors = {
     textSecondary: '#60646C',
   },
   dark: {
+    border: '#2E3135',
+    cardBackground: '#212225',
     text: '#ffffff',
     background: '#000000',
     backgroundElement: '#212225',
