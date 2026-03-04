@@ -251,7 +251,7 @@ export default function ConfigScreen() {
     const { data, error, isLoading, extraInfo } = useDownloadConfig(url);
 
     return (
-        <SafeAreaView className="flex-1" style={{ backgroundColor: theme.background }}>
+        <SafeAreaView className="flex-1" style={{ flex: 1, backgroundColor: theme.background }}>
             {/* Back button overlay */}
             <View className="absolute top-14 left-4 z-10">
                 <Pressable

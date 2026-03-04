@@ -115,7 +115,7 @@ export default function HomeScreen() {
 
     // ── Empty state ────────────────────────────────────────────
 
-    if (hasConfig) {
+    if (!hasConfig) {
         return (
             <ThemedView style={{ flex: 1, flexDirection: 'row', justifyContent: 'center' }}>
                 <SafeAreaView
