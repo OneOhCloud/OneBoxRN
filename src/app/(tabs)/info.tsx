@@ -260,11 +260,12 @@ export default function InfoScreen() {
                 paddingLeft: insets.left,
                 paddingRight: insets.right,
             }}
-        >            <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, gap: 20, maxWidth: MaxContentWidth }}
-            showsVerticalScrollIndicator={false}
         >
+            <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, gap: 20, maxWidth: MaxContentWidth }}
+                showsVerticalScrollIndicator={false}
+            >
                 {/* Page title */}
                 <ThemedText type="subtitle">信息</ThemedText>
 
