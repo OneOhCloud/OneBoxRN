@@ -11,6 +11,7 @@ import ExpoOneBox, { TrafficUpdateEventPayload } from '@/modules/expo-onebox';
 import { getSingBoxUserAgent } from '@/utils';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { useEffect, useState } from 'react';
 import { Platform, ScrollView, ToastAndroid, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -77,10 +78,26 @@ function InfoRow({
 }
 
 // ─── Info Card ──────────────────────────────────────────────
-async function InfoCard({ connected }: { connected: boolean }) {
+function InfoCard({ connected }: { connected: boolean }) {
     const theme = useTheme();
     const version = ExpoOneBox.getLibBoxVersion();
     const ua = getSingBoxUserAgent();
+    const [bestDns, setBestDns] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchBestDns = async () => {
+            try {
+                const dns = await ExpoOneBox.getBestDns();
+                setBestDns(dns);
+            } catch (e) {
+                console.warn('Failed to fetch best DNS:', e);
+                setBestDns(null);
+            }
+        };
+        fetchBestDns();
+
+    }, []);
+
 
     const handleCopyUA = () => {
         Clipboard.setStringAsync(ua);
@@ -112,7 +129,7 @@ async function InfoCard({ connected }: { connected: boolean }) {
                 {/* Best DNS */}
                 <InfoRow iconName="globe-outline" iconColor="#30B0C7" label="DNS 服务器">
                     <ThemedText style={{ fontSize: 14, fontFamily: MONO_FONT }} themeColor="textSecondary">
-                        {await ExpoOneBox.getBestDns()}
+                        {bestDns || '正在测试...'}
                     </ThemedText>
                 </InfoRow>
 
