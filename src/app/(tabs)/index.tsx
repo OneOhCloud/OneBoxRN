@@ -7,7 +7,7 @@ import { ThemedView } from '@/components/themed-view';
 import CameraQR from '@/components/ui/camera-qr';
 import { ConnectButton } from '@/components/ui/home/connect-button';
 import { EmptyState } from '@/components/ui/home/empty-state';
-import { ImportFAB } from '@/components/ui/home/import-fab';
+import { FAB_CLEARANCE, ImportFAB } from '@/components/ui/home/import-fab';
 import { ImportUrlModal } from '@/components/ui/home/import-url-modal';
 import { NodeList } from '@/components/ui/home/node-list';
 import { SpeedRow } from '@/components/ui/home/speed-row';
@@ -184,7 +184,7 @@ export default function HomeScreen() {
                                 marginBottom: 14,
                             }} />
 
-                            <NodeList bottomPadding={Spacing.two} />
+                            <NodeList bottomPadding={FAB_CLEARANCE} />
                         </Animated.View>
                     </Animated.View>
                 ) : (

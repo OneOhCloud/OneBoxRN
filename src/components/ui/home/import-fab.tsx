@@ -3,6 +3,10 @@ import { lightImpact } from '@/components/ui/haptics';
 import { useTheme } from '@/hooks/use-theme';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+/** Height of the FAB button + gap above it — use this to pad content that sits under the FAB */
+export const FAB_CLEARANCE = 56 + 12; // button height + gap from tab bar top
 
 interface ImportFABProps {
     onScanQR: () => void;
@@ -12,6 +16,7 @@ interface ImportFABProps {
 /** Floating action button for quick-access import options */
 export function ImportFAB({ onScanQR, onImportUrl }: ImportFABProps) {
     const theme = useTheme();
+    const insets = useSafeAreaInsets();
     const [open, setOpen] = useState(false);
 
     const menuAnim = useRef(new Animated.Value(0)).current;
@@ -53,7 +58,7 @@ export function ImportFAB({ onScanQR, onImportUrl }: ImportFABProps) {
 
     return (
         <View
-            style={{ position: 'absolute', bottom: 96, right: 16, alignItems: 'flex-end', zIndex: 50 }}
+            style={{ position: 'absolute', bottom: insets.bottom + 12, right: 16, alignItems: 'flex-end', zIndex: 50 }}
             pointerEvents="box-none"
         >
             {/* Dismiss overlay */}

@@ -1,6 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { mediumImpact } from '@/components/ui/haptics';
 import { useTheme } from '@/hooks/use-theme';
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, View } from 'react-native';
 import Animated, {
     useAnimatedStyle,
@@ -59,7 +60,7 @@ export function ConnectButton({ connected, loading, onPress }: ConnectButtonProp
                         elevation: connected ? 16 : 4,
                     }}
                 >
-                    <ThemedText style={{ fontSize: 36, lineHeight: 44, color: textColor }}>⏻</ThemedText>
+                    <Ionicons name="power" size={36} color={textColor} />
                     <ThemedText style={{ fontSize: 14, fontWeight: '600', marginTop: 4, color: textColor }}>
                         {label}
                     </ThemedText>
