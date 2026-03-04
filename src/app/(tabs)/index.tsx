@@ -28,13 +28,7 @@ import Animated, {
     withSpring,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-    CheckVpnPermission,
-    RequestVpnPermission,
-    Start,
-    Stop,
-    VPN_STATUS
-} from '../../modules/expo-onebox';
+import ExpoOneBox, { VPN_STATUS } from '../../modules/expo-onebox';
 
 // ─────────────────────────────────────────────────────────────
 // Home Screen
@@ -80,12 +74,12 @@ export default function HomeScreen() {
         setLocalLoading(true);
         try {
             if (connected) {
-                await Stop();
+                await ExpoOneBox.stop();
             } else {
                 if (Platform.OS === 'android') {
-                    const hasPermission = await CheckVpnPermission();
+                    const hasPermission = await ExpoOneBox.checkVpnPermission();
                     if (!hasPermission) {
-                        const granted = await RequestVpnPermission();
+                        const granted = await ExpoOneBox.requestVpnPermission();
                         if (!granted) {
                             Alert.alert('权限不足', '需要 VPN 权限才能连接');
                             return;
@@ -93,7 +87,7 @@ export default function HomeScreen() {
                     }
                 }
                 const config = await getProcessedConfig();
-                await Start(config);
+                await ExpoOneBox.start(config);
             }
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : '操作失败';

@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { getLocales } from 'expo-localization';
 import { Platform } from 'react-native';
-import { GetVersion } from './modules/expo-onebox';
+import ExpoOneBox from './modules/expo-onebox';
 
 
 const iOSTag = 'SFI';
@@ -14,7 +14,7 @@ export function getSingBoxUserAgent(): string {
     const platform = Platform.OS;
 
     const cpuArchs = Device?.supportedCpuArchitectures?.[0] || 'unknown';
-    const singboxVersion = GetVersion();
+    const singboxVersion = ExpoOneBox.getLibBoxVersion();
     const locales = getLocales();
     const language = locales && locales.length > 0 ? locales[0].languageTag : 'zh-Hans-CN';
 

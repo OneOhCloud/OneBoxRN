@@ -1,11 +1,11 @@
 import { ThemedText } from '@/components/themed-text';
+import { selectionChanged } from '@/components/ui/haptics';
 import { DelayBadge } from '@/components/ui/home/delay-badge';
 import { NodePickerSheet } from '@/components/ui/home/node-picker-sheet';
-import { selectionChanged } from '@/components/ui/haptics';
 import { useVpn } from '@/contexts/vpn-context';
 import { useProxyNodes } from '@/hooks/use-proxy-nodes';
 import { useTheme } from '@/hooks/use-theme';
-import { SelectProxyNode } from '@/modules/expo-onebox';
+import ExpoOneBox from '@/modules/expo-onebox';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useCallback, useRef } from 'react';
@@ -27,7 +27,7 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
         sheetRef.current?.dismiss();
         selectionChanged();
         try {
-            await SelectProxyNode(tag);
+            await ExpoOneBox.selectProxyNode(tag);
             setCurrentNode(tag);
         } catch (e: unknown) {
             Alert.alert('切换节点失败', e instanceof Error ? e.message : '请求失败');
@@ -42,10 +42,10 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
 
     const currentItem = nodes.find(n => n.tag === currentNode);
     const triggerLabel =
-        error                     ? '加载失败'      :
-        isLoading && !currentItem ? '加载中…'       :
-        currentItem               ? currentItem.tag :
-        connected                 ? '暂无节点'      : '未连接';
+        error ? '加载失败' :
+            isLoading && !currentItem ? '加载中…' :
+                currentItem ? currentItem.tag :
+                    connected ? '暂无节点' : '未连接';
 
     return (
         <View style={{ marginBottom: bottomPadding }}>
@@ -85,16 +85,16 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
             >
                 {isLoading && connected
                     ? <ActivityIndicator
-                          size="small"
-                          color={theme.textSecondary}
-                          style={{ marginRight: 10 }}
-                      />
+                        size="small"
+                        color={theme.textSecondary}
+                        style={{ marginRight: 10 }}
+                    />
                     : <Ionicons
-                          name="radio-button-on"
-                          size={18}
-                          color={connected && currentItem ? '#4A8FCC' : theme.textSecondary}
-                          style={{ marginRight: 10 }}
-                      />
+                        name="radio-button-on"
+                        size={18}
+                        color={connected && currentItem ? '#4A8FCC' : theme.textSecondary}
+                        style={{ marginRight: 10 }}
+                    />
                 }
                 <ThemedText
                     style={{ flex: 1, fontWeight: currentItem ? '500' : '400' }}

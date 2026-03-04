@@ -2,17 +2,7 @@ import { SBConfig } from '@/database/kv';
 import { configType } from '@/definition';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, AppStateStatus } from 'react-native';
-import {
-    addErrorListener,
-    addLogListener,
-    addStatusChangeListener,
-    addTrafficUpdateListener,
-    GetStartError,
-    GetStatus,
-    SetCoreLogEnabled,
-    TrafficUpdateEventPayload,
-    VPN_STATUS,
-} from '../modules/expo-onebox';
+import ExpoOneBox, { TrafficUpdateEventPayload, VPN_STATUS } from '../modules/expo-onebox';
 
 // ---- Types ----
 
@@ -55,14 +45,14 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const syncStatus = useCallback(() => {
-        const s = GetStatus();
+        const s = ExpoOneBox.getStatus();
         setStatus(s);
         setConnected(s === VPN_STATUS.STARTED || s === VPN_STATUS.STARTING);
         if (s === VPN_STATUS.STOPPED) setTraffic(null);
     }, []);
 
     useEffect(() => {
-        SetCoreLogEnabled(true);
+        ExpoOneBox.setCoreLogEnabled(true);
         syncStatus();
 
         // isStartingUp: JS 侧独立的启动标记。
@@ -81,7 +71,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             Alert.alert('VPN 启动失败', errMsg, [{ text: '确认' }]);
         };
 
-        const statusSub = addStatusChangeListener((event: { status: number; statusName: string; message: string }) => {
+        const statusSub = ExpoOneBox.addListener('onStatusChange', (event: { status: number; statusName: string; message: string }) => {
             console.log(`[VPN] Status changed: ${event.statusName}(${event.status}), isStartingUp=${isStartingUp.current}`);
 
             setStatus(event.status);
@@ -108,7 +98,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
                     startFailTimer = setTimeout(() => {
                         startFailTimer = null;
                         if (startFailAlertShown.current) return; // 原生事件已经弹过了
-                        const errMsg = GetStartError();
+                        const errMsg = ExpoOneBox.getStartError();
                         console.log('[VPN] JS fallback: GetStartError() =', errMsg);
                         if (errMsg) {
                             showStartFailAlert(errMsg);
@@ -120,7 +110,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             }
         });
 
-        const errorSub = addErrorListener((event: { type: string; message: string; status?: number }) => {
+        const errorSub = ExpoOneBox.addListener('onError', (event: { type: string; message: string; status?: number }) => {
             appendLogs([`[${event.type}] ${event.message}`]);
             // 原生层检测到启动失败后会推送 StartServiceFailed 错误事件
             if (event.type === 'StartServiceFailed') {
@@ -130,11 +120,11 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             }
         });
 
-        const logSub = addLogListener((event: { message: string }) => {
+        const logSub = ExpoOneBox.addListener('onLog', (event: { message: string }) => {
             appendLogs([event.message]);
         });
 
-        const trafficSub = addTrafficUpdateListener((event: TrafficUpdateEventPayload) => {
+        const trafficSub = ExpoOneBox.addListener('onTrafficUpdate', (event: TrafficUpdateEventPayload) => {
             setTraffic(event);
         });
 

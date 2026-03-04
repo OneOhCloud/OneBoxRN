@@ -7,13 +7,12 @@ import { ModeSelector } from '@/components/ui/home/mode-selector';
 import { MaxContentWidth } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { useTheme } from '@/hooks/use-theme';
-import { TrafficUpdateEventPayload } from '@/modules/expo-onebox/src/ExpoOneBox.types';
+import ExpoOneBox, { TrafficUpdateEventPayload } from '@/modules/expo-onebox';
 import { getSingBoxUserAgent } from '@/utils';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Platform, ScrollView, ToastAndroid, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { GetVersion } from '../../modules/expo-onebox';
 
 const MONO_FONT = Platform.OS === 'ios' ? 'ui-monospace' : 'monospace';
 
@@ -78,9 +77,9 @@ function InfoRow({
 }
 
 // ─── Info Card ──────────────────────────────────────────────
-function InfoCard({ connected }: { connected: boolean }) {
+async function InfoCard({ connected }: { connected: boolean }) {
     const theme = useTheme();
-    const version = GetVersion();
+    const version = ExpoOneBox.getLibBoxVersion();
     const ua = getSingBoxUserAgent();
 
     const handleCopyUA = () => {
@@ -109,6 +108,12 @@ function InfoCard({ connected }: { connected: boolean }) {
                             {connected ? '运行中' : '未连接'}
                         </ThemedText>
                     </View>
+                </InfoRow>
+                {/* Best DNS */}
+                <InfoRow iconName="globe-outline" iconColor="#30B0C7" label="DNS 服务器">
+                    <ThemedText style={{ fontSize: 14, fontFamily: MONO_FONT }} themeColor="textSecondary">
+                        {await ExpoOneBox.getBestDns()}
+                    </ThemedText>
                 </InfoRow>
 
                 {/* User Agent */}

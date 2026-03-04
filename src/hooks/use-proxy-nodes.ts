@@ -1,4 +1,4 @@
-import { GetProxyNodes } from '@/modules/expo-onebox';
+import ExpoOneBox from '@/modules/expo-onebox';
 import { useEffect, useState } from 'react';
 
 // ─── Constants ───────────────────────────────────────────────
@@ -51,7 +51,7 @@ export function useProxyNodes(connected: boolean): ProxyNodesState {
 
         const poll = async () => {
             try {
-                const res = await GetProxyNodes();
+                const res = await ExpoOneBox.getProxyNodes();
                 if (!cancelled) {
                     failCount = 0;
                     setNodes(res.all ?? []);
