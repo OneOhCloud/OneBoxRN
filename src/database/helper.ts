@@ -1,7 +1,8 @@
 // import RulesModeTemplate from "@/database/template/zh/rules.jsonc";
 import { configType, SING_BOX_MAJOR_VERSION, SING_BOX_VERSION, STAGE_VERSION_STORE_KEY } from "@/definition";
+import { ExpoOneBox } from "@/modules/expo-onebox";
 import { SBConfig } from "./kv";
-import { getCustomRuleSet, getStoreValue } from "./store";
+import { getCustomRuleSet, getStoreValue, setStoreValue } from "./store";
 import TunGlobalConfig from "./template/zh/global";
 import TunRulesConfig from "./template/zh/rules";
 
@@ -31,8 +32,27 @@ export async function getConfigTemplateCacheKey(mode: configType): Promise<strin
 }
 
 
-async function rewriteConfig(newConfig: any) {
+type Dict = any;
+
+export async function updateDHCPSettings2Config(newConfig: Dict) {
+    for (let i = 0; i < newConfig.dns.servers.length; i++) {
+        const server = newConfig.dns.servers[i];
+        if (server.tag === "system") {
+            let directDNS = await ExpoOneBox.getBestDns()
+            await setStoreValue("directDNS", directDNS);
+            console.log("当前使用直连 DNS 地址：", directDNS);
+            server.type = "udp";
+            server.server = directDNS.trim();
+            server.server_port = 53;
+            console.log("启用 UDP DNS 模式, 服务器地址：", server.server);
+        }
+    }
+}
+
+
+async function rewriteConfig(newConfig: Dict) {
     newConfig["experimental"]["clash_api"] = {};
+    updateDHCPSettings2Config(newConfig);
 }
 
 export function getDefaultConfigTemplate(mode: configType, version: string): string {

@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ModeSelector } from '@/components/ui/home/mode-selector';
 import { MaxContentWidth } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
+import { getStoreValue } from '@/database/store';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox, { TrafficUpdateEventPayload } from '@/modules/expo-onebox';
 import { getSingBoxUserAgent } from '@/utils';
@@ -82,20 +83,15 @@ function InfoCard({ connected }: { connected: boolean }) {
     const theme = useTheme();
     const version = ExpoOneBox.getLibBoxVersion();
     const ua = getSingBoxUserAgent();
-    const [bestDns, setBestDns] = useState<string | null>(null);
+    const [bestDns, setBestDns] = useState<string>("loading...");
 
     useEffect(() => {
         const fetchBestDns = async () => {
-            try {
-                const dns = await ExpoOneBox.getBestDns();
-                setBestDns(dns);
-            } catch (e) {
-                console.warn('Failed to fetch best DNS:', e);
-                setBestDns(null);
-            }
+            let directDNS = await ExpoOneBox.getBestDns()
+            let dns = await getStoreValue("directDNS", directDNS);
+            setBestDns(dns);
         };
         fetchBestDns();
-
     }, []);
 
 
