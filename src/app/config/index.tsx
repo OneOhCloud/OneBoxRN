@@ -31,6 +31,9 @@ function useDownloadConfig(url: string | undefined) {
         setError(null);
         setData(null);
 
+        const controller = new AbortController();
+        const { signal } = controller;
+
         fetch(url, {
             method: 'GET',
             headers: {
@@ -38,10 +41,13 @@ function useDownloadConfig(url: string | undefined) {
                 'Content-Type': 'application/json',
                 'User-Agent': getSingBoxUserAgent(),
             },
+            signal,
         })
             .then(async (response) => {
+                if (signal.aborted) return;
                 if (response.ok) {
                     const content = await response.text();
+                    if (signal.aborted) return;
                     setData(content);
 
                     const subscriptionUserinfo = response.headers.get('subscription-userinfo');
@@ -63,18 +69,25 @@ function useDownloadConfig(url: string | undefined) {
                     setExtraInfo({ upload, download, total, expire });
                     notifySuccess();
                 } else {
+                    if (signal.aborted) return;
                     const err = new Error(`下载配置失败，状态码：${response.status}`);
                     setError(err);
                     notifyError();
                 }
             })
             .catch((fetchError: Error) => {
+                if (signal.aborted) return;
                 setError(fetchError);
                 notifyError();
             })
             .finally(() => {
+                if (signal.aborted) return;
                 setIsLoading(false);
             });
+
+        return () => {
+            controller.abort();
+        };
     }, [url]);
 
     return { data, error, isLoading, extraInfo };
