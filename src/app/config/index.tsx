@@ -141,12 +141,12 @@ function ErrorView({ message }: { message: string }) {
 function SuccessView({
     extraInfo,
 }: {
-    extraInfo: { upload: number; download: number; total: number; expire: number };
+    extraInfo: { upload: number; download: number; total: number; expire: number } | null;
 }) {
     const theme = useTheme();
-    const used = extraInfo.upload + extraInfo.download;
-    const total = extraInfo.total;
-    const expireDate = extraInfo.expire > 0 ? new Date(extraInfo.expire * 1000) : null;
+    const used = extraInfo ? extraInfo.upload + extraInfo.download : 0;
+    const total = extraInfo ? extraInfo.total : 0;
+    const expireDate = extraInfo && extraInfo.expire > 0 ? new Date(extraInfo.expire * 1000) : null;
     const left = total > used ? total - used : 0;
     const usedPercent = total > 0 ? Math.min((used / total) * 100, 100) : 0;
 
@@ -266,7 +266,7 @@ export default function ConfigScreen() {
             {/* Content states */}
             {isLoading && <LoadingView />}
             {!isLoading && error && <ErrorView message={error.message} />}
-            {!isLoading && !error && data && extraInfo && <SuccessView extraInfo={extraInfo} />}
+            {!isLoading && !error && data && <SuccessView extraInfo={extraInfo} />}
             {!isLoading && !error && !data && <DefaultView />}
         </SafeAreaView>
     );
