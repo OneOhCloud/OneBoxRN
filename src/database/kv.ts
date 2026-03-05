@@ -1,12 +1,41 @@
 import { configType } from '@/definition';
+
+// 使用 expo 判断是否在 web 环境中，如果是 web 环境则使用 localStorage，否则使用 MMKV 存储
+import { Platform } from 'react-native';
+
+
 import { createMMKV } from 'react-native-mmkv';
 
-export const MMKVStore = createMMKV(
-    {
-        id: 'oneoh-config-storage',
-        encryptionKey: 'oneoh-networktools',
+let storage: any;
+if (Platform.OS === 'web') {
+    storage = {
+        set: (key: string, value: any) => {
+            localStorage.setItem(key, JSON.stringify(value));
+        },
+        getString: (key: string) => {
+            const value = localStorage.getItem(key);
+            return value ? JSON.parse(value) : null;
+        },
+        getNumber: (key: string) => {
+            const value = localStorage.getItem(key);
+            return value ? Number(JSON.parse(value)) : null;
+        },
+        getBoolean: (key: string) => {
+            const value = localStorage.getItem(key);
+            return value ? Boolean(JSON.parse(value)) : null;
+        }
     }
-)
+
+} else {
+    storage = createMMKV(
+        {
+            id: 'oneoh-config-storage',
+            encryptionKey: 'oneoh-networktools',
+        }
+    )
+}
+
+export const MMKVStore = storage;
 
 export const SBConfig = {
     setConfigLink: (link: string) => {

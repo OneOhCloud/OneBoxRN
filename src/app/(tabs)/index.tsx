@@ -86,12 +86,18 @@ export default function HomeScreen() {
                         }
                     }
                 }
-                const config = await getProcessedConfig();
+                // Web 平台跳过真实配置解析，直接传空配置给 mock 模块
+                const config = Platform.OS === 'web' ? '{}' : await getProcessedConfig();
                 await ExpoOneBox.start(config);
             }
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : '操作失败';
-            Alert.alert('错误', msg);
+            if (Platform.OS === 'web') {
+                console.error('[Web] VPN toggle error:', msg);
+                window.alert(`错误: ${msg}`);
+            } else {
+                Alert.alert('错误', msg);
+            }
         } finally {
             setLocalLoading(false);
         }
@@ -109,7 +115,7 @@ export default function HomeScreen() {
 
     // ── Empty state ────────────────────────────────────────────
 
-    if (!hasConfig) {
+    if (!hasConfig && Platform.OS !== 'web') {
         return (
             <ThemedView style={{ flex: 1, flexDirection: 'row', justifyContent: 'center' }}>
                 <SafeAreaView

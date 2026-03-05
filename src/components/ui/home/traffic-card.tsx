@@ -1,0 +1,103 @@
+import { ThemedText } from '@/components/themed-text';
+import { useTheme } from '@/hooks/use-theme';
+import { TrafficUpdateEventPayload } from '@/modules/expo-onebox';
+import { Ionicons } from '@expo/vector-icons';
+import { Platform, View } from 'react-native';
+
+const MONO_FONT = Platform.OS === 'ios' ? 'ui-monospace' : 'monospace';
+
+export function SectionLabel({ text }: { text: string }) {
+    return (
+        <ThemedText
+            type="small"
+            themeColor="textSecondary"
+            style={{ fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', paddingHorizontal: 4, marginBottom: 6 }}
+        >
+            {text}
+        </ThemedText>
+    );
+}
+
+// ─── Metric Cell ────────────────────────────────────────────
+type MetricCellProps = {
+    iconName: React.ComponentProps<typeof Ionicons>['name'];
+    iconColor: string;
+    label: string;
+    value: string;
+};
+
+function MetricCell({ iconName, iconColor, label, value }: MetricCellProps) {
+    const theme = useTheme();
+    return (
+        <View
+            style={{
+                flex: 1,
+                minWidth: '45%',
+                backgroundColor: theme.background,
+                borderRadius: 12,
+                padding: 12,
+                gap: 6,
+            }}
+        >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Ionicons name={iconName} size={13} color={iconColor} />
+                <ThemedText style={{ fontSize: 11, fontWeight: '600', color: iconColor, letterSpacing: 0.2 }}>
+                    {label}
+                </ThemedText>
+            </View>
+            <ThemedText
+                numberOfLines={1}
+                style={{ fontSize: 18, fontWeight: '700', fontFamily: MONO_FONT, letterSpacing: -0.5 }}
+            >
+                {value}
+            </ThemedText>
+        </View>
+    );
+}
+
+// ─── Traffic Card ───────────────────────────────────────────
+export default function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPayload | null }) {
+    const theme = useTheme();
+
+    function fmt(n: number) {
+        if (n < 1024) return `${n} B`;
+        if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+        if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+        return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+    }
+
+    const cells: MetricCellProps[] = traffic
+        ? [
+            { iconName: 'arrow-up-outline', iconColor: '#FF3B30', label: '上行速度', value: traffic.uplinkDisplay || fmt(traffic.uplink) + '/s' },
+            { iconName: 'arrow-down-outline', iconColor: '#34C759', label: '下行速度', value: traffic.downlinkDisplay || fmt(traffic.downlink) + '/s' },
+            { iconName: 'cloud-upload-outline', iconColor: '#FF6B35', label: '累计上行', value: traffic.uplinkTotalDisplay || fmt(traffic.uplinkTotal) },
+            { iconName: 'cloud-download-outline', iconColor: '#30B0C7', label: '累计下行', value: traffic.downlinkTotalDisplay || fmt(traffic.downlinkTotal) },
+            { iconName: 'hardware-chip-outline', iconColor: '#5856D6', label: '内存占用', value: traffic.memoryDisplay || fmt(traffic.memory) },
+            { iconName: 'git-branch-outline', iconColor: '#AF52DE', label: 'Goroutines', value: String(traffic.goroutines) },
+            { iconName: 'enter-outline', iconColor: '#007AFF', label: '入站连接', value: String(traffic.connectionsIn) },
+            { iconName: 'exit-outline', iconColor: '#FF9500', label: '出站连接', value: String(traffic.connectionsOut) },
+        ]
+        : [];
+
+    return (
+        <View>
+            <SectionLabel text="流量统计" />
+            <View style={{ backgroundColor: theme.backgroundElement, borderRadius: 16, padding: 14 }}>
+                {traffic ? (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                        {cells.map((c) => (
+                            <MetricCell key={c.label} {...c} />
+                        ))}
+                    </View>
+                ) : (
+                    <View style={{ paddingVertical: 28, alignItems: 'center', gap: 10 }}>
+                        <Ionicons name="analytics-outline" size={32} color={theme.textSecondary} style={{ opacity: 0.4 }} />
+                        <ThemedText type="small" themeColor="textSecondary" style={{ opacity: 0.7 }}>
+                            加密隧道连接后显示实时统计
+                        </ThemedText>
+                    </View>
+                )}
+            </View>
+        </View>
+    );
+}
