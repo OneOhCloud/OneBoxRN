@@ -10,6 +10,7 @@ import '../global.css';
 import { AppLaunchFlags } from '@/database/kv';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
+import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -45,8 +46,8 @@ async function copyCacheDb() {
 async function runFirstLaunchSetup() {
     try {
         if (Platform.OS === 'android') {
-            // Request notification permission (Android 13+ POST_NOTIFICATIONS)
-            await ExpoOneBox.requestNotificationPermission();
+            // Request notification permission via expo-notifications (Android 13+ POST_NOTIFICATIONS)
+            await Notifications.requestPermissionsAsync();
         } else if (Platform.OS === 'ios') {
             // Trigger network permission dialog (first outbound request shows the system prompt)
             await ExpoOneBox.triggerNetworkPermission();
