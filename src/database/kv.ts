@@ -82,3 +82,17 @@ export const SBConfig = {
         return MMKVStore.getString('mode') as configType || 'tun-rules';
     }
 }
+
+/**
+ * 首次启动标记 — 用于在 app 启动时执行一次性初始化任务：
+ * - Android: 申请通知权限、复制 cache.db
+ * - iOS:     触发网络权限弹窗、复制 cache.db
+ */
+export const AppLaunchFlags = {
+    isFirstLaunch: (): boolean => {
+        return !MMKVStore.getBoolean('firstLaunchDone');
+    },
+    markFirstLaunchDone: () => {
+        MMKVStore.set('firstLaunchDone', true);
+    }
+}
