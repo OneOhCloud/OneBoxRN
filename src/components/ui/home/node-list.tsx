@@ -48,19 +48,21 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
                     connected ? '暂无节点' : '未连接';
 
     return (
-        <View style={{ marginBottom: bottomPadding }}>
+        <View >
             {/* Header */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingHorizontal: 4 }}>
                 <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1 }}>
                     {connected ? '节点选择' : '节点（连接后可选）'}
                 </ThemedText>
                 {nodes.length > 0 && (
-                    <View style={{
-                        borderRadius: 8,
-                        paddingHorizontal: 8,
-                        paddingVertical: 2,
-                        backgroundColor: `${theme.backgroundElement}99`,
-                    }}>
+                    <View
+                        className='mt-6'
+                        style={{
+                            borderRadius: 8,
+                            paddingHorizontal: 8,
+                            paddingVertical: 2,
+                            backgroundColor: `${theme.backgroundElement}99`,
+                        }}>
                         <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
                             {nodes.length}
                         </ThemedText>

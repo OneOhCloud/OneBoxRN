@@ -20,10 +20,9 @@ export function DelayBadge({ delay }: DelayBadgeProps) {
     }
 
     const color = delay < 200 ? '#3AAE60' : delay < 500 ? '#B8862A' : '#C04F4A';
-    const bg = delay < 200 ? '#3AAE600D' : delay < 500 ? '#B8862A0D' : '#C04F4A0D';
 
     return (
-        <View style={{ borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: bg }}>
+        <View style={{ borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
             <ThemedText style={{ fontSize: 11, fontWeight: '600', color, fontFamily: MONO_FONT }}>
                 {`${delay} ms`}
             </ThemedText>
