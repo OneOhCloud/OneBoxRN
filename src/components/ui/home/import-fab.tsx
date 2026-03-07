@@ -1,6 +1,8 @@
 import { ThemedText } from '@/components/themed-text';
 import { lightImpact } from '@/components/ui/haptics';
+import i18n from '@/constants/language';
 import { useTheme } from '@/hooks/use-theme';
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -118,10 +120,10 @@ export function ImportFAB({ onScanQR, onImportUrl }: ImportFABProps) {
                                     shadowRadius: 6,
                                 }}
                             >
-                                <ThemedText style={{ fontSize: 17, lineHeight: 22, color: '#fff' }}>⊞</ThemedText>
+                                <Ionicons name="qr-code-outline" size={18} color="#fff" />
                             </View>
                             <ThemedText style={{ fontSize: 15, fontWeight: '500', letterSpacing: -0.3 }}>
-                                扫描二维码
+                                {i18n.t('scan_qr')}
                             </ThemedText>
                         </Pressable>
                     </Animated.View>
@@ -152,10 +154,10 @@ export function ImportFAB({ onScanQR, onImportUrl }: ImportFABProps) {
                                     shadowRadius: 6,
                                 }}
                             >
-                                <ThemedText style={{ fontSize: 17, lineHeight: 22, color: '#fff' }}>⤴</ThemedText>
+                                <Ionicons name="link-outline" size={18} color="#fff" />
                             </View>
                             <ThemedText style={{ fontSize: 15, fontWeight: '500', letterSpacing: -0.3 }}>
-                                导入订阅链接
+                                {i18n.t('import_subscription_link')}
                             </ThemedText>
                         </Pressable>
                     </Animated.View>

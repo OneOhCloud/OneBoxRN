@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { lightImpact } from '@/components/ui/haptics';
+import i18n from '@/constants/language';
 import { useTheme } from '@/hooks/use-theme';
 import { Image, Pressable, View } from 'react-native';
 interface EmptyStateProps {
@@ -21,13 +22,13 @@ export function EmptyState({ onScanQR, onImportUrl }: EmptyStateProps) {
 
             {/* Text */}
             <ThemedText type="subtitle" style={{ textAlign: 'center', marginBottom: 8 }}>
-                开始使用
+                {i18n.t('empty_title')}
             </ThemedText>
             <ThemedText
                 themeColor="textSecondary"
                 style={{ textAlign: 'center', lineHeight: 22, marginBottom: 36 }}
             >
-                导入订阅配置以开始使用
+                {i18n.t('empty_desc')}
             </ThemedText>
 
             {/* Actions */}
@@ -42,7 +43,7 @@ export function EmptyState({ onScanQR, onImportUrl }: EmptyStateProps) {
                         opacity: pressed ? 0.8 : 1,
                     })}
                 >
-                    <ThemedText style={{ color: '#fff', fontWeight: '600' }}>扫描二维码</ThemedText>
+                    <ThemedText style={{ color: '#fff', fontWeight: '600' }}>{i18n.t('scan_qr')}</ThemedText>
                 </Pressable>
                 <Pressable
                     onPress={() => { lightImpact(); onImportUrl(); }}
@@ -54,15 +55,14 @@ export function EmptyState({ onScanQR, onImportUrl }: EmptyStateProps) {
                         opacity: pressed ? 0.8 : 1,
                     })}
                 >
-                    <ThemedText style={{ fontWeight: '600' }}>导入订阅链接</ThemedText>
+                    <ThemedText style={{ fontWeight: '600' }}>{i18n.t('import_subscription_link')}</ThemedText>
                 </Pressable>
-
 
                 <ThemedText
                     themeColor="textSecondary"
                     style={{ textAlign: 'center', lineHeight: 18, marginTop: 8 }}
                 >
-                    仅支持 sing-box 的订阅链接
+                    {i18n.t('only_singbox_links')}
                 </ThemedText>
             </View>
         </View>

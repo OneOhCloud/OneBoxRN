@@ -7,6 +7,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack } from 'expo-router';
 import '../global.css';
 
+import { VpnProvider } from '@/contexts/vpn-context';
 import { AppLaunchFlags } from '@/database/kv';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
@@ -78,17 +79,19 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
             <BottomSheetModalProvider>
                 <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                    <Stack screenOptions={{ headerShown: false }}>
-                        <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '主页' }} />
-                        <Stack.Screen
-                            name="config"
-                            options={{
-                                headerShown: false,
-                                presentation: 'card',
-                                animation: 'slide_from_right',
-                            }}
-                        />
-                    </Stack>
+                    <VpnProvider>
+                        <Stack screenOptions={{ headerShown: false }}>
+                            <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '主页' }} />
+                            <Stack.Screen
+                                name="config"
+                                options={{
+                                    headerShown: false,
+                                    presentation: 'card',
+                                    animation: 'slide_from_right',
+                                }}
+                            />
+                        </Stack>
+                    </VpnProvider>
                 </ThemeProvider>
             </BottomSheetModalProvider>
         </GestureHandlerRootView>

@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { SectionLabel } from '@/components/ui/home/traffic-card';
+import i18n from '@/constants/language';
 import { getStoreValue } from '@/database/store';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox from '@/modules/expo-onebox';
@@ -7,7 +8,7 @@ import { getSingBoxUserAgent } from '@/utils';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
-import { Platform, ScrollView, ToastAndroid, TouchableOpacity, View } from 'react-native';
+import { Platform, Pressable, ScrollView, ToastAndroid, View } from 'react-native';
 
 const MONO_FONT = Platform.OS === 'ios' ? 'ui-monospace' : 'monospace';
 
@@ -76,41 +77,41 @@ export function InfoCard({ connected }: { connected: boolean }) {
     const handleCopyUA = () => {
         Clipboard.setStringAsync(ua);
         if (Platform.OS === 'android') {
-            ToastAndroid.show('已复制', ToastAndroid.SHORT);
+            ToastAndroid.show(i18n.t('copied'), ToastAndroid.SHORT);
         } else if (Platform.OS === 'web') {
-            alert('User Agent 已复制到剪贴板');
+            alert('User Agent ' + i18n.t('copied'));
         }
     };
 
     return (
         <View>
-            <SectionLabel text="系统信息" />
+            <SectionLabel text={i18n.t('system_info')} />
             <View style={{ backgroundColor: theme.backgroundElement, borderRadius: 16, paddingHorizontal: 14 }}>
                 {/* Kernel version */}
-                <InfoRow iconName="cube-outline" iconColor="#5856D6" label="内核版本">
+                <InfoRow iconName="cube-outline" iconColor="#5856D6" label={i18n.t('kernel_version')}>
                     <ThemedText style={{ fontSize: 14, fontFamily: MONO_FONT, fontWeight: '500' }} themeColor="textSecondary">
                         {version || '—'}
                     </ThemedText>
                 </InfoRow>
 
                 {/* Run status */}
-                <InfoRow iconName="radio-outline" iconColor={connected ? '#34C759' : '#8E8E93'} label="运行状态">
+                <InfoRow iconName="radio-outline" iconColor={connected ? '#34C759' : '#8E8E93'} label={i18n.t('run_status')}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: connected ? '#34C759' : '#8E8E93' }} />
                         <ThemedText style={{ fontSize: 14, fontWeight: '500', color: connected ? '#34C759' : '#8E8E93' }}>
-                            {connected ? '运行中' : '未连接'}
+                            {connected ? i18n.t('running') : i18n.t('not_connected')}
                         </ThemedText>
                     </View>
                 </InfoRow>
                 {/* Best DNS */}
-                <InfoRow iconName="globe-outline" iconColor="#30B0C7" label="DNS 服务器">
+                <InfoRow iconName="globe-outline" iconColor="#30B0C7" label={i18n.t('dns_server')}>
                     <ThemedText style={{ fontSize: 14, fontFamily: MONO_FONT }} themeColor="textSecondary">
-                        {bestDns || '正在测试...'}
+                        {bestDns || i18n.t('loading_dns')}
                     </ThemedText>
                 </InfoRow>
 
                 {/* User Agent */}
-                <InfoRow iconName="finger-print-outline" iconColor="#FF9500" label="User Agent" isLast>
+                <InfoRow iconName="finger-print-outline" iconColor="#FF9500" label={i18n.t('user_agent')} isLast>
                     <View className='flex-row flex-1 gap-2 items-center '>
                         <ScrollView
                             horizontal
@@ -122,17 +123,17 @@ export function InfoCard({ connected }: { connected: boolean }) {
                             contentContainerStyle={{ alignItems: 'center' }}
                         >
                             <ThemedText
-
                                 style={{ fontSize: 10, fontFamily: MONO_FONT }} themeColor="textSecondary">
                                 {ua}
                             </ThemedText>
                         </ScrollView>
-                        <TouchableOpacity
+                        <Pressable
                             onPress={handleCopyUA}
                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
                         >
                             <Ionicons name="copy-outline" size={14} color={theme.textSecondary} />
-                        </TouchableOpacity>
+                        </Pressable>
                     </View>
                 </InfoRow>
             </View>

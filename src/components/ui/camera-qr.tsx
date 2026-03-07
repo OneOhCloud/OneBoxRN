@@ -116,8 +116,8 @@ export default function CameraQR({ onHandleClose }: CameraQRProps) {
             onHandleClose();
             router.push(`/config?data=${encodeURIComponent(resolved.data)}`);
         } else {
-            Alert.alert('无法识别', '二维码内容不是有效的链接', [
-                { text: '确定', onPress: () => { scannedRef.current = false; } },
+            Alert.alert(i18n.t('qr_unrecognized'), i18n.t('qr_invalid_content'), [
+                { text: i18n.t('ok'), onPress: () => { scannedRef.current = false; } },
             ]);
         }
     }

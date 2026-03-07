@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { mediumImpact } from '@/components/ui/haptics';
+import i18n from '@/constants/language';
 import { useTheme } from '@/hooks/use-theme';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -18,7 +19,7 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
     function handleImport() {
         const trimmed = url.trim();
         if (!trimmed.startsWith('https://')) {
-            Alert.alert('链接无效', '请输入以 https:// 开头的订阅链接');
+            Alert.alert(i18n.t('invalid_link'), i18n.t('invalid_link_hint'));
             return;
         }
         mediumImpact();
@@ -46,9 +47,9 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
                     }}
                 >
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <ThemedText style={{ fontSize: 18, fontWeight: '600' }}>导入订阅</ThemedText>
+                        <ThemedText style={{ fontSize: 18, fontWeight: '600' }}>{i18n.t('import_subscription')}</ThemedText>
                         <Pressable onPress={onClose} style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
-                            <ThemedText style={{ color: '#007AFF', fontWeight: '500' }}>取消</ThemedText>
+                            <ThemedText style={{ color: '#007AFF', fontWeight: '500' }}>{i18n.t('cancel')}</ThemedText>
                         </Pressable>
                     </View>
                 </View>
@@ -56,7 +57,7 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
                 {/* Content */}
                 <View style={{ flex: 1, padding: 20, gap: 16 }}>
                     <TextInput
-                        placeholder="粘贴订阅链接 https://"
+                        placeholder={i18n.t('url_placeholder')}
                         value={url}
                         onChangeText={setUrl}
                         autoCapitalize="none"
@@ -85,7 +86,7 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
                             opacity: pressed ? 0.8 : 1,
                         })}
                     >
-                        <ThemedText style={{ color: '#fff', fontWeight: '600' }}>导入</ThemedText>
+                        <ThemedText style={{ color: '#fff', fontWeight: '600' }}>{i18n.t('import')}</ThemedText>
                     </Pressable>
                 </View>
             </View>

@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { mediumImpact } from '@/components/ui/haptics';
+import i18n from '@/constants/language';
 import { useTheme } from '@/hooks/use-theme';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, View } from 'react-native';
@@ -31,7 +32,7 @@ export function ConnectButton({ connected, loading, onPress }: ConnectButtonProp
 
     const bgColor = connected ? APPLE_BLUE : theme.backgroundElement;
     const textColor = connected ? '#ffffff' : theme.text;
-    const label = loading ? '…' : connected ? '已连接' : '连接';
+    const label = loading ? '…' : connected ? i18n.t('connected') : i18n.t('connect');
 
     return (
         <View style={{ width: SIZE * 1.9, height: SIZE * 1.9, alignItems: 'center', justifyContent: 'center' }}>

@@ -1,3 +1,4 @@
+import i18n from '@/constants/language';
 import { SBConfig } from '@/database/kv';
 import { configType } from '@/definition';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -68,7 +69,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             startFailAlertShown.current = true;
             console.warn('[VPN] Start failed:', errMsg);
             appendLogs([`[StartFailed] ${errMsg}`]);
-            Alert.alert('VPN 启动失败', errMsg, [{ text: '确认' }]);
+            Alert.alert(i18n.t('vpn_start_failed'), errMsg, [{ text: i18n.t('confirm') }]);
         };
 
         const statusSub = ExpoOneBox.addListener('onStatusChange', (event: { status: number; statusName: string; message: string }) => {
@@ -103,7 +104,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
                         if (errMsg) {
                             showStartFailAlert(errMsg);
                         } else {
-                            showStartFailAlert('启动异常退出，请检查配置文件。');
+                            showStartFailAlert(i18n.t('startup_abnormal_exit'));
                         }
                     }, 800); // 给原生侧 500ms 先尝试推送，再等 300ms 兜底
                 }

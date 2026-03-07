@@ -31,7 +31,7 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
             await ExpoOneBox.selectProxyNode(tag);
             setCurrentNode(tag);
         } catch (e: unknown) {
-            Alert.alert('切换节点失败', e instanceof Error ? e.message : '请求失败');
+            Alert.alert(i18n.t('node_switch_failed'), e instanceof Error ? e.message : i18n.t('request_failed'));
         }
     }, [setCurrentNode]);
 
@@ -58,7 +58,7 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
             {/* Header */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingHorizontal: 4 }}>
                 <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1 }}>
-                    {connected ? '节点选择' : '节点（连接后可选）'}
+                    {connected ? i18n.t('node_label_connected') : i18n.t('node_label_disconnected')}
                 </ThemedText>
             </View>
 

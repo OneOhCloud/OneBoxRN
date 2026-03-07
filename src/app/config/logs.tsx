@@ -1,12 +1,14 @@
 /**
- * Logs Screen — runtime log viewer with Linux terminal ANSI color support.
- * All data sourced from the VpnContext shared state.
+ * Logs Viewer — runtime log viewer with ANSI color support.
+ * Accessible from Settings > Open Logs.
  */
-import { ThemedText } from '@/components/themed-text';
 import { lightImpact } from '@/components/ui/haptics';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import i18n from '@/constants/language';
+import { Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { useTheme } from '@/hooks/use-theme';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useRef } from 'react';
 import { FlatList, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,24 +16,24 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
 // ─── ANSI Color Definitions ─────────────────────────────────
-/** Standard 16-color palette mapped to iOS/Material design colors */
+
 const ANSI_FG: Record<number, string> = {
-    30: '#3a3a3c', // black
-    31: '#FF3B30', // red
-    32: '#34C759', // green
-    33: '#FFCC00', // yellow
-    34: '#0A84FF', // blue
-    35: '#BF5AF2', // magenta
-    36: '#32ADE6', // cyan
-    37: '#aeaeb2', // white
-    90: '#636366', // bright black (gray)
-    91: '#FF6961', // bright red
-    92: '#30D158', // bright green
-    93: '#FFD60A', // bright yellow
-    94: '#409CFF', // bright blue
-    95: '#DA8FFF', // bright magenta
-    96: '#70D7FF', // bright cyan
-    97: '#f2f2f7', // bright white
+    30: '#3a3a3c',
+    31: '#FF3B30',
+    32: '#34C759',
+    33: '#FFCC00',
+    34: '#0A84FF',
+    35: '#BF5AF2',
+    36: '#32ADE6',
+    37: '#aeaeb2',
+    90: '#636366',
+    91: '#FF6961',
+    92: '#30D158',
+    93: '#FFD60A',
+    94: '#409CFF',
+    95: '#DA8FFF',
+    96: '#70D7FF',
+    97: '#f2f2f7',
 };
 
 const ANSI_BG: Record<number, string> = {
@@ -54,6 +56,7 @@ const ANSI_BG: Record<number, string> = {
 };
 
 // ─── ANSI Parser ─────────────────────────────────────────────
+
 interface AnsiSpan {
     text: string;
     color?: string;
@@ -67,43 +70,33 @@ interface AnsiState {
     bold: boolean;
 }
 
-/** Parse a single line with ANSI escape codes into styled spans */
 function parseAnsiLine(line: string): AnsiSpan[] {
     const spans: AnsiSpan[] = [];
-    // Matches ESC[ ... m sequences (CSI SGR)
     const re = /\x1b\[([0-9;]*)m/g;
-
     let lastIndex = 0;
     let state: AnsiState = { bold: false };
-
     let match: RegExpExecArray | null;
+
     while ((match = re.exec(line)) !== null) {
-        // Push the text segment before this escape
         if (match.index > lastIndex) {
             spans.push({ text: line.slice(lastIndex, match.index), ...state });
         }
         lastIndex = re.lastIndex;
-
-        // Parse the codes (e.g. "1;32" → [1, 32])
         const codes = match[1] === '' ? [0] : match[1].split(';').map(Number);
         state = applyAnsiCodes(state, codes);
     }
 
-    // Push remaining text
     if (lastIndex < line.length) {
         spans.push({ text: line.slice(lastIndex), ...state });
     }
-
     return spans;
 }
 
 function applyAnsiCodes(prev: AnsiState, codes: number[]): AnsiState {
     const next: AnsiState = { ...prev };
-    let i = 0;
-    while (i < codes.length) {
+    for (let i = 0; i < codes.length; i++) {
         const c = codes[i];
         if (c === 0) {
-            // Reset all
             next.color = undefined;
             next.bgColor = undefined;
             next.bold = false;
@@ -111,40 +104,27 @@ function applyAnsiCodes(prev: AnsiState, codes: number[]): AnsiState {
             next.bold = true;
         } else if (c === 22) {
             next.bold = false;
-        } else if (c >= 30 && c <= 37) {
+        } else if ((c >= 30 && c <= 37) || (c >= 90 && c <= 97)) {
             next.color = ANSI_FG[c];
         } else if (c === 39) {
             next.color = undefined;
-        } else if (c >= 40 && c <= 47) {
+        } else if ((c >= 40 && c <= 47) || (c >= 100 && c <= 107)) {
             next.bgColor = ANSI_BG[c];
         } else if (c === 49) {
             next.bgColor = undefined;
-        } else if (c >= 90 && c <= 97) {
-            next.color = ANSI_FG[c];
-        } else if (c >= 100 && c <= 107) {
-            next.bgColor = ANSI_BG[c];
         }
-        i++;
     }
     return next;
 }
 
 // ─── ANSI Line Renderer ──────────────────────────────────────
-/** Renders a single log line with ANSI color support */
+
 function AnsiLine({ line, defaultColor }: { line: string; defaultColor: string }) {
     const spans = parseAnsiLine(line);
 
-    // Fast path: no ANSI codes at all
     if (spans.length === 1 && !spans[0].color && !spans[0].bgColor && !spans[0].bold) {
         return (
-            <Text
-                style={{
-                    fontFamily: MONO_FONT,
-                    fontSize: 11,
-                    lineHeight: 16,
-                    color: defaultColor,
-                }}
-            >
+            <Text style={{ fontFamily: MONO_FONT, fontSize: 11, lineHeight: 16, color: defaultColor }}>
                 {spans[0].text}
             </Text>
         );
@@ -168,60 +148,84 @@ function AnsiLine({ line, defaultColor }: { line: string; defaultColor: string }
     );
 }
 
-// ─── Log Screen ──────────────────────────────────────────────
-export default function LogsScreen() {
+// ─── Logs Viewer Screen ──────────────────────────────────────
+
+export default function LogsViewerScreen() {
     const theme = useTheme();
     const safeAreaInsets = useSafeAreaInsets();
     const { logs, clearLogs } = useVpn();
     const listRef = useRef<FlatList>(null);
 
-    const insets = {
-        ...safeAreaInsets,
-        bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
-    };
-
-    // Default text color for un-styled log text
     const defaultLogColor = theme.textSecondary ?? '#8E8E93';
 
     return (
         <View
-            className="flex-1"
             style={{
+                flex: 1,
                 backgroundColor: theme.background,
-                paddingTop: Platform.OS === 'web' ? Spacing.six : insets.top,
-                paddingBottom: insets.bottom,
-                paddingLeft: insets.left,
-                paddingRight: insets.right,
+                paddingTop: safeAreaInsets.top || Spacing.six,
+                paddingBottom: safeAreaInsets.bottom + Spacing.three,
+                paddingLeft: safeAreaInsets.left,
+                paddingRight: safeAreaInsets.right,
             }}
         >
-            {/* Page title + clear button */}
-            <View className="flex-row justify-between items-center px-5 ">
-                <ThemedText type="subtitle">日志</ThemedText>
+            {/* Header */}
+            <View
+                className="flex-row items-center justify-between px-2 pb-4"
+
+            >
+                <Pressable
+                    onPress={() => router.back()}
+                    style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        opacity: pressed ? 0.6 : 1,
+                    })}
+                >
+                    <Ionicons name="chevron-back" size={20} color="#007AFF" />
+                    <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: '400' }}>
+                        {i18n.t('back')}
+                    </Text>
+                </Pressable>
+
+
+
                 {logs.length > 0 && (
                     <Pressable
                         onPress={() => { lightImpact(); clearLogs(); }}
-                        className="px-3 py-1.5 rounded-lg active:opacity-70"
-                        style={{ backgroundColor: '#007AFF' }}
+                        style={({ pressed }) => ({
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 8,
+                            backgroundColor: '#007AFF',
+                            opacity: pressed ? 0.8 : 1,
+                        })}
                     >
-                        <ThemedText style={{ color: '#ffffff' }} className="text-xs font-medium">
-                            清除
-                        </ThemedText>
+                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '500' }}>
+                            {i18n.t('logs_clear')}
+                        </Text>
                     </Pressable>
                 )}
             </View>
 
-            {/* Terminal log panel — fills all remaining safe-area height */}
+            {/* Log panel */}
             <View
-                className="h-screen-safe mx-2 rounded-2xl overflow-hidden"
                 style={{
-                    borderWidth: 2,
+                    flex: 1,
+                    marginHorizontal: 8,
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                    borderWidth: 1.5,
                     borderColor: theme.border ?? '#E5E5EA',
                     backgroundColor: theme.cardBackground ?? '#FFFFFF',
                 }}
             >
                 {logs.length === 0 ? (
-                    <View className="flex-1 py-10 items-center justify-center">
-                        <Text style={{ color: theme.textSecondary ?? '#636366', fontSize: 13 }}>暂无日志</Text>
+                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: theme.textSecondary ?? '#636366', fontSize: 13 }}>
+                            {i18n.t('logs_empty')}
+                        </Text>
                     </View>
                 ) : (
                     <FlatList

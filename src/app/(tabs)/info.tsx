@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { InfoCard } from '@/components/ui/home/info-card';
 import { ModeSelector } from '@/components/ui/home/mode-selector';
 import TrafficCard, { SectionLabel } from '@/components/ui/home/traffic-card';
+import i18n from '@/constants/language';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { useTheme } from '@/hooks/use-theme';
@@ -35,11 +36,11 @@ export default function InfoScreen() {
             <ScrollView className="flex-1 " >
                 <View className="flex-col  px-5 gap-8 ">
                     {/* Page title */}
-                    <ThemedText type="subtitle">信息</ThemedText>
+                    <ThemedText type="subtitle">{i18n.t('info_title')}</ThemedText>
 
                     {/* Routing mode */}
                     <View>
-                        <SectionLabel text="路由模式" />
+                        <SectionLabel text={i18n.t('section_routing_mode')} />
                         <ModeSelector hideSectionLabel />
                     </View>
 

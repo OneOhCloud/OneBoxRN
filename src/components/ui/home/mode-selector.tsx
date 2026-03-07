@@ -1,12 +1,13 @@
 import { ThemedText } from '@/components/themed-text';
 import { selectionChanged } from '@/components/ui/haptics';
+import i18n from '@/constants/language';
 import { useVpn } from '@/contexts/vpn-context';
 import { useTheme } from '@/hooks/use-theme';
 import { Pressable, View } from 'react-native';
 
 const OPTIONS = [
-    { label: '规则路由', value: 'tun-rules' as const },
-    { label: '全局代理', value: 'tun-global' as const },
+    { labelKey: 'mode_rules', value: 'tun-rules' as const },
+    { labelKey: 'mode_global', value: 'tun-global' as const },
 ];
 
 /** Segmented control for routing mode: rules / global */
@@ -22,7 +23,7 @@ export function ModeSelector({ hideSectionLabel }: { hideSectionLabel?: boolean 
                     themeColor="textSecondary"
                     style={{ marginBottom: 8, paddingHorizontal: 4 }}
                 >
-                    路由模式
+                    {i18n.t('routing_mode')}
                 </ThemedText>
             )}
             <View
@@ -49,7 +50,7 @@ export function ModeSelector({ hideSectionLabel }: { hideSectionLabel?: boolean 
                             }}
                         >
                             <ThemedText style={{ fontSize: 14, fontWeight: active ? '600' : '400' }}>
-                                {opt.label}
+                                {i18n.t(opt.labelKey)}
                             </ThemedText>
                         </Pressable>
                     );
