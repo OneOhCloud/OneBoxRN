@@ -80,5 +80,6 @@
     "startup_abnormal_exit": "启动异常退出，请检查配置文件。",
     "qr_unrecognized": "无法识别",
     "qr_invalid_content": "二维码内容不是有效的链接",
-    "ok": "确定"
+    "ok": "确定",
+    "privacy_policy": "隐私政策"
 }

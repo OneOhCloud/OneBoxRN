@@ -80,5 +80,6 @@
     "startup_abnormal_exit": "Startup failed unexpectedly. Please check your config.",
     "qr_unrecognized": "Unrecognized",
     "qr_invalid_content": "QR code content is not a valid link",
-    "ok": "OK"
+    "ok": "OK",
+    "privacy_policy": "Privacy Policy"
 }

@@ -11,6 +11,7 @@ import ExpoOneBox from '@/modules/expo-onebox';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
+import React from 'react';
 import { Linking, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,11 +23,14 @@ type SettingsRowProps = {
     label: string;
     value?: string;
     onPress?: () => void;
+    onLongPress?: () => void;
     isLast?: boolean;
 };
 
-function SettingsRow({ iconName, iconColor, label, value, onPress, isLast = false }: SettingsRowProps) {
+function SettingsRow({ iconName, iconColor, label, value, onPress, onLongPress, isLast = false }: SettingsRowProps) {
     const theme = useTheme();
+    // 仅在有页面跳转/外部跳转时显示箭头
+    const showChevron = !!(onPress && !onLongPress);
     const inner = (
         <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 }}>
@@ -53,7 +57,7 @@ function SettingsRow({ iconName, iconColor, label, value, onPress, isLast = fals
                         {value}
                     </ThemedText>
                 )}
-                {onPress && (
+                {showChevron && (
                     <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
                 )}
             </View>
@@ -70,10 +74,12 @@ function SettingsRow({ iconName, iconColor, label, value, onPress, isLast = fals
         </View>
     );
 
-    if (!onPress) return inner;
+    if (!onPress && !onLongPress) return inner;
     return (
         <Pressable
-            onPress={() => { lightImpact(); onPress(); }}
+            onPress={() => { lightImpact(); onPress && onPress(); }}
+            onLongPress={() => { onLongPress && onLongPress(); }}
+            delayLongPress={400}
             style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
             {inner}
@@ -103,6 +109,16 @@ function SettingsCard({ children }: { children: React.ReactNode }) {
 // ─── Settings Screen ─────────────────────────────────────────
 
 export default function SettingsScreen() {
+    const [showBuild, setShowBuild] = React.useState(false);
+    let versionDetail = '';
+    if (Platform.OS === 'web') {
+        versionDetail = `Build: ${Constants.expoConfig?.extra?.webBuildNumber ?? '\u2014'}`;
+    } else if (Platform.OS === 'ios') {
+        versionDetail = `Build: ${Constants.expoConfig?.ios?.buildNumber ?? '\u2014'}`;
+    } else if (Platform.OS === 'android') {
+        versionDetail = `Build: ${Constants.expoConfig?.android?.versionCode ?? '\u2014'}`;
+    }
+
     const theme = useTheme();
     const safeAreaInsets = useSafeAreaInsets();
     const insets = {
@@ -110,8 +126,15 @@ export default function SettingsScreen() {
         bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
     };
 
-    const appVersion = Constants.expoConfig?.version ?? '\u2014';
+    const appVersion = `${Constants.expoConfig?.version}`;
     const coreVersion = ExpoOneBox.getLibBoxVersion() || '\u2014';
+
+    const getAppVersion = () => {
+        if (showBuild && versionDetail) {
+            return `${appVersion} (${versionDetail})`;
+        }
+        return appVersion;
+    };
 
     return (
         <View
@@ -135,7 +158,9 @@ export default function SettingsScreen() {
                                 iconName="apps-outline"
                                 iconColor="#007AFF"
                                 label={i18n.t('app_version')}
-                                value={appVersion}
+                                value={getAppVersion()}
+                                onPress={() => setShowBuild(false)}
+                                onLongPress={() => setShowBuild(true)}
                             />
                             <SettingsRow
                                 iconName="server-outline"
@@ -147,8 +172,17 @@ export default function SettingsScreen() {
                                 iconName="globe-outline"
                                 iconColor="#34C759"
                                 label={i18n.t('official_website')}
-                                value="sing-box.net"
+                                value=""
                                 onPress={() => Linking.openURL('https://sing-box.net')}
+
+                            />
+
+                            <SettingsRow
+                                iconName="document-lock-outline"
+                                iconColor="#FF3B30"
+                                label={i18n.t('privacy_policy')}
+                                value=""
+                                onPress={() => Linking.openURL('https://sing-box.net/privacy')}
                                 isLast
                             />
                         </SettingsCard>
