@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import { selectionChanged } from '@/components/ui/haptics';
 import { DelayBadge } from '@/components/ui/home/delay-badge';
 import { NodePickerSheet } from '@/components/ui/home/node-picker-sheet';
+import i18n from '@/constants/language';
 import { useVpn } from '@/contexts/vpn-context';
 import { useProxyNodes } from '@/hooks/use-proxy-nodes';
 import { useTheme } from '@/hooks/use-theme';
@@ -41,11 +42,16 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
     }, [connected, nodes.length]);
 
     const currentItem = nodes.find(n => n.tag === currentNode);
-    const triggerLabel =
-        error ? '加载失败' :
-            isLoading && !currentItem ? '加载中…' :
-                currentItem ? currentItem.tag :
-                    connected ? '暂无节点' : '未连接';
+    const triggerLabel = () => {
+        if (error) return 'error';
+        if (!connected) return '';
+        if (isLoading) return 'loading...';
+        if (nodes.length === 0) return 'no nodes';
+        if (!currentItem) return 'select node';
+        if (currentItem.tag === 'auto') return i18n.t("auto")
+        return currentItem.tag;
+
+    }
 
     return (
         <View >
@@ -54,20 +60,6 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
                 <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1 }}>
                     {connected ? '节点选择' : '节点（连接后可选）'}
                 </ThemedText>
-                {nodes.length > 0 && (
-                    <View
-                        className='mt-6'
-                        style={{
-                            borderRadius: 8,
-                            paddingHorizontal: 8,
-                            paddingVertical: 2,
-                            backgroundColor: `${theme.backgroundElement}99`,
-                        }}>
-                        <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
-                            {nodes.length}
-                        </ThemedText>
-                    </View>
-                )}
             </View>
 
             {/* Trigger row */}
@@ -103,7 +95,7 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
                     themeColor={currentItem ? 'text' : 'textSecondary'}
                     numberOfLines={1}
                 >
-                    {triggerLabel}
+                    {triggerLabel()}
                 </ThemedText>
                 {currentItem && <DelayBadge delay={currentItem.delay} />}
                 {connected && nodes.length > 0 && (

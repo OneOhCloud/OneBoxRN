@@ -6,5 +6,6 @@
     "welcome": "欢迎",
     "camera_permission": "需要访问您的相机权限才能扫描二维码",
     "grant permission": "授权权限",
-    "camera_permission_denied": "相机权限被拒绝。请前往设置并允许此应用访问相机。"
+    "camera_permission_denied": "相机权限被拒绝。请前往设置并允许此应用访问相机。",
+    "auto": "自动选择"
 }
