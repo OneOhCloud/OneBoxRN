@@ -217,7 +217,7 @@ const TunGlobalConfig = {
     },
     "experimental": {
         "clash_api": {}, // 此字段将被忽略
-        "cache_file": {} // 此字段将被忽略
+        "cache_file": { "enabled": true } // path 由 native processConfig 注入
     },
     // ------------------ Outbounds ------------------
     // OneBox 会自动追加远程配置或者本地配置内容中的服务节点

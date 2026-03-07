@@ -320,9 +320,8 @@ const TunRulesConfig = {
         // ZH: 此字段将被忽略
         // EN: This field will be ignored
         "clash_api": {},
-        // ZH: 此字段将被忽略
-        // EN: This field will be ignored
-        "cache_file": {}
+        // path 由 native processConfig 注入
+        "cache_file": { "enabled": true }
     },
     // ------------------ Outbounds ------------------
     // ZH: OneBox 会自动追加远程配置或者本地配置内容中的服务节点
