@@ -25,7 +25,6 @@ export function SpeedRow() {
                         paddingHorizontal: 14,
                         paddingVertical: 8,
                         borderRadius: 999,
-                        backgroundColor: theme.backgroundElement,
                         gap: 6,
                     }}
                 >

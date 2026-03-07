@@ -81,5 +81,7 @@
     "qr_unrecognized": "Unrecognized",
     "qr_invalid_content": "QR code content is not a valid link",
     "ok": "OK",
-    "privacy_policy": "Privacy Policy"
+    "privacy_policy": "Privacy Policy",
+    "traffic_stats": "Traffic Stats",
+    "traffic_stats_placeholder": "Real-time stats will be shown here after the tunnel is connected"
 }

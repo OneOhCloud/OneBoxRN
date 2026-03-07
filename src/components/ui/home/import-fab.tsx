@@ -51,7 +51,7 @@ export function ImportFAB({ onScanQR, onImportUrl }: ImportFABProps) {
                 Animated.timing(item2Anim, { toValue: 0, ...closeCfg }),
             ]).start();
         }
-    }, [open]);
+    }, [item1Anim, item2Anim, menuAnim, open, rotateAnim]);
 
     const fabRotate = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] });
     const menuScale = menuAnim.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1] });

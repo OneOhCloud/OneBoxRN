@@ -81,5 +81,7 @@
     "qr_unrecognized": "无法识别",
     "qr_invalid_content": "二维码内容不是有效的链接",
     "ok": "确定",
-    "privacy_policy": "隐私政策"
+    "privacy_policy": "隐私政策",
+    "traffic_stats": "流量统计",
+    "traffic_stats_placeholder": "加密隧道连接后显示实时统计"
 }

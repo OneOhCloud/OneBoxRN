@@ -3,7 +3,7 @@ import i18n from '@/constants/language';
 import { useTheme } from '@/hooks/use-theme';
 import { TrafficUpdateEventPayload } from '@/modules/expo-onebox';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 
 const MONO_FONT = Platform.OS === 'ios' ? 'ui-monospace' : 'monospace';
 
@@ -82,7 +82,9 @@ export default function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPa
 
     return (
         <View>
-            <SectionLabel text="流量统计" />
+            <SectionLabel text={
+                i18n.t('traffic_stats')
+            } />
             <View style={{ backgroundColor: theme.backgroundElement, borderRadius: 16, padding: 14 }}>
                 {traffic ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -93,9 +95,10 @@ export default function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPa
                 ) : (
                     <View style={{ paddingVertical: 28, alignItems: 'center', gap: 10 }}>
                         <Ionicons name="analytics-outline" size={32} color={theme.textSecondary} style={{ opacity: 0.4 }} />
-                        <ThemedText type="small" themeColor="textSecondary" style={{ opacity: 0.7 }}>
-                            加密隧道连接后显示实时统计
-                        </ThemedText>
+
+                        <Text className="text-center" style={{ color: theme.textSecondary, fontSize: 13, maxWidth: 240 }}>
+                            {i18n.t('traffic_stats_placeholder')}
+                        </Text>
                     </View>
                 )}
             </View>

@@ -1,7 +1,6 @@
 import { ConnectButton } from '@/components/ui/home/connect-button';
 import { FAB_CLEARANCE } from '@/components/ui/home/import-fab';
 import { NodeList } from '@/components/ui/home/node-list';
-import { SpeedRow } from '@/components/ui/home/speed-row';
 import { SubInfo, SubscriptionInfoCard } from '@/components/ui/home/subscription-info-card';
 import { useTheme } from '@/hooks/use-theme';
 import { useEffect } from 'react';
@@ -13,6 +12,7 @@ import Animated, {
     useSharedValue,
     withSpring,
 } from 'react-native-reanimated';
+import { SpeedRow } from './speed-row';
 
 interface ConnectedLayoutProps {
     loading: boolean;
@@ -41,12 +41,12 @@ export function ConnectedLayout({ loading, subInfo, onPress }: ConnectedLayoutPr
                     style={{ marginTop: 16, alignItems: 'center' }}
                 >
                     <SpeedRow />
-                    <SubscriptionInfoCard info={subInfo} />
+
                 </Animated.View>
             </Animated.View>
 
             {/* Flexible spacer */}
-            <View style={{ flex: 1, minHeight: 32, maxHeight: 80 }} />
+            <View style={{ flex: 1, minHeight: 16, maxHeight: 40 }} />
 
             {/* Bottom: Node list */}
             <Animated.View entering={FadeInDown.duration(320).delay(100)}>
@@ -60,6 +60,15 @@ export function ConnectedLayout({ loading, subInfo, onPress }: ConnectedLayoutPr
                 />
                 <NodeList bottomPadding={FAB_CLEARANCE} />
             </Animated.View>
+            <View style={{ flex: 1, minHeight: 8, maxHeight: 20 }} />
+
+            <Animated.View
+                className="mt-4"
+                entering={FadeInDown.duration(320).delay(140)}
+            >
+                <SubscriptionInfoCard info={subInfo} />
+            </Animated.View>
+
         </Animated.View>
     );
 }
