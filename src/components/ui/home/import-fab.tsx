@@ -3,198 +3,147 @@ import { lightImpact } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
 import { useTheme } from '@/hooks/use-theme';
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Divider, FAB, Surface } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-/** Height of the FAB button + gap above it — use this to pad content that sits under the FAB */
-export const FAB_CLEARANCE = 56 + 12; // button height + gap from tab bar top
+export const FAB_CLEARANCE = 56 + 12;
 
 interface ImportFABProps {
     onScanQR: () => void;
     onImportUrl: () => void;
 }
 
-/** Floating action button for quick-access import options */
 export function ImportFAB({ onScanQR, onImportUrl }: ImportFABProps) {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
     const [open, setOpen] = useState(false);
 
-    const menuAnim = useRef(new Animated.Value(0)).current;
-    const rotateAnim = useRef(new Animated.Value(0)).current;
-    const item1Anim = useRef(new Animated.Value(0)).current;
-    const item2Anim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        const springCfg = { useNativeDriver: true, tension: 260, friction: 22 };
-        const closeCfg = { useNativeDriver: true, duration: 160 } as const;
-
-        if (open) {
-            Animated.parallel([
-                Animated.spring(menuAnim, { toValue: 1, ...springCfg }),
-                Animated.spring(rotateAnim, { toValue: 1, ...springCfg }),
-                Animated.sequence([
-                    Animated.delay(30),
-                    Animated.spring(item1Anim, { toValue: 1, ...springCfg }),
-                ]),
-                Animated.sequence([
-                    Animated.delay(70),
-                    Animated.spring(item2Anim, { toValue: 1, ...springCfg }),
-                ]),
-            ]).start();
-        } else {
-            Animated.parallel([
-                Animated.timing(menuAnim, { toValue: 0, ...closeCfg }),
-                Animated.timing(rotateAnim, { toValue: 0, ...closeCfg }),
-                Animated.timing(item1Anim, { toValue: 0, ...closeCfg }),
-                Animated.timing(item2Anim, { toValue: 0, ...closeCfg }),
-            ]).start();
-        }
-    }, [item1Anim, item2Anim, menuAnim, open, rotateAnim]);
-
-    const fabRotate = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] });
-    const menuScale = menuAnim.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1] });
-    const item1Y = item1Anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
-    const item2Y = item2Anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
-
     return (
-        <View
-            style={{ position: 'absolute', bottom: insets.bottom + 12, right: 16, alignItems: 'flex-end', zIndex: 50 }}
-            pointerEvents="box-none"
-        >
-            {/* Dismiss overlay */}
+        <View style={styles.container} pointerEvents="box-none">
+            {/* 全屏透明遮罩 - 用于点击空白处关闭 */}
             {open && (
                 <Pressable
-                    style={{ position: 'absolute', top: -9999, bottom: -9999, left: -9999, right: -9999 }}
+                    style={StyleSheet.absoluteFill}
                     onPress={() => setOpen(false)}
                 />
             )}
 
-            {/* Popup menu — always mounted so animations play correctly */}
-            <Animated.View
-                pointerEvents={open ? 'auto' : 'none'}
-                style={{
-                    opacity: menuAnim,
-                    transform: [{ scale: menuScale }],
-                    marginBottom: 14,
-                    transformOrigin: 'bottom right',
-                }}
-            >
-                <View
-                    style={{
-                        borderRadius: 20,
-                        overflow: 'hidden',
-                        backgroundColor: theme.backgroundElement,
-                        borderWidth: 0.5,
-                        borderColor: theme.backgroundSelected,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 10 },
-                        shadowOpacity: 0.18,
-                        shadowRadius: 28,
-                        elevation: 12,
-                        minWidth: 192,
-                    }}
-                >
-                    {/* Item 1 – Scan QR */}
-                    <Animated.View style={{ opacity: item1Anim, transform: [{ translateY: item1Y }] }}>
-                        <Pressable
-                            onPress={() => { setOpen(false); lightImpact(); onScanQR(); }}
-                            style={({ pressed }) => ({
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                paddingHorizontal: 14,
-                                paddingVertical: 13,
-                                gap: 13,
-                                backgroundColor: pressed ? theme.backgroundSelected : 'transparent',
-                            })}
-                        >
-                            <View
-                                style={{
-                                    width: 34, height: 34, borderRadius: 9,
-                                    backgroundColor: '#30D158',
-                                    alignItems: 'center', justifyContent: 'center',
-                                    shadowColor: '#30D158',
-                                    shadowOffset: { width: 0, height: 3 },
-                                    shadowOpacity: 0.35,
-                                    shadowRadius: 6,
-                                }}
-                            >
-                                <Ionicons name="qr-code-outline" size={18} color="#fff" />
-                            </View>
-                            <ThemedText style={{ fontSize: 15, fontWeight: '500', letterSpacing: -0.3 }}>
-                                {i18n.t('scan_qr')}
-                            </ThemedText>
-                        </Pressable>
-                    </Animated.View>
+            <View style={[styles.content, { bottom: insets.bottom + 12 }]}>
+                {/* 弹出菜单 */}
+                {open && (
+                    <Surface
+                        style={[
+                            styles.menu,
+                            {
+                                backgroundColor: theme.backgroundElement,
+                                borderColor: theme.backgroundSelected
+                            }
+                        ]}
+                        elevation={4}
+                    >
+                        <MenuItem
+                            icon="qr-code"
+                            color="#34C759"
+                            label={i18n.t('scan_qr')}
+                            onPress={() => { setOpen(false); onScanQR(); }}
+                        />
+                        <Divider style={[styles.divider, { backgroundColor: theme.backgroundSelected }]} />
+                        <MenuItem
+                            icon="link"
+                            color="#007AFF"
+                            label={i18n.t('import_subscription_link')}
+                            onPress={() => { setOpen(false); onImportUrl(); }}
+                        />
+                    </Surface>
+                )}
 
-                    <View style={{ height: 0.5, marginHorizontal: 14, backgroundColor: theme.backgroundSelected }} />
-
-                    {/* Item 2 – Import URL */}
-                    <Animated.View style={{ opacity: item2Anim, transform: [{ translateY: item2Y }] }}>
-                        <Pressable
-                            onPress={() => { setOpen(false); lightImpact(); onImportUrl(); }}
-                            style={({ pressed }) => ({
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                paddingHorizontal: 14,
-                                paddingVertical: 13,
-                                gap: 13,
-                                backgroundColor: pressed ? theme.backgroundSelected : 'transparent',
-                            })}
-                        >
-                            <View
-                                style={{
-                                    width: 34, height: 34, borderRadius: 9,
-                                    backgroundColor: '#007AFF',
-                                    alignItems: 'center', justifyContent: 'center',
-                                    shadowColor: '#007AFF',
-                                    shadowOffset: { width: 0, height: 3 },
-                                    shadowOpacity: 0.35,
-                                    shadowRadius: 6,
-                                }}
-                            >
-                                <Ionicons name="link-outline" size={18} color="#fff" />
-                            </View>
-                            <ThemedText style={{ fontSize: 15, fontWeight: '500', letterSpacing: -0.3 }}>
-                                {i18n.t('import_subscription_link')}
-                            </ThemedText>
-                        </Pressable>
-                    </Animated.View>
-                </View>
-            </Animated.View>
-
-            {/* FAB button */}
-            <Pressable
-                onPress={() => { lightImpact(); setOpen((v) => !v); }}
-                style={({ pressed }) => ({
-                    width: 56,
-                    height: 56,
-                    borderRadius: 28,
-                    backgroundColor: '#007AFF',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transform: [{ scale: pressed ? 0.92 : 1 }],
-                    shadowColor: '#007AFF',
-                    shadowOffset: { width: 0, height: 6 },
-                    shadowOpacity: open ? 0.5 : 0.38,
-                    shadowRadius: 14,
-                    elevation: 8,
-                })}
-            >
-                <Animated.Text
-                    style={{
-                        color: '#fff',
-                        fontSize: 26,
-                        lineHeight: 30,
-                        fontWeight: '200',
-                        transform: [{ rotate: fabRotate }],
-                        includeFontPadding: false,
-                    }}
-                >
-                    +
-                </Animated.Text>
-            </Pressable>
+                {/* FAB 按钮 - 切换颜色以示区分 */}
+                <FAB
+                    icon={open ? 'close' : 'plus'}
+                    onPress={() => { lightImpact(); setOpen(!open); }}
+                    style={[
+                        styles.fab,
+                        { backgroundColor: open ? theme.backgroundSelected : '#007AFF' }
+                    ]}
+                    color={open ? theme.text : "#fff"}
+                    size="medium"
+                    animated={false}
+                />
+            </View>
         </View>
     );
 }
+
+/** 统一的菜单项组件 */
+function MenuItem({ icon, color, label, onPress }: { icon: any, color: string, label: string, onPress: () => void }) {
+    const theme = useTheme();
+    return (
+        <Pressable
+            onPress={() => { lightImpact(); onPress(); }}
+            style={({ pressed }) => [
+                styles.item,
+                { backgroundColor: pressed ? theme.backgroundSelected : 'transparent' }
+            ]}
+        >
+            <View style={[styles.iconWrapper, { backgroundColor: color }]}>
+                <Ionicons name={icon} size={18} color="#fff" />
+            </View>
+            <ThemedText style={styles.itemText}>{label}</ThemedText>
+        </Pressable>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 50
+    },
+    content: {
+        position: 'absolute',
+        right: 16,
+        alignItems: 'flex-end',
+    },
+    menu: {
+        borderRadius: 24,
+        borderWidth: 0.1, // 增加边框感，让深色模式下更有层次
+        marginBottom: 12,
+        minWidth: 210, // 略微加宽，避免文字拥挤
+        overflow: 'hidden',
+        // 优化阴影
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+    },
+    item: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        gap: 12,
+    },
+    iconWrapper: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    itemText: {
+        fontSize: 15,
+        fontWeight: '600',
+        letterSpacing: -0.2,
+    },
+    divider: {
+        height: 1,
+        marginHorizontal: 16,
+    },
+    fab: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        elevation: 4,
+    },
+});

@@ -55,10 +55,10 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
 
     return (
         <View >
-            {/* Header */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingHorizontal: 4 }}>
-                <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1 }}>
-                    {connected ? i18n.t('node_label_connected') : i18n.t('node_label_disconnected')}
+
+            <View className=' mb-4 px-1'>
+                <ThemedText type="small" themeColor="textSecondary">
+                    {i18n.t('node_label_connected')}
                 </ThemedText>
             </View>
 

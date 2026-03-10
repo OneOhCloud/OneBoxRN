@@ -5,6 +5,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Modal, Pressable, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface ImportUrlModalProps {
     visible: boolean;
@@ -35,7 +36,7 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
             animationType="slide"
             presentationStyle="pageSheet"
         >
-            <View style={{ flex: 1, backgroundColor: theme.background }}>
+            <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
                 {/* Header */}
                 <View
                     style={{
@@ -89,7 +90,7 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
                         <ThemedText style={{ color: '#fff', fontWeight: '600' }}>{i18n.t('import')}</ThemedText>
                     </Pressable>
                 </View>
-            </View>
+            </SafeAreaView>
         </Modal>
     );
 }

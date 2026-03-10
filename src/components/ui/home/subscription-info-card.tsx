@@ -58,9 +58,9 @@ export function SubscriptionInfoCard({ info }: { info: SubInfo }) {
 
 const styles = StyleSheet.create({
     container: {
-        marginTop: 64,
+        marginTop: 32,
         alignItems: 'center',
-        width: 256,
+        width: "100%",
     },
     row: {
         flexDirection: 'row',

@@ -53,7 +53,7 @@ export function ConnectedLayout({ loading, subInfo, onPress }: ConnectedLayoutPr
                 <View
                     style={{
                         height: 0.5,
-                        backgroundColor: theme.backgroundElement,
+                        backgroundColor: theme.background,
                         marginHorizontal: 2,
                         marginBottom: 14,
                     }}
