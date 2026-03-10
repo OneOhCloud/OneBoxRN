@@ -1,7 +1,7 @@
-import { ThemedText } from '@/components/themed-text';
 import i18n from '@/constants/language';
+import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 export function fmtBytes(bytes: number): string {
     if (bytes <= 0) return '0 B';
@@ -30,49 +30,62 @@ export function SubscriptionInfoCard({ info }: { info: SubInfo }) {
             : i18n.t('no_expire_info');
 
     return (
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-            <View
-                style={{
-                    flex: 1,
-                    backgroundColor: theme.backgroundElement,
-                    borderRadius: 12,
-                    paddingHorizontal: 14,
-                    paddingVertical: 10,
-                    alignItems: 'center',
-                }}
-            >
-                <ThemedText
-                    type="small"
-                    themeColor="textSecondary"
-                    style={{ fontSize: 11, letterSpacing: 0.2 }}
-                >
-                    {i18n.t('expire_time')}
-                </ThemedText>
-                <ThemedText style={{ fontSize: 14, fontWeight: '600', marginTop: 3 }}>
-                    {expireDate}
-                </ThemedText>
-            </View>
-            <View
-                style={{
-                    flex: 1,
-                    backgroundColor: theme.backgroundElement,
-                    borderRadius: 12,
-                    paddingHorizontal: 14,
-                    paddingVertical: 10,
-                    alignItems: 'center',
-                }}
-            >
-                <ThemedText
-                    type="small"
-                    themeColor="textSecondary"
-                    style={{ fontSize: 11, letterSpacing: 0.2 }}
-                >
-                    {i18n.t('remaining_traffic')}
-                </ThemedText>
-                <ThemedText style={{ fontSize: 14, fontWeight: '600', marginTop: 3 }}>
-                    {fmtBytes(remaining)}
-                </ThemedText>
+        <View style={styles.container}>
+            <View style={styles.row}>
+                <View style={styles.item}>
+                    <Text style={[styles.label, { color: theme.textSecondary, fontFamily: Fonts?.sans }]}>
+                        {i18n.t('expire_time')}
+                    </Text>
+                    <Text style={[styles.value, { color: theme.textSecondary, fontFamily: Fonts?.rounded }]}>
+                        {expireDate}
+                    </Text>
+                </View>
+
+                <View style={[styles.separator, { backgroundColor: theme.textSecondary }]} />
+
+                <View style={styles.item}>
+                    <Text style={[styles.label, { color: theme.textSecondary, fontFamily: Fonts?.sans }]}>
+                        {i18n.t('remaining_traffic')}
+                    </Text>
+                    <Text style={[styles.value, { color: theme.textSecondary, fontFamily: Fonts?.rounded }]}>
+                        {fmtBytes(remaining)}
+                    </Text>
+                </View>
             </View>
         </View>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        marginTop: 64,
+        alignItems: 'center',
+        width: 256,
+    },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 20,
+    },
+    item: {
+        alignItems: 'center',
+        gap: 3,
+    },
+    label: {
+        fontSize: 10,
+        letterSpacing: 0.4,
+        opacity: 0.5,
+    },
+    value: {
+        fontSize: 12,
+        fontWeight: '500',
+        letterSpacing: -0.1,
+        opacity: 0.75,
+    },
+    separator: {
+        width: 1.5,
+        height: 20,
+        borderRadius: 1,
+        opacity: 0.15,
+    },
+});

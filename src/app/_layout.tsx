@@ -10,7 +10,6 @@ import '../global.css';
 import { VpnProvider } from '@/contexts/vpn-context';
 import { AppLaunchFlags } from '@/database/kv';
 import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system';
 import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
 import { Platform, useColorScheme } from 'react-native';
@@ -23,24 +22,16 @@ import ExpoOneBox from '../modules/expo-onebox';
 
 async function copyCacheDb() {
     try {
-        const destPath = ExpoOneBox.getCacheDbPath();
-        if (!destPath) return;
-
-        // Skip if the file already exists (only copy once)
-        const destInfo = await FileSystem.getInfoAsync('file://' + destPath);
-        if (destInfo.exists) return;
-
-        // Resolve the bundled asset to a local URI
-        const [asset] = await Asset.loadAsync(require('../../assets/data/cache.db'));
+        const [asset] = await Asset.loadAsync(require('../../assets/data/tun.db'));
         if (!asset.localUri) return;
-
-        await FileSystem.copyAsync({
-            from: asset.localUri,
-            to: 'file://' + destPath,
-        });
-        console.log('[FirstLaunch] cache.db copied to', destPath);
+        const copied = await ExpoOneBox.copy2CacheDbPath(asset.localUri);
+        if (copied) {
+            console.log('[copyCacheDb] tun.db copied successfully');
+        } else {
+            console.log('[copyCacheDb] tun.db already exists, skipped');
+        }
     } catch (e) {
-        console.warn('[FirstLaunch] copyCacheDb error:', e);
+        console.warn('[copyCacheDb] error:', e);
     }
 }
 
@@ -55,7 +46,7 @@ async function runFirstLaunchSetup() {
         }
 
         // Copy bundled cache.db to native working directory on both platforms
-        await copyCacheDb();
+
     } catch (e) {
         // Non-fatal — log and continue
         console.warn('[FirstLaunch] setup error:', e);
@@ -70,8 +61,15 @@ export default function RootLayout() {
     const colorScheme = useColorScheme();
 
     useEffect(() => {
+
         if (AppLaunchFlags.isFirstLaunch()) {
             runFirstLaunchSetup();
+        } else {
+            copyCacheDb().then(() => {
+                console.log('[RootLayout] cache.db copy complete on subsequent launch');
+            }).catch((e) => {
+                console.warn('[RootLayout] cache.db copy error on subsequent launch:', e);
+            });
         }
     }, []);
 
