@@ -48,8 +48,11 @@ export function ModeSelector({ hideSectionLabel }: { hideSectionLabel?: boolean 
                                 borderRadius: 12,
                                 backgroundColor: active ? theme.background : undefined,
                             }}
+                            disabled={opt.value === 'tun-global'} // 暂时只允许切换到规则模式
                         >
-                            <ThemedText style={{ fontSize: 14, fontWeight: active ? '600' : '400' }}>
+                            <ThemedText style={{
+                                fontSize: 14, fontWeight: active ? '600' : '400',
+                            }}>
                                 {i18n.t(opt.labelKey)}
                             </ThemedText>
                         </Pressable>
