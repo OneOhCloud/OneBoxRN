@@ -17,6 +17,8 @@ export const Colors = {
     cardBackground: '#FFFFFF',
     text: '#000000',
     background: '#ffffff',
+    backgroundSecondary: '#f9fafb',
+
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
@@ -26,6 +28,7 @@ export const Colors = {
     cardBackground: '#212225',
     text: '#ffffff',
     background: '#000000',
+    backgroundSecondary: '#000000',
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',

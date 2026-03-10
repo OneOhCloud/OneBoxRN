@@ -5,7 +5,7 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
-import '../global.css';
+import { fetch } from 'expo/fetch';
 
 import { VpnProvider } from '@/contexts/vpn-context';
 import { AppLaunchFlags } from '@/database/kv';
@@ -14,6 +14,7 @@ import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import '../global.css';
 import ExpoOneBox from '../modules/expo-onebox';
 
 // ---------------------------------------------------------------------------
@@ -41,12 +42,13 @@ async function runFirstLaunchSetup() {
             // Request notification permission via expo-notifications (Android 13+ POST_NOTIFICATIONS)
             await Notifications.requestPermissionsAsync();
         } else if (Platform.OS === 'ios') {
-            // Trigger network permission dialog (first outbound request shows the system prompt)
-            await ExpoOneBox.triggerNetworkPermission();
+            // 苹果的网络权限需要在 app 运行时通过实际请求触发，无法通过静态清单声明或安装时授权，因此我们在首次启动时发出一个请求来触发权限对话框。
+            fetch('https://www.apple.com/library/test/success.html').then(() => {
+                console.log('[RootLayout] network permission check complete');
+            }).catch((e) => {
+                console.warn('[RootLayout] network permission check error:', e);
+            });
         }
-
-        // Copy bundled cache.db to native working directory on both platforms
-
     } catch (e) {
         // Non-fatal — log and continue
         console.warn('[FirstLaunch] setup error:', e);
@@ -59,18 +61,22 @@ async function runFirstLaunchSetup() {
 
 export default function RootLayout() {
     const colorScheme = useColorScheme();
-
     useEffect(() => {
+        // 需要每次启动都确保缓存数据库就位
+        copyCacheDb().then(() => {
+            console.log('[RootLayout] cache.db copy complete on subsequent launch');
+        }).catch((e) => {
+            console.warn('[RootLayout] cache.db copy error on subsequent launch:', e);
+        });
+
 
         if (AppLaunchFlags.isFirstLaunch()) {
+
+
             runFirstLaunchSetup();
-        } else {
-            copyCacheDb().then(() => {
-                console.log('[RootLayout] cache.db copy complete on subsequent launch');
-            }).catch((e) => {
-                console.warn('[RootLayout] cache.db copy error on subsequent launch:', e);
-            });
         }
+
+
     }, []);
 
     return (

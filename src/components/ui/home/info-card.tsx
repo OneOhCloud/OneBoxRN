@@ -87,12 +87,7 @@ export function InfoCard({ connected }: { connected: boolean }) {
         <View>
             <SectionLabel text={i18n.t('system_info')} />
             <View style={{ backgroundColor: theme.backgroundElement, borderRadius: 16, paddingHorizontal: 14 }}>
-                {/* Kernel version */}
-                <InfoRow iconName="cube-outline" iconColor="#5856D6" label={i18n.t('kernel_version')}>
-                    <ThemedText style={{ fontSize: 14, fontFamily: MONO_FONT, fontWeight: '500' }} themeColor="textSecondary">
-                        {version || '—'}
-                    </ThemedText>
-                </InfoRow>
+
 
                 {/* Run status */}
                 <InfoRow iconName="radio-outline" iconColor={connected ? '#34C759' : '#8E8E93'} label={i18n.t('run_status')}>

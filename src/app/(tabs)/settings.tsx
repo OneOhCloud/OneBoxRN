@@ -94,6 +94,7 @@ function SettingsCard({ children }: { children: React.ReactNode }) {
     return (
         <View
             style={{
+                marginTop: 8,
                 backgroundColor: theme.cardBackground,
                 borderRadius: 16,
                 paddingHorizontal: 16,
@@ -140,7 +141,7 @@ export default function SettingsScreen() {
         <View
             className="flex-1"
             style={{
-                backgroundColor: theme.background,
+                backgroundColor: theme.backgroundSecondary,
                 paddingTop: Platform.OS === 'web' ? Spacing.six : insets.top,
                 paddingLeft: insets.left,
                 paddingRight: insets.right,
@@ -149,45 +150,6 @@ export default function SettingsScreen() {
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 <View className="flex-col px-5 gap-8">
                     <ThemedText type="subtitle">{i18n.t('settings_title')}</ThemedText>
-
-                    {/* About */}
-                    <View>
-                        <SectionLabel text={i18n.t('section_about')} />
-                        <SettingsCard>
-                            <SettingsRow
-                                iconName="apps-outline"
-                                iconColor="#007AFF"
-                                label={i18n.t('app_version')}
-                                value={getAppVersion()}
-                                onPress={() => setShowBuild(false)}
-                                onLongPress={() => setShowBuild(true)}
-                            />
-                            <SettingsRow
-                                iconName="server-outline"
-                                iconColor="#5856D6"
-                                label={i18n.t('libbox_version')}
-                                value={coreVersion}
-                            />
-                            <SettingsRow
-                                iconName="globe-outline"
-                                iconColor="#34C759"
-                                label={i18n.t('official_website')}
-                                value=""
-                                onPress={() => Linking.openURL('https://sing-box.net')}
-
-                            />
-
-                            <SettingsRow
-                                iconName="document-lock-outline"
-                                iconColor="#FF3B30"
-                                label={i18n.t('privacy_policy')}
-                                value=""
-                                onPress={() => Linking.openURL('https://sing-box.net/privacy')}
-                                isLast
-                            />
-                        </SettingsCard>
-                    </View>
-
                     {/* Tools */}
                     <View>
                         <SectionLabel text={i18n.t('section_tools')} />
@@ -207,6 +169,47 @@ export default function SettingsScreen() {
                             />
                         </SettingsCard>
                     </View>
+                    {/* About */}
+                    <View>
+                        <SectionLabel text={i18n.t('section_about')} />
+                        <SettingsCard>
+                            <SettingsRow
+                                iconName="globe-outline"
+                                iconColor="#34C759"
+                                label={i18n.t('official_website')}
+                                value=""
+                                onPress={() => Linking.openURL('https://sing-box.net')}
+
+                            />
+
+                            <SettingsRow
+                                iconName="document-lock-outline"
+                                iconColor="#FF3B30"
+                                label={i18n.t('privacy_policy')}
+                                value=""
+                                onPress={() => Linking.openURL('https://sing-box.net/privacy')}
+
+                            />
+                            <SettingsRow
+                                iconName="apps-outline"
+                                iconColor="#007AFF"
+                                label={i18n.t('app_version')}
+                                value={getAppVersion()}
+                                onPress={() => setShowBuild(false)}
+                                onLongPress={() => setShowBuild(true)}
+                            />
+                            <SettingsRow
+                                iconName="extension-puzzle-outline"
+                                iconColor="#6b7280"
+                                label={i18n.t('libbox_version')}
+                                value={coreVersion}
+                                isLast
+                            />
+
+                        </SettingsCard>
+                    </View>
+
+
                 </View>
                 <View style={{ height: insets.bottom }} />
             </ScrollView>

@@ -87,7 +87,7 @@ export default function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPa
             } />
             <View style={{ backgroundColor: theme.backgroundElement, borderRadius: 16, padding: 14 }}>
                 {traffic ? (
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
                         {cells.map((c) => (
                             <MetricCell key={c.label} {...c} />
                         ))}

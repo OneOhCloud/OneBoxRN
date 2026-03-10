@@ -9,11 +9,11 @@ import { useVpn } from '@/contexts/vpn-context';
 import { useTheme } from '@/hooks/use-theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useRef } from 'react';
-import { FlatList, Platform, Pressable, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : Platform.OS === 'android' ? 'monospace' : 'Courier New';
 
 // ─── ANSI Color Definitions ─────────────────────────────────
 
@@ -154,9 +154,15 @@ export default function LogsViewerScreen() {
     const theme = useTheme();
     const safeAreaInsets = useSafeAreaInsets();
     const { logs, clearLogs } = useVpn();
-    const listRef = useRef<FlatList>(null);
+    const scrollRef = useRef<ScrollView>(null);
 
     const defaultLogColor = theme.textSecondary ?? '#8E8E93';
+
+    useEffect(() => {
+        return () => {
+            clearLogs();
+        };
+    }, [clearLogs]);
 
     return (
         <View
@@ -228,21 +234,16 @@ export default function LogsViewerScreen() {
                         </Text>
                     </View>
                 ) : (
-                    <FlatList
-                        ref={listRef}
-                        data={logs}
-                        keyExtractor={(_, i) => `log-${i}`}
-                        renderItem={({ item }) => (
-                            <AnsiLine line={item} defaultColor={defaultLogColor} />
-                        )}
+                    <ScrollView
+                        ref={scrollRef}
                         contentContainerStyle={{ padding: 12 }}
                         showsVerticalScrollIndicator
-                        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
-                        removeClippedSubviews
-                        initialNumToRender={50}
-                        maxToRenderPerBatch={50}
-                        windowSize={10}
-                    />
+                        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+                    >
+                        {logs.map((item, i) => (
+                            <AnsiLine key={i} line={item} defaultColor={defaultLogColor} />
+                        ))}
+                    </ScrollView>
                 )}
             </View>
         </View>

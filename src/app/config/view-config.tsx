@@ -9,7 +9,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { Platform, Pressable, ScrollView, Text, ToastAndroid, View } from 'react-native';
+import React from 'react';
+import { FlatList, Platform, Pressable, Text, ToastAndroid, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
@@ -17,20 +18,23 @@ const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 export default function ViewConfigScreen() {
     const theme = useTheme();
     const safeAreaInsets = useSafeAreaInsets();
-    const raw = SBConfig.getConfigContent();
+    const [displayText, setDisplayText] = React.useState<string | null>(null);
+    const [configLines, setConfigLines] = React.useState<string[]>([]);
 
-    let displayText = raw;
-    try {
-        if (raw) {
-            displayText = JSON.stringify(JSON.parse(raw), null, 2);
+    React.useEffect(() => {
+        let startTime = Date.now();
+        const text = SBConfig.getConfigContent();
+        setDisplayText(text);
+        if (text) {
+            setConfigLines(text.split('\n'));
         }
-    } catch {
-        // keep raw if not valid JSON
-    }
+        console.log(`Config content loaded in ${Date.now() - startTime}ms`);
+    }, []);
+
 
     const handleCopy = async () => {
-        if (!raw) return;
-        await Clipboard.setStringAsync(raw);
+        if (!displayText) return;
+        await Clipboard.setStringAsync(displayText);
         if (Platform.OS === 'android') {
             ToastAndroid.show(i18n.t('copied'), ToastAndroid.SHORT);
         }
@@ -69,7 +73,7 @@ export default function ViewConfigScreen() {
 
 
 
-                {raw ? (
+                {displayText ? (
                     <Pressable
                         onPress={handleCopy}
                         style={({ pressed }) => ({
@@ -86,7 +90,6 @@ export default function ViewConfigScreen() {
                 )}
             </View>
 
-            {/* Config content */}
             <View
                 style={{
                     flex: 1,
@@ -98,33 +101,35 @@ export default function ViewConfigScreen() {
                     backgroundColor: theme.cardBackground ?? '#FFFFFF',
                 }}
             >
-                {!raw ? (
+                {!displayText ? (
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ color: theme.textSecondary ?? '#636366', fontSize: 13 }}>
                             {i18n.t('config_empty')}
                         </Text>
                     </View>
                 ) : (
-                    <ScrollView
-                        style={{ flex: 1 }}
-                        contentContainerStyle={{ padding: 12 }}
-                        showsVerticalScrollIndicator
-                        horizontal={false}
-                    >
-                        <ScrollView horizontal showsHorizontalScrollIndicator>
-                            <Text
-                                style={{
-                                    fontFamily: MONO_FONT,
-                                    fontSize: 11,
-                                    lineHeight: 17,
-                                    color: theme.textSecondary ?? '#636366',
-                                }}
-                                selectable
-                            >
-                                {displayText}
-                            </Text>
-                        </ScrollView>
-                    </ScrollView>
+                    <View style={{ flex: 1 }}>
+                        <FlatList
+                            data={configLines}
+                            keyExtractor={(item, index) => `line-${index}`}
+                            renderItem={({ item }) => (
+                                <Text
+                                    style={{
+                                        fontFamily: MONO_FONT,
+                                        fontSize: 12,
+                                        color: theme.text ?? '#000000',
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 2,
+                                        lineHeight: 16,
+                                    }}
+                                >
+                                    {item || ' '}
+                                </Text>
+                            )}
+                            contentContainerStyle={{ flexGrow: 1, paddingVertical: 8 }}
+                            showsVerticalScrollIndicator={true}
+                        />
+                    </View>
                 )}
             </View>
         </View>
