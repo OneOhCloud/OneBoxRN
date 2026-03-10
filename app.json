@@ -8,7 +8,7 @@
     "scheme": "oneoh-networktools",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "buildNumber": "5",
+      "buildNumber": "6",
       "supportsTablet": true,
       "bundleIdentifier": "cloud.oneoh.networktools",
       "entitlements": {
@@ -33,7 +33,7 @@
       }
     },
     "android": {
-      "versionCode": 5,
+      "versionCode": 6,
       "package": "cloud.oneoh.networktools",
       "permissions": [
         "VPN_PERMISSION_REQUIRED",
