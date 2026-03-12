@@ -3,72 +3,81 @@ const { withAppBuildGradle } = require('@expo/config-plugins');
 /**
  * Expo config plugin to enable APK splitting by CPU architecture (ABI).
  *
- * Adds `splits { abi { ... } }` to android/app/build.gradle so that
- * Android Studio (or any Gradle build) produces a separate APK per ABI:
- *   - armeabi-v7a  (32-bit ARM)
- *   - arm64-v8a    (64-bit ARM)
+ * Uses product flavors (AGP 8+ compatible) inside the android {} block:
+ *   - arm32  → armeabi-v7a (32-bit ARM)
+ *   - arm64  → arm64-v8a   (64-bit ARM)
  *
- * Each APK gets a unique versionCode:
- *   armeabi-v7a → 1_000_000 + original versionCode
- *   arm64-v8a   → 2_000_000 + original versionCode
- *
- * Set universalApk = true if you also want a combined "fat" APK.
+ * Each variant gets a unique versionCode:
+ *   arm32 → 1_000_000 + original versionCode
+ *   arm64 → 2_000_000 + original versionCode
  */
-const withAbiSplits = (config, { universalApk = false } = {}) => {
+const withAbiSplits = (config, {} = {}) => {
   return withAppBuildGradle(config, (config) => {
-    const gradle = config.modResults.contents;
+    let gradle = config.modResults.contents;
+
+    // Migration: remove old splits {} block injected by previous versions of this plugin
+    if (gradle.includes('splits {')) {
+      gradle = removeOldSplitsBlock(gradle);
+      console.log('[withAbiSplits] Removed legacy splits {} block.');
+    }
 
     // Avoid duplicate injection
-    if (gradle.includes('splits {')) {
-      console.log('[withAbiSplits] splits block already present, skipping.');
+    if (gradle.includes('"abiSplit"')) {
+      console.log('[withAbiSplits] abiSplit flavors already present, skipping.');
+      config.modResults.contents = gradle;
       return config;
     }
 
-    const splitsBlock = `
-// ----- ABI Splits: generate one APK per CPU architecture -----
-splits {
-    abi {
-        reset()
-        enable true
-        universalApk ${universalApk}
-        include "armeabi-v7a", "arm64-v8a"
-    }
-}
-
-// Assign unique versionCode per ABI so stores can distribute the right APK.
-// armeabi-v7a → 1_000_000 + versionCode
-// arm64-v8a   → 2_000_000 + versionCode
-def abiVersionCodes = ['armeabi-v7a': 1, 'arm64-v8a': 2]
-android.applicationVariants.all { variant ->
-    variant.outputs.each { output ->
-        def abiFilter = output.getFilter(com.android.build.OutputFile.ABI)
-        def abiCode = abiVersionCodes.get(abiFilter)
-        if (abiCode != null) {
-            output.versionCodeOverride = abiCode * 1_000_000 + variant.versionCode
+    const versionCode = config.android?.versionCode ?? 1;
+    const flavorsBlock = `
+    // ----- ABI Splits via product flavors (AGP 8+) -----
+    flavorDimensions += "abiSplit"
+    productFlavors {
+        arm32 {
+            dimension "abiSplit"
+            ndk { abiFilters "armeabi-v7a" }
+            versionCode ${1_000_000 + versionCode}
+        }
+        arm64 {
+            dimension "abiSplit"
+            ndk { abiFilters "arm64-v8a" }
+            versionCode ${2_000_000 + versionCode}
         }
     }
-}
-// --------------------------------------------------------------
+    // --------------------------------------------------
 `;
 
-    // Insert the splits block right after the closing brace of the android { } block.
-    // We locate the last `}` that closes `android {`.
+    // Insert inside the android { } block, before its closing brace
     const androidBlockEnd = findAndroidBlockEnd(gradle);
     if (androidBlockEnd === -1) {
-      console.warn('[withAbiSplits] Could not locate end of android { } block. Appending at end of file.');
-      config.modResults.contents = gradle + splitsBlock;
-    } else {
-      config.modResults.contents =
-        gradle.slice(0, androidBlockEnd + 1) +
-        '\n' +
-        splitsBlock +
-        gradle.slice(androidBlockEnd + 1);
+      console.warn('[withAbiSplits] Could not locate end of android { } block. Skipping.');
+      config.modResults.contents = gradle;
+      return config;
     }
 
-    console.log('[withAbiSplits] ✅ ABI splits configured.');
+    config.modResults.contents =
+      gradle.slice(0, androidBlockEnd) +
+      flavorsBlock +
+      gradle.slice(androidBlockEnd);
+
+    console.log('[withAbiSplits] ✅ ABI splits (product flavors) configured for AGP 8+.');
     return config;
   });
 };
+
+/**
+ * Remove the legacy splits {} block (and its accompanying versionCodeOverride logic)
+ * that was injected by older versions of this plugin.
+ */
+function removeOldSplitsBlock(gradle) {
+  const startMarker = '\n// ----- ABI Splits: generate one APK per CPU architecture -----';
+  const endMarker = '// --------------------------------------------------------------';
+  const start = gradle.indexOf(startMarker);
+  if (start === -1) return gradle;
+  const endIdx = gradle.indexOf(endMarker, start);
+  if (endIdx === -1) return gradle;
+  return gradle.slice(0, start) + gradle.slice(endIdx + endMarker.length);
+}
 
 /**
  * Find the index of the closing `}` of the top-level `android { }` block.
