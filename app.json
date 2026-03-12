@@ -2,13 +2,13 @@
   "expo": {
     "name": "OneBoxM",
     "slug": "oneoh-networktools-app",
-    "version": "1.0.6",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "oneoh-networktools",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "buildNumber": "7",
+      "buildNumber": "8",
       "supportsTablet": true,
       "bundleIdentifier": "cloud.oneoh.networktools",
       "entitlements": {
@@ -33,7 +33,7 @@
       }
     },
     "android": {
-      "versionCode": 7,
+      "versionCode": 8,
       "package": "cloud.oneoh.networktools",
       "permissions": [
         "VPN_PERMISSION_REQUIRED",
