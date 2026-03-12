@@ -50,9 +50,8 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
     const triggerLabel = () => {
         if (error) return 'error';
         if (!connected) return '';
-        if (isLoading) return 'loading...';
-        if (nodes.length === 0) return 'no nodes';
-        if (!currentItem) return 'select node';
+        if (isLoading || !currentItem) return 'loading...';
+        if (nodes.length === 0) return i18n.t("no_nodes");
         if (currentItem.tag === 'auto') return i18n.t("auto")
         return currentItem.tag;
 

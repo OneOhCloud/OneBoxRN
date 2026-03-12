@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { DelayBadge } from '@/components/ui/home/delay-badge';
+import i18n from '@/constants/language';
 import { NodeItem } from '@/hooks/use-proxy-nodes';
 import { useTheme } from '@/hooks/use-theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -46,7 +47,9 @@ function SheetItem({ item, selected, onSelect }: SheetItemProps) {
                 style={{ flex: 1, fontWeight: selected ? '600' : '400', fontSize: 15 }}
                 numberOfLines={1}
             >
-                {item.tag}
+                {
+                    item.tag === 'auto' ? i18n.t("auto") : item.tag
+                }
             </ThemedText>
             <DelayBadge delay={item.delay} testing={item.testing} />
         </Pressable>
