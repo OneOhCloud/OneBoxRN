@@ -13,24 +13,22 @@ export const Colors = {
 
   light: {
     // oklch(98.5% 0.002 247.839)
-    border: '#f9fafb',
-    cardBackground: '#FFFFFF',
+    border: '#fafafa',
+    cardBackground: '#ffffff',
     text: '#000000',
-    background: '#ffffff',
-    backgroundSecondary: '#f9fafb',
+    background: '#f9fafb',
 
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
   },
   dark: {
-    border: '#2E3135',
-    cardBackground: '#212225',
+    border: '#38383A',
+    cardBackground: '#2C2C2E',
     text: '#ffffff',
     background: '#000000',
-    backgroundSecondary: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
+    backgroundElement: '#2C2C2E',
+    backgroundSelected: '#3A3A3C',
     textSecondary: '#B0B4BA',
   },
 } as const;

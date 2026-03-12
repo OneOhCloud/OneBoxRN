@@ -141,7 +141,7 @@ export default function SettingsScreen() {
         <View
             className="flex-1"
             style={{
-                backgroundColor: theme.backgroundSecondary,
+                backgroundColor: theme.background,
                 paddingTop: Platform.OS === 'web' ? Spacing.six : insets.top,
                 paddingLeft: insets.left,
                 paddingRight: insets.right,
