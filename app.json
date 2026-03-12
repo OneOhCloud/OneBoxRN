@@ -122,7 +122,6 @@
           }
         }
       ],
-      "./scripts/withAbiSplits.js",
       "./scripts/withOneBoxMTunnel.js",
       "expo-localization",
       "expo-image",
