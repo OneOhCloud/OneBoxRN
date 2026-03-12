@@ -48,7 +48,7 @@ function SheetItem({ item, selected, onSelect }: SheetItemProps) {
             >
                 {item.tag}
             </ThemedText>
-            <DelayBadge delay={item.delay} />
+            <DelayBadge delay={item.delay} testing={item.testing} />
         </Pressable>
     );
 }
@@ -72,11 +72,12 @@ export interface NodePickerSheetProps {
     nodes: NodeItem[];
     currentNode: string;
     onSelect: (tag: string) => void;
+    onDismiss?: () => void;
 }
 
 export const NodePickerSheet = forwardRef<BottomSheetModal, NodePickerSheetProps>(
     function NodePickerSheet(
-        { nodes, currentNode, onSelect }: NodePickerSheetProps,
+        { nodes, currentNode, onSelect, onDismiss }: NodePickerSheetProps,
         ref: ForwardedRef<BottomSheetModal>
     ) {
         const theme = useTheme();
@@ -90,6 +91,7 @@ export const NodePickerSheet = forwardRef<BottomSheetModal, NodePickerSheetProps
                 snapPoints={snapPoints}
                 topInset={topInset}
                 enablePanDownToClose
+                onDismiss={onDismiss}
                 backdropComponent={renderBackdrop}
                 backgroundStyle={{ backgroundColor: theme.background }}
                 handleIndicatorStyle={{ backgroundColor: `${theme.textSecondary}60` }}

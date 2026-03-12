@@ -21,7 +21,7 @@ interface NodeListProps {
 export function NodeList({ bottomPadding = 0 }: NodeListProps) {
     const theme = useTheme();
     const { connected } = useVpn();
-    const { nodes, currentNode, isLoading, error, setCurrentNode } = useProxyNodes(connected);
+    const { nodes, currentNode, isLoading, error, setCurrentNode, setPickerOpen } = useProxyNodes(connected);
     const sheetRef = useRef<BottomSheetModal>(null);
 
     const handleSelect = useCallback(async (tag: string) => {
@@ -38,8 +38,13 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
     const openPicker = useCallback(() => {
         if (!connected || nodes.length === 0) return;
         selectionChanged();
+        setPickerOpen(true);
         sheetRef.current?.present();
-    }, [connected, nodes.length]);
+    }, [connected, nodes.length, setPickerOpen]);
+
+    const closePicker = useCallback(() => {
+        setPickerOpen(false);
+    }, [setPickerOpen]);
 
     const currentItem = nodes.find(n => n.tag === currentNode);
     const triggerLabel = () => {
@@ -97,7 +102,7 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
                 >
                     {triggerLabel()}
                 </ThemedText>
-                {currentItem && <DelayBadge delay={currentItem.delay} />}
+                {currentItem && <DelayBadge delay={currentItem.delay} testing={currentItem.testing} />}
                 {connected && nodes.length > 0 && (
                     <Ionicons
                         name="chevron-forward"
@@ -114,6 +119,7 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
                 nodes={nodes}
                 currentNode={currentNode}
                 onSelect={handleSelect}
+                onDismiss={closePicker}
             />
         </View>
     );
