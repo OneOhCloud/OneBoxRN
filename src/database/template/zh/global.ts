@@ -242,6 +242,7 @@ const TunGlobalConfig = {
             "tag": "auto",
             "type": "urltest",
             "url": "https://www.google.com/generate_204",
+            "interval": "5s",
             "outbounds": []
         }
     ]

@@ -67,7 +67,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "$(PRODUCT_NAME) needs access to your camera to scan QR codes for importing corporate subscription links and managing network configurations.",
+          "cameraPermission": "To scan QR codes for importing subscription links and managing network configurations.",
           "recordAudioAndroid": true
         }
       ],
