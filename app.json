@@ -77,7 +77,11 @@
           "buildReactNativeFromSource": true,
           "useHermesV1": true,
           "ios": {
-            "appleTeamId": "GN2W3N34TM"
+            "appleTeamId": "GN2W3N34TM",
+            "infoPlist": {
+              "NSContactsUsageDescription": null,
+              "NSMicrophoneUsageDescription": null
+            },
           },
           "android": {
             "buildArchs": [
