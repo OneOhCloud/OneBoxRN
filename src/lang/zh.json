@@ -84,5 +84,19 @@
     "view_config_title": "当前配置",
     "view_config": "当前配置",
     "vpn_start_failed": "VPN 启动失败",
-    "welcome": "欢迎"
+    "welcome": "欢迎",
+    "config_downloading": "正在下载配置",
+    "config_please_wait": "请稍候",
+    "config_download_failed_title": "下载失败",
+    "config_download_failed_hint": "无法获取订阅配置，请检查链接后重试",
+    "config_error_status": "请求失败（HTTP %{code}）",
+    "config_import_success_title": "导入成功",
+    "config_import_success_hint": "订阅配置已更新",
+    "config_traffic_label": "流量使用",
+    "config_traffic_remaining": "剩余 %{amount}",
+    "config_traffic_used_label": "已用 %{amount} · %{percent}%",
+    "config_traffic_total_label": "共 %{amount}",
+    "config_no_expire": "永久有效",
+    "config_get_started": "开始使用",
+    "config_deep_link_hint": "请通过深链或扫码导入配置"
 }

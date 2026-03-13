@@ -84,5 +84,19 @@
     "view_config_title": "Current Config",
     "view_config": "Current Config",
     "vpn_start_failed": "VPN Start Failed",
-    "welcome": "Welcome"
+    "welcome": "Welcome",
+    "config_downloading": "Downloading Config",
+    "config_please_wait": "Please wait…",
+    "config_download_failed_title": "Download Failed",
+    "config_download_failed_hint": "Unable to fetch the subscription config. Check your link and try again.",
+    "config_error_status": "Request failed (HTTP %{code})",
+    "config_import_success_title": "Import Successful",
+    "config_import_success_hint": "Subscription config updated",
+    "config_traffic_label": "Traffic",
+    "config_traffic_remaining": "%{amount} remaining",
+    "config_traffic_used_label": "Used %{amount} · %{percent}%",
+    "config_traffic_total_label": "Total %{amount}",
+    "config_no_expire": "No Expiry",
+    "config_get_started": "Get Started",
+    "config_deep_link_hint": "Import via deep link or QR scan"
 }

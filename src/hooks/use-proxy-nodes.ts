@@ -9,10 +9,6 @@ const URLTEST_WAIT = 2000;
 /** Inter-test interval after the rapid phase. */
 const POLL_INTERVAL = 5000;
 
-
-/** Max spinner animation duration (purely visual, no logic). */
-const TESTING_SPINNER_DURATION = 3000;
-
 /** Tag of the proxy selector group in the sing-box config. */
 export const GATEWAY_GROUP_TAG = 'ExitGateway';
 /** Tag of the URLTest auto-select group nested inside ExitGateway. */
@@ -23,7 +19,7 @@ const AUTO_GROUP_TAG = 'auto';
 export interface NodeItem {
     tag: string;
     delay: number;
-    /** true while URLTest is in-flight AND the node had no prior delay (delay===0). */
+    /** true while URLTest is in-flight. */
     testing: boolean;
 }
 
@@ -70,45 +66,15 @@ let isPickerOpen = false;
 
 // ─── Testing State ────────────────────────────────────────────
 
-/** Node tags currently showing the URLTest spinner (only delay===0 nodes). */
-const testingNodes = new Set<string>();
-const testingTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-function markTesting(tag: string) {
-    testingNodes.add(tag);
-    const existing = testingTimers.get(tag);
-    if (existing) clearTimeout(existing);
-    // Pure animation timer — hides the spinner after max duration, no side effects.
-    const timer = setTimeout(() => {
-        testingNodes.delete(tag);
-        testingTimers.delete(tag);
-        emitState();
-    }, TESTING_SPINNER_DURATION);
-    testingTimers.set(tag, timer);
-}
-
-function clearTestingTimers() {
-    testingTimers.forEach(t => clearTimeout(t));
-    testingTimers.clear();
-    testingNodes.clear();
-}
-
-function clearTestingIfResolved(nodes: { tag: string; delay: number }[]) {
-    for (const n of nodes) {
-        if (n.delay > 0 && testingNodes.has(n.tag)) {
-            testingNodes.delete(n.tag);
-            const timer = testingTimers.get(n.tag);
-            if (timer) { clearTimeout(timer); testingTimers.delete(n.tag); }
-        }
-    }
-}
+/** true while URLTest is in-flight; drives the spinner on all nodes. */
+let isTesting = false;
 
 // ─── State Emission ───────────────────────────────────────────
 
 function emitState() {
     const emitted: PollState = {
         ...pollState,
-        nodes: rawNodes.map(n => ({ ...n, testing: testingNodes.has(n.tag) })),
+        nodes: rawNodes.map(n => ({ ...n, testing: isTesting })),
     };
     listeners.forEach(fn => fn(emitted));
 }
@@ -171,6 +137,7 @@ async function runProducer(generation: number) {
 
     try {
         const res = await ExpoOneBox.getProxyNodes();
+        console.log('[ProxyNodes] initial fetch', res);
         if (generation !== loopGeneration) { isRunning = false; return; }
         updatePollState({ rawNodes: res.all ?? [], currentNode: res.now ?? '', isLoading: false, error: null });
     } catch { }
@@ -184,18 +151,10 @@ async function runProducer(generation: number) {
             continue;
         }
 
-        // Show spinner only for nodes with no prior delay (delay===0)
-        let anyMarked = false;
-        if (tag === GATEWAY_GROUP_TAG) {
-            rawNodes.forEach(n => { if (n.delay === 0) { markTesting(n.tag); anyMarked = true; } });
-        } else {
-            const node = rawNodes.find(n => n.tag === tag);
-            if (node && node.delay === 0) { markTesting(tag); anyMarked = true; }
-        }
-        if (anyMarked) emitState();
-
         // Step 1: send URLTest request to sing-box (awaits gRPC ack, ~100ms)
         // Also trigger the nested auto group so its displayed delay reflects the best member.
+        isTesting = true;
+        emitState();
         try { await ExpoOneBox.triggerURLTest(tag); } catch { }
         if (tag === GATEWAY_GROUP_TAG) {
             try { await ExpoOneBox.triggerURLTest(AUTO_GROUP_TAG); } catch { }
@@ -206,30 +165,30 @@ async function runProducer(generation: number) {
         await urltestWait(URLTEST_WAIT);
         if (generation !== loopGeneration) break;
 
-        // Step 3: fetch updated delay data (completes this test iteration)
+        // Step 3: fetch updated delay data from getProxyNodes (includes all delays)
         try {
             const res = await ExpoOneBox.getProxyNodes();
+            console.log('[ProxyNodes] fetched after URLTest', res);
             if (generation !== loopGeneration) break;
 
             failCount = 0;
-            const fetchedNodes = res.all ?? [];
-            clearTestingIfResolved(fetchedNodes);
+            isTesting = false;
             updatePollState({
-                rawNodes: fetchedNodes,
+                rawNodes: res.all ?? [],
                 currentNode: res.now || pollState.currentNode,
                 isLoading: false,
                 error: null,
             });
         } catch (e) {
+            isTesting = false;
             const msg = e instanceof Error ? e.message : String(e);
             if (failCount >= 3) updatePollState({ error: msg || '无法获取节点列表', isLoading: false });
+            else emitState();
         }
 
         if (generation !== loopGeneration) break;
 
-
         await intervalSleep(POLL_INTERVAL);
-
     }
 
     if (generation === loopGeneration) isRunning = false;
@@ -239,6 +198,7 @@ function startPolling() {
     loopGeneration++;
     cancelIntervalSleep();
     isPickerOpen = false;
+    isTesting = false;
     updatePollState({ isLoading: true, rawNodes: [], currentNode: '', error: null });
     runProducer(loopGeneration);
 }
@@ -248,7 +208,7 @@ function stopPolling() {
     cancelIntervalSleep();
     isRunning = false;
     isPickerOpen = false;
-    clearTestingTimers();
+    isTesting = false;
     rawNodes = [];
     pollState = { currentNode: '', isLoading: false, error: null };
 }
@@ -263,7 +223,7 @@ function subscribe(listener: Listener): () => void {
 export function useProxyNodes(connected: boolean): ProxyNodesState {
     const [localState, setLocalState] = useState<PollState>(() => ({
         ...pollState,
-        nodes: rawNodes.map(n => ({ ...n, testing: false })),
+        nodes: rawNodes.map(n => ({ ...n, testing: isTesting })),
     }));
     const [localCurrentNode, setLocalCurrentNode] = useState(pollState.currentNode);
 
@@ -275,7 +235,7 @@ export function useProxyNodes(connected: boolean): ProxyNodesState {
             return;
         }
 
-        setLocalState({ ...pollState, nodes: rawNodes.map(n => ({ ...n, testing: testingNodes.has(n.tag) })) });
+        setLocalState({ ...pollState, nodes: rawNodes.map(n => ({ ...n, testing: isTesting })) });
         setLocalCurrentNode(pollState.currentNode);
 
         if (!isRunning) startPolling();
