@@ -8,6 +8,7 @@ import { Fonts } from '@/constants/theme';
 import { SBConfig } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import { getSingBoxUserAgent } from '@/utils';
+import { parseSubscriptionUserinfo } from '@/utils/subscription';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fetch } from 'expo/fetch';
@@ -52,16 +53,9 @@ function useDownloadConfig(url: string | undefined) {
                     if (signal.aborted) return;
                     setData(content);
 
-                    const subscriptionUserinfo = response.headers.get('subscription-userinfo');
-                    const uploadMatch = subscriptionUserinfo?.match(/upload=(\d+)/);
-                    const downloadMatch = subscriptionUserinfo?.match(/download=(\d+)/);
-                    const totalMatch = subscriptionUserinfo?.match(/total=(\d+)/);
-                    const expireMatch = subscriptionUserinfo?.match(/expire=(\d+)/);
-
-                    const upload = uploadMatch ? parseInt(uploadMatch[1]) : 0;
-                    const download = downloadMatch ? parseInt(downloadMatch[1]) : 0;
-                    const total = totalMatch ? parseInt(totalMatch[1]) : 0;
-                    const expire = expireMatch ? parseInt(expireMatch[1]) : 0;
+                    const { upload, download, total, expire } = parseSubscriptionUserinfo(
+                        response.headers.get('subscription-userinfo')
+                    );
 
                     SBConfig.setUsedTraffic(upload + download);
                     SBConfig.setTotalTraffic(total);

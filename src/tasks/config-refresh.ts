@@ -10,6 +10,7 @@ import { fetch } from 'expo/fetch';
 
 import { SBConfig } from '@/database/kv';
 import { getSingBoxUserAgent } from '@/utils';
+import { parseSubscriptionUserinfo } from '@/utils/subscription';
 
 export const CONFIG_REFRESH_TASK = 'config-refresh';
 
@@ -19,7 +20,7 @@ export const CONFIG_REFRESH_TASK = 'config-refresh';
 TaskManager.defineTask(CONFIG_REFRESH_TASK, async () => {
     try {
         const url = SBConfig.getConfigLink();
-        if (!url || url === 'empty') {
+        if (!url) {
             return BackgroundTaskResult.Success;
         }
 
@@ -38,24 +39,21 @@ TaskManager.defineTask(CONFIG_REFRESH_TASK, async () => {
 
         const content = await response.text();
 
-        const subscriptionUserinfo = response.headers.get('subscription-userinfo');
-        const uploadMatch = subscriptionUserinfo?.match(/upload=(\d+)/);
-        const downloadMatch = subscriptionUserinfo?.match(/download=(\d+)/);
-        const totalMatch = subscriptionUserinfo?.match(/total=(\d+)/);
-        const expireMatch = subscriptionUserinfo?.match(/expire=(\d+)/);
+        // Skip write if content hasn't changed
+        if (content === SBConfig.getConfigContent()) {
+            return BackgroundTaskResult.Success;
+        }
 
-        const upload = uploadMatch ? parseInt(uploadMatch[1]) : 0;
-        const download = downloadMatch ? parseInt(downloadMatch[1]) : 0;
-        const total = totalMatch ? parseInt(totalMatch[1]) : 0;
-        const expire = expireMatch ? parseInt(expireMatch[1]) : 0;
+        const info = parseSubscriptionUserinfo(response.headers.get('subscription-userinfo'));
 
         SBConfig.setConfigContent(content);
-        SBConfig.setUsedTraffic(upload + download);
-        SBConfig.setTotalTraffic(total);
-        SBConfig.setExpireTime(expire);
+        SBConfig.setUsedTraffic(info.upload + info.download);
+        SBConfig.setTotalTraffic(info.total);
+        SBConfig.setExpireTime(info.expire);
 
         return BackgroundTaskResult.Success;
-    } catch {
+    } catch (e) {
+        console.warn('[ConfigRefresh] task error:', e);
         return BackgroundTaskResult.Failed;
     }
 });

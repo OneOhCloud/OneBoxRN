@@ -41,8 +41,8 @@ export const SBConfig = {
     setConfigLink: (link: string) => {
         MMKVStore.set('configLink', link);
     },
-    getConfigLink: () => {
-        return MMKVStore.getString('configLink') || 'empty';
+    getConfigLink: (): string | null => {
+        return MMKVStore.getString('configLink') || null;
     },
     setConfigName: (name: string) => {
         MMKVStore.set('configName', name);
@@ -68,8 +68,7 @@ export const SBConfig = {
     getExpireTime: () => {
         return MMKVStore.getNumber('expireTime') || 0;
     },
-    setConfigContent: async (content: string) => {
-
+    setConfigContent: (content: string) => {
         MMKVStore.set('configContent', content);
     },
     getConfigContent: () => {
