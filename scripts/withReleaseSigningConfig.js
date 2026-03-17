@@ -36,8 +36,7 @@ module.exports = function withReleaseSigningConfig(config) {
       /(\bbuildTypes\s*\{[\s\S]*?\brelease\s*\{[\s\S]*?)signingConfig signingConfigs\.debug/,
       (match, prefix) =>
         prefix +
-        "signingConfig (findProperty('ANDROID_KEYSTORE_PATH') ?: System.getenv('ANDROID_KEYSTORE_PATH')) " +
-        '? signingConfigs.release : signingConfigs.debug'
+        "def keystorePath = findProperty('ANDROID_KEYSTORE_PATH') ?: System.getenv('ANDROID_KEYSTORE_PATH')\n            signingConfig keystorePath ? signingConfigs.release : signingConfigs.debug"
     );
 
     config.modResults.contents = contents;
