@@ -81,7 +81,7 @@
             "infoPlist": {
               "NSContactsUsageDescription": null,
               "NSMicrophoneUsageDescription": null
-            },
+            }
           },
           "android": {
             "buildArchs": [
@@ -130,7 +130,8 @@
       "expo-localization",
       "expo-image",
       "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      "expo-background-task"
     ],
     "experiments": {
       "autolinkingModuleResolution": true,

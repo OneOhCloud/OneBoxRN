@@ -9,6 +9,7 @@ import { fetch } from 'expo/fetch';
 
 import { VpnProvider } from '@/contexts/vpn-context';
 import { AppLaunchFlags } from '@/database/kv';
+import { registerConfigRefreshTask } from '@/tasks/config-refresh';
 import { Asset } from 'expo-asset';
 import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
@@ -71,12 +72,10 @@ export default function RootLayout() {
 
 
         if (AppLaunchFlags.isFirstLaunch()) {
-
-
             runFirstLaunchSetup();
         }
 
-
+        registerConfigRefreshTask();
     }, []);
 
     return (

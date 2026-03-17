@@ -23,6 +23,7 @@
     "@react-navigation/elements": "^2.9.8",
     "@react-navigation/native": "^7.1.28",
     "expo": "~55.0.5",
+    "expo-background-task": "~55.0.9",
     "expo-build-properties": "~55.0.9",
     "expo-camera": "~55.0.9",
     "expo-clipboard": "~55.0.8",
