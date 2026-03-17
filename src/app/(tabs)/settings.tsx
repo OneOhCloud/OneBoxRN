@@ -11,7 +11,7 @@ import ExpoOneBox from '@/modules/expo-onebox';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useRef } from 'react';
 import { Linking, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -111,6 +111,20 @@ function SettingsCard({ children }: { children: React.ReactNode }) {
 
 export default function SettingsScreen() {
     const [showBuild, setShowBuild] = React.useState(false);
+    const aboutTapCount = useRef(0);
+    const aboutTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    function handleAboutTap() {
+        aboutTapCount.current += 1;
+        if (aboutTapTimer.current) clearTimeout(aboutTapTimer.current);
+        if (aboutTapCount.current >= 3) {
+            aboutTapCount.current = 0;
+            lightImpact();
+            router.push('/config/dev');
+            return;
+        }
+        aboutTapTimer.current = setTimeout(() => { aboutTapCount.current = 0; }, 800);
+    }
     let versionDetail = '';
     if (Platform.OS === 'web') {
         versionDetail = `Build: ${Constants.expoConfig?.extra?.webBuildNumber ?? '\u2014'}`;
@@ -171,7 +185,9 @@ export default function SettingsScreen() {
                     </View>
                     {/* About */}
                     <View>
-                        <SectionLabel text={i18n.t('section_about')} />
+                        <Pressable onPress={handleAboutTap} hitSlop={8}>
+                            <SectionLabel text={i18n.t('section_about')} />
+                        </Pressable>
                         <SettingsCard>
                             <SettingsRow
                                 iconName="globe-outline"
