@@ -19,6 +19,7 @@ ANDROID_OUT_AAB := $(ANDROID_DIR)/app/build/outputs/bundle/release/app-release.a
 ANDROID_OUT_APK := $(ANDROID_DIR)/app/build/outputs/apk/release/app-release.apk
 
 TARGET_DIR      := target
+IOS_DERIVED_DATA := $(TARGET_DIR)/DerivedData
 
 # ── 默认目标 ────────────────────────────────────────────────
 .DEFAULT_GOAL := help
@@ -27,7 +28,7 @@ TARGET_DIR      := target
         android android-aab android-apk \
         ios ios-archive \
         open-android open-ios \
-        clean clean-android clean-ios
+        clean clean-android clean-ios clean-ios-cache
 
 # ── 帮助 ────────────────────────────────────────────────────
 help:
@@ -50,7 +51,8 @@ help:
 	@echo ""
 	@echo "  clean             清理全部构建产物"
 	@echo "  clean-android     清理 Android 构建产物"
-	@echo "  clean-ios         清理 iOS 构建产物"
+	@echo "  clean-ios         清理 iOS Archive"
+	@echo "  clean-ios-cache   清理 iOS DerivedData（遇到奇怪编译错误时使用）"
 	@echo ""
 
 # ── Expo Prebuild ────────────────────────────────────────────
@@ -110,6 +112,7 @@ ios-archive: _check-ios-env
 		-scheme $(IOS_SCHEME) \
 		-configuration Release \
 		-archivePath $(TARGET_DIR)/$(APP_NAME).xcarchive \
+		-derivedDataPath $(IOS_DERIVED_DATA) \
 		-destination "generic/platform=iOS" \
 		DEVELOPMENT_TEAM=$(IOS_TEAM_ID) \
 		CODE_SIGN_STYLE=Automatic \
@@ -137,6 +140,11 @@ clean-android:
 
 clean-ios:
 	rm -rf $(TARGET_DIR)/$(APP_NAME).xcarchive
+
+clean-ios-cache:
+	@echo "▶ 清理 iOS DerivedData 缓存（下次构建将完整重编）..."
+	rm -rf $(IOS_DERIVED_DATA)
+	@echo "✅ DerivedData 已清理"
 
 clean: clean-android clean-ios
 	@echo "✅ 清理完成"
