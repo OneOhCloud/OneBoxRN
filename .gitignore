@@ -3,6 +3,9 @@
 # dependencies
 node_modules/
 
+# build output
+target/
+
 # Expo
 .expo/
 dist/
@@ -43,3 +46,4 @@ app-example
 /android
 src/database/config.ts
 /android/build/**
+.env
