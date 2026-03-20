@@ -28,7 +28,7 @@ module.exports = function withGradleBuildOptimization(config) {
 
       // ── Caching ──
       'org.gradle.caching': 'true',
-      'org.gradle.configuration-cache': 'true',
+      'org.gradle.configuration-cache': 'false',
 
       // ── File System Watching (avoid full FS scan on each build) ──
       'org.gradle.vfs.watch': 'true',
