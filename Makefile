@@ -27,6 +27,7 @@ IOS_DERIVED_DATA := $(TARGET_DIR)/DerivedData
 .PHONY: help prebuild prebuild-android prebuild-ios \
         android android-aab android-apk \
         ios ios-archive \
+        _sync-version-android _sync-version-ios \
         open-android open-ios \
         clean clean-android clean-ios clean-ios-cache
 
@@ -75,7 +76,7 @@ _check-android-env:
 
 android: android-aab
 
-android-aab: _check-android-env
+android-aab: _check-android-env _sync-version-android
 	@echo "▶ 构建 Android AAB (release)..."
 	cd $(ANDROID_DIR) && ./gradlew bundleRelease \
 		-PANDROID_KEYSTORE_PATH=$(ANDROID_KEYSTORE_PATH) \
@@ -86,7 +87,7 @@ android-aab: _check-android-env
 	@cp $(ANDROID_OUT_AAB) $(TARGET_DIR)/$(APP_NAME).aab
 	@echo "✅ AAB 输出: $(TARGET_DIR)/$(APP_NAME).aab"
 
-android-apk: _check-android-env
+android-apk: _check-android-env _sync-version-android
 	@echo "▶ 构建 Android APK (release)..."
 	cd $(ANDROID_DIR) && ./gradlew assembleRelease \
 		-PANDROID_KEYSTORE_PATH=$(ANDROID_KEYSTORE_PATH) \
@@ -104,7 +105,7 @@ _check-ios-env:
 
 ios: ios-archive
 
-ios-archive: _check-ios-env
+ios-archive: _check-ios-env _sync-version-ios
 	@echo "▶ 创建 iOS Archive..."
 	@mkdir -p $(TARGET_DIR)
 	set -o pipefail && xcodebuild archive \
@@ -125,6 +126,41 @@ ios-archive: _check-ios-env
 		"$(XCODE_ARCHIVES)/$(ARCHIVE_DATE)/$(ARCHIVE_NAME).xcarchive"
 	@echo "✅ Archive 输出: $(TARGET_DIR)/$(APP_NAME).xcarchive"
 	@echo "✅ 已同步到 Xcode Organizer: $(XCODE_ARCHIVES)/$(ARCHIVE_DATE)/"
+
+# ── 版本号同步（从 app.json → native 项目文件） ──────────────
+_sync-version-android:
+	@echo "▶ 同步版本号到 Android..."
+	@node -e " \
+	  const fs = require('fs'); \
+	  const app = JSON.parse(fs.readFileSync('app.json','utf8')); \
+	  const ver = app.expo.version; \
+	  const code = app.expo.android.versionCode; \
+	  const f = 'android/app/build.gradle'; \
+	  let txt = fs.readFileSync(f,'utf8'); \
+	  txt = txt.replace(/versionCode\s+\d+/, 'versionCode ' + code); \
+	  txt = txt.replace(/versionName\s+\"[^\"]*\"/, 'versionName \"' + ver + '\"'); \
+	  fs.writeFileSync(f, txt); \
+	  console.log('  versionCode=' + code + ', versionName=' + ver); \
+	"
+
+_sync-version-ios:
+	@echo "▶ 同步版本号到 iOS..."
+	@node -e " \
+	  const fs = require('fs'); \
+	  const app = JSON.parse(fs.readFileSync('app.json','utf8')); \
+	  const ver = app.expo.version; \
+	  const build = app.expo.ios.buildNumber; \
+	  const f = 'ios/OneBoxM/Info.plist'; \
+	  let txt = fs.readFileSync(f,'utf8'); \
+	  txt = txt.replace( \
+	    /(<key>CFBundleShortVersionString<\/key>\s*<string>)[^<]*(<\/string>)/, \
+	    '\$$1' + ver + '\$$2'); \
+	  txt = txt.replace( \
+	    /(<key>CFBundleVersion<\/key>\s*<string>)[^<]*(<\/string>)/, \
+	    '\$$1' + build + '\$$2'); \
+	  fs.writeFileSync(f, txt); \
+	  console.log('  CFBundleShortVersionString=' + ver + ', CFBundleVersion=' + build); \
+	"
 
 # ── 打开 IDE ─────────────────────────────────────────────────
 open-android:
