@@ -1,11 +1,12 @@
 /**
  * Developer Tools — hidden page, accessible by tapping "About" section 3 times.
- * Shows background task status and subscription config state.
+ * Shows background task status, subscription config state, and task execution history.
  */
 import { lightImpact } from '@/components/ui/haptics';
 import { CONFIG_REFRESH_TASK } from '@/tasks/config-refresh';
 import { Fonts, Spacing } from '@/constants/theme';
-import { SBConfig } from '@/database/kv';
+import { SBConfig, TaskLog } from '@/database/kv';
+import type { TaskLogEntry, TaskRecord, TaskStatus } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as BackgroundTask from 'expo-background-task';
@@ -40,13 +41,43 @@ function formatBytes(bytes: number): string {
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
 }
 
-function statusLabel(status: BackgroundTaskStatus | null): string {
+function sysStatusLabel(status: BackgroundTaskStatus | null): string {
     if (status === null) return 'Unknown';
     return status === BackgroundTaskStatus.Available ? 'Available' : 'Restricted';
 }
 
-function statusColor(status: BackgroundTaskStatus | null): string {
+function sysStatusColor(status: BackgroundTaskStatus | null): string {
     return status === BackgroundTaskStatus.Available ? '#34C759' : '#FF9500';
+}
+
+function taskStatusColor(status: TaskStatus): string {
+    switch (status) {
+        case 'success': return '#34C759';
+        case 'skipped': return '#FF9500';
+        case 'failed': return '#FF3B30';
+    }
+}
+
+function relativeTime(iso: string): string {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ${mins % 60}m ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+}
+
+function formatTime(iso: string): string {
+    const d = new Date(iso);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function formatDuration(ms: number): string {
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(1)}s`;
 }
 
 // ─── Row ─────────────────────────────────────────────────────
@@ -113,6 +144,38 @@ function Card({ title, children, theme }: { title: string; children: React.React
     );
 }
 
+// ─── Task Record Row ─────────────────────────────────────────
+
+function RecordRow({ record, isLast, theme }: { record: TaskRecord; isLast: boolean; theme: ReturnType<typeof useTheme> }) {
+    const color = taskStatusColor(record.status);
+    return (
+        <View
+            style={{
+                paddingVertical: 10,
+                borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+                borderBottomColor: theme.border,
+            }}
+        >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
+                    <Text style={{ fontSize: 13, color: theme.text, fontFamily: Fonts?.mono }}>
+                        {formatTime(record.time)}
+                    </Text>
+                </View>
+                <Text style={{ fontSize: 12, color: theme.textSecondary, fontFamily: Fonts?.mono }}>
+                    {formatDuration(record.duration)}
+                </Text>
+            </View>
+            {record.detail ? (
+                <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2, marginLeft: 12 }} numberOfLines={1}>
+                    {record.detail}
+                </Text>
+            ) : null}
+        </View>
+    );
+}
+
 // ─── Screen ──────────────────────────────────────────────────
 
 export default function DevScreen() {
@@ -121,6 +184,7 @@ export default function DevScreen() {
 
     const [taskInfo, setTaskInfo] = useState<TaskInfo | null>(null);
     const [config, setConfig] = useState<ConfigState | null>(null);
+    const [taskLog, setTaskLog] = useState<TaskLogEntry | null>(null);
     const [loading, setLoading] = useState(true);
 
     const load = useCallback(async () => {
@@ -130,13 +194,22 @@ export default function DevScreen() {
             TaskManager.isTaskRegisteredAsync(CONFIG_REFRESH_TASK).catch(() => false),
         ]);
         setTaskInfo({ isRegistered, taskStatus });
+
+        const link = SBConfig.getConfigLink();
         setConfig({
-            link: SBConfig.getConfigLink(),
+            link,
             contentLength: SBConfig.getConfigContent().length,
             usedTraffic: SBConfig.getUsedTraffic(),
             totalTraffic: SBConfig.getTotalTraffic(),
             expireTime: SBConfig.getExpireTime(),
         });
+
+        if (link) {
+            setTaskLog(TaskLog.get(link));
+        } else {
+            setTaskLog(null);
+        }
+
         setLoading(false);
     }, []);
 
@@ -145,6 +218,9 @@ export default function DevScreen() {
     const expireDate = config && config.expireTime > 0
         ? new Date(config.expireTime * 1000).toLocaleString()
         : 'N/A';
+
+    // Reverse chronological for display
+    const records = taskLog?.records ? [...taskLog.records].reverse() : [];
 
     return (
         <View
@@ -192,8 +268,8 @@ export default function DevScreen() {
                         />
                         <Row
                             label="System Status"
-                            value={statusLabel(taskInfo?.taskStatus ?? null)}
-                            valueColor={statusColor(taskInfo?.taskStatus ?? null)}
+                            value={sysStatusLabel(taskInfo?.taskStatus ?? null)}
+                            valueColor={sysStatusColor(taskInfo?.taskStatus ?? null)}
                             theme={theme}
                         />
                         <Row
@@ -235,6 +311,47 @@ export default function DevScreen() {
                             isLast
                         />
                     </Card>
+
+                    {/* Task Execution History */}
+                    <Card title="Execution History" theme={theme}>
+                        {taskLog ? (
+                            <>
+                                <Row
+                                    label="Total Runs"
+                                    value={String(taskLog.totalCount)}
+                                    theme={theme}
+                                />
+                                <Row
+                                    label="Last Run"
+                                    value={taskLog.lastExecutedAt ? relativeTime(taskLog.lastExecutedAt) : 'Never'}
+                                    valueColor={taskLog.lastExecutedAt ? theme.text : theme.textSecondary}
+                                    theme={theme}
+                                />
+                                <Row
+                                    label="Last Status"
+                                    value={taskLog.lastStatus ?? '—'}
+                                    valueColor={taskLog.lastStatus ? taskStatusColor(taskLog.lastStatus) : theme.textSecondary}
+                                    theme={theme}
+                                    isLast={records.length === 0}
+                                />
+                            </>
+                        ) : (
+                            <Row label="Status" value="No config URL" valueColor={theme.textSecondary} theme={theme} isLast />
+                        )}
+                    </Card>
+
+                    {records.length > 0 && (
+                        <Card title={`Recent Records (${records.length})`} theme={theme}>
+                            {records.map((r, i) => (
+                                <RecordRow
+                                    key={r.time + i}
+                                    record={r}
+                                    isLast={i === records.length - 1}
+                                    theme={theme}
+                                />
+                            ))}
+                        </Card>
+                    )}
                 </ScrollView>
             )}
         </View>
