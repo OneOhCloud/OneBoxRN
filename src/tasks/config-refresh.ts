@@ -91,7 +91,7 @@ export async function registerConfigRefreshTask() {
         const isRegistered = await TaskManager.isTaskRegisteredAsync(CONFIG_REFRESH_TASK);
         if (!isRegistered) {
             await BackgroundTask.registerTaskAsync(CONFIG_REFRESH_TASK, {
-                minimumInterval: 15 * 60, // 15 minutes — the minimum Android allows
+                minimumInterval: 15, // 15 minutes (unit: minutes, minimum allowed)
             });
             console.log('[ConfigRefresh] task registered');
         }
