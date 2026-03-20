@@ -127,6 +127,7 @@
         }
       ],
       "./scripts/withOneBoxMTunnel.js",
+      "./scripts/withGradleBuildOptimization.js",
       "./scripts/withReleaseSigningConfig.js",
       "expo-localization",
       "expo-image",
