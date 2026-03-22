@@ -15,10 +15,11 @@ import { parseSubscriptionUserinfo } from '@/utils/subscription';
 
 export const CONFIG_REFRESH_TASK = 'config-refresh';
 
-// ─── Task Definition ─────────────────────────────────────────────────────────
-// Must be called at module top level (outside any component).
+// ─── Task Body ───────────────────────────────────────────────────────────────
+// Extracted so it can be invoked directly from the dev screen for testing,
+// since triggerTaskWorkerForTestingAsync skips execution when the app is in foreground.
 
-TaskManager.defineTask(CONFIG_REFRESH_TASK, async () => {
+export async function executeConfigRefresh(): Promise<BackgroundTaskResult> {
     console.log('[ConfigRefresh] ⚡ task triggered at', new Date().toISOString());
     const start = Date.now();
     const url = SBConfig.getConfigLink();
@@ -82,6 +83,13 @@ TaskManager.defineTask(CONFIG_REFRESH_TASK, async () => {
             detail,
         });
     }
+}
+
+// ─── Task Definition ─────────────────────────────────────────────────────────
+// Must be called at module top level (outside any component).
+
+TaskManager.defineTask(CONFIG_REFRESH_TASK, async () => {
+    return executeConfigRefresh();
 });
 
 // ─── Registration ─────────────────────────────────────────────────────────────
@@ -95,16 +103,19 @@ export async function registerConfigRefreshTask() {
             return;
         }
 
+        // Always unregister + re-register to ensure a fresh WorkManager job exists.
+        // WorkManager OneTimeWorkRequest is cancelled by force-stop (swipe away),
+        // and `isTaskRegisteredAsync` may return true even when the job is gone.
         const isRegistered = await TaskManager.isTaskRegisteredAsync(CONFIG_REFRESH_TASK);
         console.log('[ConfigRefresh] task already registered:', isRegistered);
-        if (!isRegistered) {
-            await BackgroundTask.registerTaskAsync(CONFIG_REFRESH_TASK, {
-                minimumInterval: 15, // 15 minutes (unit: minutes, minimum allowed)
-            });
-            console.log('[ConfigRefresh] task registered successfully');
-        } else {
-            console.log('[ConfigRefresh] task was already registered, skipping');
+        if (isRegistered) {
+            await BackgroundTask.unregisterTaskAsync(CONFIG_REFRESH_TASK);
+            console.log('[ConfigRefresh] unregistered stale task');
         }
+        await BackgroundTask.registerTaskAsync(CONFIG_REFRESH_TASK, {
+            minimumInterval: 15, // 15 minutes (unit: minutes, minimum allowed)
+        });
+        console.log('[ConfigRefresh] task registered successfully');
     } catch (e) {
         console.warn('[ConfigRefresh] registration error:', e);
     }

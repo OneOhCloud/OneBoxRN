@@ -3,7 +3,7 @@
  * Shows background task status, subscription config state, and task execution history.
  */
 import { lightImpact } from '@/components/ui/haptics';
-import { CONFIG_REFRESH_TASK, registerConfigRefreshTask } from '@/tasks/config-refresh';
+import { CONFIG_REFRESH_TASK, executeConfigRefresh, registerConfigRefreshTask } from '@/tasks/config-refresh';
 import { Fonts, Spacing } from '@/constants/theme';
 import { SBConfig, TaskLog } from '@/database/kv';
 import type { TaskLogEntry, TaskRecord, TaskStatus } from '@/database/kv';
@@ -287,12 +287,12 @@ export default function DevScreen() {
                             onPress={async () => {
                                 lightImpact();
                                 try {
-                                    console.log('[Dev] triggering background task for testing...');
-                                    const result = await BackgroundTask.triggerTaskWorkerForTestingAsync();
-                                    console.log('[Dev] triggerTaskWorkerForTestingAsync result:', result);
-                                    Alert.alert('Trigger Result', `Result: ${result}\nCheck logs for details.`);
-                                    // Reload to see new records
-                                    setTimeout(load, 1500);
+                                    console.log('[Dev] executing config refresh directly...');
+                                    const result = await executeConfigRefresh();
+                                    console.log('[Dev] executeConfigRefresh result:', result);
+                                    const label = result === 1 ? 'Success' : 'Failed';
+                                    Alert.alert('Task Result', `${label}\nCheck logs for details.`);
+                                    load();
                                 } catch (e) {
                                     const msg = e instanceof Error ? e.message : String(e);
                                     console.warn('[Dev] trigger error:', e);
@@ -307,7 +307,7 @@ export default function DevScreen() {
                             })}
                         >
                             <Text style={{ fontSize: 14, color: '#007AFF', textAlign: 'center', fontWeight: '600' }}>
-                                Trigger Task Now (Dev Only)
+                                Run Task Now
                             </Text>
                         </Pressable>
                         <Pressable
