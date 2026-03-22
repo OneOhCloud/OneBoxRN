@@ -3,7 +3,7 @@
  * Shows background task status, subscription config state, and task execution history.
  */
 import { lightImpact } from '@/components/ui/haptics';
-import { CONFIG_REFRESH_TASK } from '@/tasks/config-refresh';
+import { CONFIG_REFRESH_TASK, registerConfigRefreshTask } from '@/tasks/config-refresh';
 import { Fonts, Spacing } from '@/constants/theme';
 import { SBConfig, TaskLog } from '@/database/kv';
 import type { TaskLogEntry, TaskRecord, TaskStatus } from '@/database/kv';
@@ -14,7 +14,7 @@ import { BackgroundTaskStatus } from 'expo-background-task';
 import { router } from 'expo-router';
 import * as TaskManager from 'expo-task-manager';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ─── Types ────────────────────────────────────────────────────
@@ -279,6 +279,66 @@ export default function DevScreen() {
                             theme={theme}
                             isLast
                         />
+                    </Card>
+
+                    {/* Debug Actions */}
+                    <Card title="Debug Actions" theme={theme}>
+                        <Pressable
+                            onPress={async () => {
+                                lightImpact();
+                                try {
+                                    console.log('[Dev] triggering background task for testing...');
+                                    const result = await BackgroundTask.triggerTaskWorkerForTestingAsync();
+                                    console.log('[Dev] triggerTaskWorkerForTestingAsync result:', result);
+                                    Alert.alert('Trigger Result', `Result: ${result}\nCheck logs for details.`);
+                                    // Reload to see new records
+                                    setTimeout(load, 1500);
+                                } catch (e) {
+                                    const msg = e instanceof Error ? e.message : String(e);
+                                    console.warn('[Dev] trigger error:', e);
+                                    Alert.alert('Trigger Error', msg);
+                                }
+                            }}
+                            style={({ pressed }) => ({
+                                paddingVertical: 12,
+                                borderBottomWidth: StyleSheet.hairlineWidth,
+                                borderBottomColor: theme.border,
+                                opacity: pressed ? 0.6 : 1,
+                            })}
+                        >
+                            <Text style={{ fontSize: 14, color: '#007AFF', textAlign: 'center', fontWeight: '600' }}>
+                                Trigger Task Now (Dev Only)
+                            </Text>
+                        </Pressable>
+                        <Pressable
+                            onPress={async () => {
+                                lightImpact();
+                                try {
+                                    // Unregister first, then re-register
+                                    const isRegistered = await TaskManager.isTaskRegisteredAsync(CONFIG_REFRESH_TASK);
+                                    if (isRegistered) {
+                                        console.log('[Dev] unregistering task first...');
+                                        await BackgroundTask.unregisterTaskAsync(CONFIG_REFRESH_TASK);
+                                    }
+                                    console.log('[Dev] re-registering task...');
+                                    await registerConfigRefreshTask();
+                                    Alert.alert('Re-register', 'Task has been re-registered. Check logs.');
+                                    load();
+                                } catch (e) {
+                                    const msg = e instanceof Error ? e.message : String(e);
+                                    console.warn('[Dev] re-register error:', e);
+                                    Alert.alert('Re-register Error', msg);
+                                }
+                            }}
+                            style={({ pressed }) => ({
+                                paddingVertical: 12,
+                                opacity: pressed ? 0.6 : 1,
+                            })}
+                        >
+                            <Text style={{ fontSize: 14, color: '#FF9500', textAlign: 'center', fontWeight: '600' }}>
+                                Re-register Task
+                            </Text>
+                        </Pressable>
                     </Card>
 
                     {/* Config State */}

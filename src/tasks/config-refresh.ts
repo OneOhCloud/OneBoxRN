@@ -19,12 +19,16 @@ export const CONFIG_REFRESH_TASK = 'config-refresh';
 // Must be called at module top level (outside any component).
 
 TaskManager.defineTask(CONFIG_REFRESH_TASK, async () => {
+    console.log('[ConfigRefresh] ⚡ task triggered at', new Date().toISOString());
     const start = Date.now();
     const url = SBConfig.getConfigLink();
 
     if (!url) {
+        console.log('[ConfigRefresh] no config URL set, skipping');
         return BackgroundTaskResult.Success;
     }
+
+    console.log('[ConfigRefresh] fetching config from:', url.substring(0, 50) + '...');
 
     let status: TaskStatus = 'success';
     let detail: string | undefined;
@@ -62,6 +66,7 @@ TaskManager.defineTask(CONFIG_REFRESH_TASK, async () => {
         SBConfig.setExpireTime(info.expire);
 
         detail = 'Config updated';
+        console.log('[ConfigRefresh] config updated successfully');
         return BackgroundTaskResult.Success;
     } catch (e) {
         status = 'failed';
@@ -69,6 +74,7 @@ TaskManager.defineTask(CONFIG_REFRESH_TASK, async () => {
         console.warn('[ConfigRefresh] task error:', e);
         return BackgroundTaskResult.Failed;
     } finally {
+        console.log(`[ConfigRefresh] task finished: status=${status}, duration=${Date.now() - start}ms`);
         TaskLog.append(url, {
             time: new Date(start).toISOString(),
             status,
@@ -83,17 +89,21 @@ TaskManager.defineTask(CONFIG_REFRESH_TASK, async () => {
 export async function registerConfigRefreshTask() {
     try {
         const status = await BackgroundTask.getStatusAsync();
+        console.log('[ConfigRefresh] system background task status:', status);
         if (status === BackgroundTask.BackgroundTaskStatus.Restricted) {
-            console.log('[ConfigRefresh] background tasks not available:', status);
+            console.log('[ConfigRefresh] background tasks RESTRICTED, cannot register');
             return;
         }
 
         const isRegistered = await TaskManager.isTaskRegisteredAsync(CONFIG_REFRESH_TASK);
+        console.log('[ConfigRefresh] task already registered:', isRegistered);
         if (!isRegistered) {
             await BackgroundTask.registerTaskAsync(CONFIG_REFRESH_TASK, {
                 minimumInterval: 15, // 15 minutes (unit: minutes, minimum allowed)
             });
-            console.log('[ConfigRefresh] task registered');
+            console.log('[ConfigRefresh] task registered successfully');
+        } else {
+            console.log('[ConfigRefresh] task was already registered, skipping');
         }
     } catch (e) {
         console.warn('[ConfigRefresh] registration error:', e);
