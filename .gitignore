@@ -6,6 +6,9 @@ node_modules/
 # build output
 target/
 
+# tun.db（构建时自动下载）
+assets/data/tun.db
+
 # Expo
 .expo/
 dist/

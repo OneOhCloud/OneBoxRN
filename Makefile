@@ -28,6 +28,7 @@ IOS_DERIVED_DATA := $(TARGET_DIR)/DerivedData
         android android-aab android-apk \
         ios ios-archive \
         _sync-version-android _sync-version-ios \
+        _update-tun-db \
         open-android open-ios \
         clean clean-android clean-ios clean-ios-cache
 
@@ -76,7 +77,7 @@ _check-android-env:
 
 android: android-aab
 
-android-aab: _check-android-env _sync-version-android
+android-aab: _check-android-env _update-tun-db _sync-version-android
 	@echo "▶ 构建 Android AAB (release)..."
 	cd $(ANDROID_DIR) && ./gradlew bundleRelease \
 		-PANDROID_KEYSTORE_PATH=$(ANDROID_KEYSTORE_PATH) \
@@ -87,7 +88,7 @@ android-aab: _check-android-env _sync-version-android
 	@cp $(ANDROID_OUT_AAB) $(TARGET_DIR)/$(APP_NAME).aab
 	@echo "✅ AAB 输出: $(TARGET_DIR)/$(APP_NAME).aab"
 
-android-apk: _check-android-env _sync-version-android
+android-apk: _check-android-env _update-tun-db _sync-version-android
 	@echo "▶ 构建 Android APK (release)..."
 	cd $(ANDROID_DIR) && ./gradlew assembleRelease \
 		-PANDROID_KEYSTORE_PATH=$(ANDROID_KEYSTORE_PATH) \
@@ -105,7 +106,7 @@ _check-ios-env:
 
 ios: ios-archive
 
-ios-archive: _check-ios-env _sync-version-ios
+ios-archive: _check-ios-env _update-tun-db _sync-version-ios
 	@echo "▶ 创建 iOS Archive..."
 	@mkdir -p $(TARGET_DIR)
 	set -o pipefail && xcodebuild archive \
@@ -126,6 +127,21 @@ ios-archive: _check-ios-env _sync-version-ios
 		"$(XCODE_ARCHIVES)/$(ARCHIVE_DATE)/$(ARCHIVE_NAME).xcarchive"
 	@echo "✅ Archive 输出: $(TARGET_DIR)/$(APP_NAME).xcarchive"
 	@echo "✅ 已同步到 Xcode Organizer: $(XCODE_ARCHIVES)/$(ARCHIVE_DATE)/"
+
+# ── 更新 tun.db（超过 24 小时则重新下载） ─────────────────────
+TUN_DB          := assets/data/tun.db
+TUN_DB_URL      := https://github.com/OneOhCloud/conf-template/raw/refs/heads/database/database/stable/1.13/zh-cn/tun-cache-rule-v1.db
+TUN_DB_MAX_AGE  := 86400
+
+_update-tun-db:
+	@if [ ! -f "$(TUN_DB)" ] || [ $$(($$(date +%s) - $$(stat -f %m "$(TUN_DB)"))) -gt $(TUN_DB_MAX_AGE) ]; then \
+		echo "▶ tun.db 不存在或已超过 24 小时，正在下载..."; \
+		mkdir -p $$(dirname "$(TUN_DB)"); \
+		curl -fSL -o "$(TUN_DB)" "$(TUN_DB_URL)"; \
+		echo "✅ tun.db 已更新"; \
+	else \
+		echo "✔ tun.db 尚在有效期内，跳过下载"; \
+	fi
 
 # ── 版本号同步（从 app.json → native 项目文件） ──────────────
 _sync-version-android:
