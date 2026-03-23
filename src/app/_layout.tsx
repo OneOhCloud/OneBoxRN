@@ -2,21 +2,29 @@
  * Root layout — Stack navigator with theme-aware navigation chrome.
  * Wraps the entire app in a ThemeProvider for react-navigation dark mode support.
  */
+import { VpnProvider } from '@/contexts/vpn-context';
+import { AppLaunchFlags, PendingTrigger } from '@/database/kv';
+import * as Task from '@/tasks/config-refresh';
+import { fetchWithTimeout } from '@/utils';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-
-import { VpnProvider } from '@/contexts/vpn-context';
-import { AppLaunchFlags } from '@/database/kv';
-import { registerConfigRefreshTask } from '@/tasks/config-refresh';
-import { fetchWithTimeout } from '@/utils';
 import { Asset } from 'expo-asset';
 import * as Notifications from 'expo-notifications';
+import { Stack } from 'expo-router';
+import * as TaskManager from 'expo-task-manager';
 import { useEffect } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '../global.css';
 import ExpoOneBox from '../modules/expo-onebox';
+
+// ─── Task Definition ─────────────────────────────────────────────────────────
+// Must be called at module top level (outside any component).
+
+TaskManager.defineTask(Task.CONFIG_REFRESH_TASK, async () => {
+    const trigger = PendingTrigger.consume();
+    return Task.executeConfigRefresh(trigger);
+});
 
 // ---------------------------------------------------------------------------
 // First-launch initialization helper
@@ -75,7 +83,7 @@ export default function RootLayout() {
             runFirstLaunchSetup();
         }
 
-        registerConfigRefreshTask();
+        Task.registerConfigRefreshTask();
     }, []);
 
     return (

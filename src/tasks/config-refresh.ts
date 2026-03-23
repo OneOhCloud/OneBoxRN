@@ -4,7 +4,7 @@
  * If a subscription URL is stored, re-fetches it and updates SBConfig.
  */
 import type { TaskStatus, TriggerSource } from '@/database/kv';
-import { PendingTrigger, SBConfig, TaskLog } from '@/database/kv';
+import { SBConfig, TaskLog } from '@/database/kv';
 import { fetchWithTimeout, getSingBoxUserAgent } from '@/utils';
 import { parseSubscriptionUserinfo } from '@/utils/subscription';
 import * as BackgroundTask from 'expo-background-task';
@@ -84,13 +84,8 @@ export async function executeConfigRefresh(trigger: TriggerSource = 'auto'): Pro
     }
 }
 
-// ─── Task Definition ─────────────────────────────────────────────────────────
-// Must be called at module top level (outside any component).
 
-TaskManager.defineTask(CONFIG_REFRESH_TASK, async () => {
-    const trigger = PendingTrigger.consume();
-    return executeConfigRefresh(trigger);
-});
+
 
 // ─── Registration ─────────────────────────────────────────────────────────────
 
