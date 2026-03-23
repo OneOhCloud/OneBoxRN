@@ -96,6 +96,7 @@ TaskManager.defineTask(CONFIG_REFRESH_TASK, async () => {
 
 export async function registerConfigRefreshTask() {
     try {
+
         const status = await BackgroundTask.getStatusAsync();
         console.log('[ConfigRefresh] system background task status:', status);
         if (status === BackgroundTask.BackgroundTaskStatus.Restricted) {
