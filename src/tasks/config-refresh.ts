@@ -7,8 +7,8 @@ import * as BackgroundTask from 'expo-background-task';
 import { BackgroundTaskResult } from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
-import { SBConfig, TaskLog } from '@/database/kv';
-import type { TaskStatus } from '@/database/kv';
+import { SBConfig, TaskLog, PendingTrigger } from '@/database/kv';
+import type { TaskStatus, TriggerSource } from '@/database/kv';
 import { fetchWithTimeout, getSingBoxUserAgent } from '@/utils';
 import { parseSubscriptionUserinfo } from '@/utils/subscription';
 
@@ -18,8 +18,8 @@ export const CONFIG_REFRESH_TASK = 'config-refresh';
 // Extracted so it can be invoked directly from the dev screen for testing,
 // since triggerTaskWorkerForTestingAsync skips execution when the app is in foreground.
 
-export async function executeConfigRefresh(): Promise<BackgroundTaskResult> {
-    console.log('[ConfigRefresh] ⚡ task triggered at', new Date().toISOString());
+export async function executeConfigRefresh(trigger: TriggerSource = 'auto'): Promise<BackgroundTaskResult> {
+    console.log(`[ConfigRefresh] ⚡ task triggered (${trigger}) at`, new Date().toISOString());
     const start = Date.now();
     const url = SBConfig.getConfigLink();
 
@@ -78,6 +78,7 @@ export async function executeConfigRefresh(): Promise<BackgroundTaskResult> {
         TaskLog.append(url, {
             time: new Date(start).toISOString(),
             status,
+            trigger,
             duration: Date.now() - start,
             detail,
         });
@@ -88,7 +89,8 @@ export async function executeConfigRefresh(): Promise<BackgroundTaskResult> {
 // Must be called at module top level (outside any component).
 
 TaskManager.defineTask(CONFIG_REFRESH_TASK, async () => {
-    return executeConfigRefresh();
+    const trigger = PendingTrigger.consume();
+    return executeConfigRefresh(trigger);
 });
 
 // ─── Registration ─────────────────────────────────────────────────────────────

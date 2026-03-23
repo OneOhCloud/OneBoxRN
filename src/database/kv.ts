@@ -85,11 +85,14 @@ export const SBConfig = {
 // ─── Task Execution Log ──────────────────────────────────────────────────────
 
 export type TaskStatus = 'success' | 'failed' | 'skipped';
+export type TriggerSource = 'auto' | 'manual-direct' | 'manual-worker';
 
 export interface TaskRecord {
     /** ISO timestamp */
     time: string;
     status: TaskStatus;
+    /** How this execution was triggered */
+    trigger: TriggerSource;
     /** Duration in ms */
     duration: number;
     /** Optional detail, e.g. error message */
@@ -155,6 +158,20 @@ export const TaskLog = {
     /** Clear all records for a config URL */
     clear(url: string): void {
         MMKVStore.set(storageKey(url), JSON.stringify(emptyLog()));
+    },
+};
+
+const PENDING_TRIGGER_KEY = 'pending_task_trigger';
+
+/** Temporary flag to pass trigger source into the worker callback */
+export const PendingTrigger = {
+    set(source: TriggerSource): void {
+        MMKVStore.set(PENDING_TRIGGER_KEY, source);
+    },
+    consume(): TriggerSource {
+        const val = MMKVStore.getString(PENDING_TRIGGER_KEY) as TriggerSource | undefined;
+        MMKVStore.delete(PENDING_TRIGGER_KEY);
+        return val ?? 'auto';
     },
 };
 

@@ -5,8 +5,8 @@
 import { lightImpact } from '@/components/ui/haptics';
 import { CONFIG_REFRESH_TASK, executeConfigRefresh, registerConfigRefreshTask } from '@/tasks/config-refresh';
 import { Fonts, Spacing } from '@/constants/theme';
-import { SBConfig, TaskLog } from '@/database/kv';
-import type { TaskLogEntry, TaskRecord, TaskStatus } from '@/database/kv';
+import { SBConfig, TaskLog, PendingTrigger } from '@/database/kv';
+import type { TaskLogEntry, TaskRecord, TaskStatus, TriggerSource } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as BackgroundTask from 'expo-background-task';
@@ -80,6 +80,23 @@ function formatDuration(ms: number): string {
     return `${(ms / 1000).toFixed(1)}s`;
 }
 
+function triggerLabel(trigger: TriggerSource | undefined): string {
+    switch (trigger) {
+        case 'manual-direct': return 'Direct';
+        case 'manual-worker': return 'Worker';
+        case 'auto': return 'Auto';
+        default: return 'Auto'; // legacy records without trigger field
+    }
+}
+
+function triggerColor(trigger: TriggerSource | undefined): string {
+    switch (trigger) {
+        case 'manual-direct': return '#007AFF';
+        case 'manual-worker': return '#AF52DE';
+        default: return '#8E8E93';
+    }
+}
+
 // ─── Row ─────────────────────────────────────────────────────
 
 function Row({
@@ -148,6 +165,7 @@ function Card({ title, children, theme }: { title: string; children: React.React
 
 function RecordRow({ record, isLast, theme }: { record: TaskRecord; isLast: boolean; theme: ReturnType<typeof useTheme> }) {
     const color = taskStatusColor(record.status);
+    const tColor = triggerColor(record.trigger);
     return (
         <View
             style={{
@@ -161,6 +179,9 @@ function RecordRow({ record, isLast, theme }: { record: TaskRecord; isLast: bool
                     <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
                     <Text style={{ fontSize: 13, color: theme.text, fontFamily: Fonts?.mono }}>
                         {formatTime(record.time)}
+                    </Text>
+                    <Text style={{ fontSize: 10, color: tColor, fontFamily: Fonts?.mono, fontWeight: '600' }}>
+                        {triggerLabel(record.trigger)}
                     </Text>
                 </View>
                 <Text style={{ fontSize: 12, color: theme.textSecondary, fontFamily: Fonts?.mono }}>
@@ -288,15 +309,15 @@ export default function DevScreen() {
                                 lightImpact();
                                 try {
                                     console.log('[Dev] executing config refresh directly...');
-                                    const result = await executeConfigRefresh();
+                                    const result = await executeConfigRefresh('manual-direct');
                                     console.log('[Dev] executeConfigRefresh result:', result);
                                     const label = result === 1 ? 'Success' : 'Failed';
                                     Alert.alert('Task Result', `${label}\nCheck logs for details.`);
                                     load();
                                 } catch (e) {
                                     const msg = e instanceof Error ? e.message : String(e);
-                                    console.warn('[Dev] trigger error:', e);
-                                    Alert.alert('Trigger Error', msg);
+                                    console.warn('[Dev] direct execute error:', e);
+                                    Alert.alert('Execute Error', msg);
                                 }
                             }}
                             style={({ pressed }) => ({
@@ -307,7 +328,33 @@ export default function DevScreen() {
                             })}
                         >
                             <Text style={{ fontSize: 14, color: '#007AFF', textAlign: 'center', fontWeight: '600' }}>
-                                Run Task Now
+                                Execute Directly
+                            </Text>
+                        </Pressable>
+                        <Pressable
+                            onPress={async () => {
+                                lightImpact();
+                                try {
+                                    console.log('[Dev] triggering worker via system API...');
+                                    PendingTrigger.set('manual-worker');
+                                    await BackgroundTask.triggerTaskWorkerForTestingAsync();
+                                    Alert.alert('Worker Triggered', 'Task worker has been triggered.\nCheck logs for details.');
+                                    load();
+                                } catch (e) {
+                                    const msg = e instanceof Error ? e.message : String(e);
+                                    console.warn('[Dev] trigger worker error:', e);
+                                    Alert.alert('Trigger Error', msg);
+                                }
+                            }}
+                            style={({ pressed }) => ({
+                                paddingVertical: 12,
+                                borderBottomWidth: StyleSheet.hairlineWidth,
+                                borderBottomColor: theme.border,
+                                opacity: pressed ? 0.6 : 1,
+                            })}
+                        >
+                            <Text style={{ fontSize: 14, color: '#AF52DE', textAlign: 'center', fontWeight: '600' }}>
+                                Trigger Worker
                             </Text>
                         </Pressable>
                         <Pressable
