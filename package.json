@@ -51,7 +51,7 @@
     "react-native": "0.83.2",
     "react-native-css": "^3.0.4",
     "react-native-gesture-handler": "~2.30.0",
-    "react-native-mmkv": "^4.2.0",
+    "react-native-mmkv": "^4.3.0",
     "react-native-nitro-modules": "^0.35.2",
     "react-native-paper": "^5.15.0",
     "react-native-reanimated": "4.2.1",

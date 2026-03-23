@@ -39,13 +39,15 @@ GRADLE_SIGN_ARGS := \
 
 .PHONY: help \
         prebuild prebuild-android prebuild-ios \
+        run-android run-ios \
         android android-aab android-apk \
         ios ios-archive \
         open-android open-ios \
-        clean clean-android clean-ios clean-ios-cache \
+        clean clean-android clean-ios \
         update-tun-db \
         _check-android-env _check-ios-env \
-        _sync-version-android _sync-version-ios _update-tun-db
+        _sync-version-android _sync-version-ios _update-tun-db \
+        _ensure-pods _ensure-android-codegen _inject-ios-team
 
 # ── 帮助 ────────────────────────────────────────────────────
 help:
@@ -56,6 +58,9 @@ help:
 	@echo "  prebuild            expo prebuild（全平台）"
 	@echo "  prebuild-android    仅 Android prebuild"
 	@echo "  prebuild-ios        仅 iOS prebuild"
+	@echo ""
+	@echo "  run-android         开发调试 Android（真机/模拟器）"
+	@echo "  run-ios             开发调试 iOS（真机/模拟器）"
 	@echo ""
 	@echo "  android             构建 Release AAB（= android-aab）"
 	@echo "  android-aab         构建 Release AAB"
@@ -70,9 +75,8 @@ help:
 	@echo "  open-ios            用 Xcode 打开 Workspace"
 	@echo ""
 	@echo "  clean               清理全部构建产物"
-	@echo "  clean-android       清理 Android 构建产物"
-	@echo "  clean-ios           清理 iOS Archive"
-	@echo "  clean-ios-cache     清理 DerivedData（编译异常时使用）"
+	@echo "  clean-android       清理 Android（.cxx / build / gradle clean）"
+	@echo "  clean-ios           清理 iOS（Pods / build / DerivedData / Archive）"
 	@echo ""
 
 # ════════════════════════════════════════════════════════════
@@ -89,19 +93,29 @@ prebuild-ios:
 	npx expo prebuild --platform ios --clean
 
 # ════════════════════════════════════════════════════════════
+#  开发调试
+# ════════════════════════════════════════════════════════════
+
+run-android: _update-tun-db _ensure-android-codegen
+	npx expo run:android
+
+run-ios: _check-ios-env _update-tun-db _ensure-pods _inject-ios-team
+	npx expo run:ios --device
+
+# ════════════════════════════════════════════════════════════
 #  Android 构建
 # ════════════════════════════════════════════════════════════
 
 android: android-aab
 
-android-aab: _check-android-env _update-tun-db _sync-version-android
+android-aab: _check-android-env _update-tun-db _sync-version-android _ensure-android-codegen
 	@echo "▶ 构建 Android AAB (release)..."
 	cd $(ANDROID_DIR) && ./gradlew bundleRelease $(GRADLE_SIGN_ARGS)
 	@mkdir -p $(TARGET_DIR)
 	@cp $(ANDROID_OUT_AAB) $(TARGET_DIR)/$(APP_NAME).aab
 	@echo "✅ AAB → $(TARGET_DIR)/$(APP_NAME).aab"
 
-android-apk: _check-android-env _update-tun-db _sync-version-android
+android-apk: _check-android-env _update-tun-db _sync-version-android _ensure-android-codegen
 	@echo "▶ 构建 Android APK (release)..."
 	cd $(ANDROID_DIR) && ./gradlew assembleRelease $(GRADLE_SIGN_ARGS)
 	@mkdir -p $(TARGET_DIR)
@@ -114,7 +128,7 @@ android-apk: _check-android-env _update-tun-db _sync-version-android
 
 ios: ios-archive
 
-ios-archive: _check-ios-env _update-tun-db _sync-version-ios
+ios-archive: _check-ios-env _update-tun-db _sync-version-ios _ensure-pods _inject-ios-team
 	@echo "▶ 创建 iOS Archive..."
 	@mkdir -p $(TARGET_DIR)
 	set -o pipefail && xcodebuild archive \
@@ -154,16 +168,15 @@ clean: clean-android clean-ios
 	@echo "✅ 清理完成"
 
 clean-android:
-	cd $(ANDROID_DIR) && ./gradlew clean
+	rm -rf $(ANDROID_DIR)/app/.cxx
 	rm -rf $(ANDROID_DIR)/app/build
+	-cd $(ANDROID_DIR) && ./gradlew clean
 
 clean-ios:
 	rm -rf $(TARGET_DIR)/$(APP_NAME).xcarchive
-
-clean-ios-cache:
-	@echo "▶ 清理 DerivedData..."
+	rm -rf ios/Pods
+	rm -rf ios/build
 	rm -rf $(IOS_DERIVED_DATA)
-	@echo "✅ DerivedData 已清理"
 
 # ════════════════════════════════════════════════════════════
 #  内部目标（Internal Targets）
@@ -180,6 +193,40 @@ _check-android-env:
 _check-ios-env:
 	@test -n "$(IOS_TEAM_ID)"  || { echo "❌ IOS_TEAM_ID 未设置"; exit 1; }
 	@test -f "$(EXPORT_PLIST)" || { echo "❌ 找不到 $(EXPORT_PLIST)"; exit 1; }
+
+# ── 签名注入 ────────────────────────────────────────────────
+_inject-ios-team:
+	@echo "▶ 确保 Xcode 项目包含 DEVELOPMENT_TEAM..."
+	@node -e " \
+	  const fs = require('fs'); \
+	  const f = 'ios/$(APP_NAME).xcodeproj/project.pbxproj'; \
+	  let txt = fs.readFileSync(f, 'utf8'); \
+	  const team = '$(IOS_TEAM_ID)'; \
+	  /* 替换已有的 DEVELOPMENT_TEAM */ \
+	  txt = txt.replace(/DEVELOPMENT_TEAM = [^;]*;/g, 'DEVELOPMENT_TEAM = ' + team + ';'); \
+	  /* 如果某个 buildSettings 块缺少 DEVELOPMENT_TEAM，在 CURRENT_PROJECT_VERSION 后注入 */ \
+	  txt = txt.replace(/(buildSettings\s*=\s*\{[^}]*?CURRENT_PROJECT_VERSION\s*=\s*[^;]*;)\n((?!\s*DEVELOPMENT_TEAM))/g, \
+	    '\$$1\n\t\t\t\tDEVELOPMENT_TEAM = ' + team + ';\n\$$2'); \
+	  fs.writeFileSync(f, txt); \
+	  console.log('  DEVELOPMENT_TEAM = ' + team); \
+	"
+
+# ── 依赖同步 ────────────────────────────────────────────────
+_ensure-pods:
+	@if [ ! -d "ios/Pods" ] || [ "ios/Podfile.lock" -ot "package.json" ]; then \
+		echo "▶ Pods 缺失或可能过期，执行 pod install..."; \
+		cd ios && pod install --repo-update; \
+	else \
+		echo "✔ Pods 已就绪"; \
+	fi
+
+_ensure-android-codegen:
+	@if [ ! -d "$(ANDROID_DIR)/app/build/generated/autolinking" ]; then \
+		echo "▶ Android codegen 缺失，执行 prebuild..."; \
+		npx expo prebuild --platform android; \
+	else \
+		echo "✔ Android codegen 已就绪"; \
+	fi
 
 # ── tun.db 更新（超过 24h 自动下载） ────────────────────────
 update-tun-db:
