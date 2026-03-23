@@ -3,14 +3,13 @@
  * Registered once at app start; runs every ~15 minutes (system-scheduled).
  * If a subscription URL is stored, re-fetches it and updates SBConfig.
  */
+import type { TaskStatus, TriggerSource } from '@/database/kv';
+import { PendingTrigger, SBConfig, TaskLog } from '@/database/kv';
+import { fetchWithTimeout, getSingBoxUserAgent } from '@/utils';
+import { parseSubscriptionUserinfo } from '@/utils/subscription';
 import * as BackgroundTask from 'expo-background-task';
 import { BackgroundTaskResult } from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
-import { Platform } from 'react-native';
-import { SBConfig, TaskLog, PendingTrigger } from '@/database/kv';
-import type { TaskStatus, TriggerSource } from '@/database/kv';
-import { fetchWithTimeout, getSingBoxUserAgent } from '@/utils';
-import { parseSubscriptionUserinfo } from '@/utils/subscription';
 
 export const CONFIG_REFRESH_TASK = 'config-refresh';
 
@@ -104,34 +103,21 @@ export async function registerConfigRefreshTask() {
             return;
         }
 
+        const allTasks = await TaskManager.getRegisteredTasksAsync();
+        console.log('[ConfigRefresh] all registered tasks:', JSON.stringify(allTasks, null, 2));
+
         const isRegistered = await TaskManager.isTaskRegisteredAsync(CONFIG_REFRESH_TASK);
         console.log('[ConfigRefresh] task already registered:', isRegistered);
 
-        if (Platform.OS === 'android') {
-            // Android: always unregister + re-register.
-            // force-stop (swipe away) cancels WorkManager jobs, but isTaskRegisteredAsync
-            // still returns true (checks SharedPreferences, not WorkManager queue).
-            if (isRegistered) {
-                await BackgroundTask.unregisterTaskAsync(CONFIG_REFRESH_TASK);
-                console.log('[ConfigRefresh] unregistered stale task (Android)');
-            }
+        if (!isRegistered) {
             await BackgroundTask.registerTaskAsync(CONFIG_REFRESH_TASK, {
-                minimumInterval: 15,
+                minimumInterval: 30,
             });
             console.log('[ConfigRefresh] task registered successfully');
         } else {
-            // iOS: only register if not already registered.
-            // Re-registering cancels the pending BGProcessingTaskRequest and resets
-            // the schedule timer, which can prevent the task from ever executing.
-            if (!isRegistered) {
-                await BackgroundTask.registerTaskAsync(CONFIG_REFRESH_TASK, {
-                    minimumInterval: 15,
-                });
-                console.log('[ConfigRefresh] task registered successfully');
-            } else {
-                console.log('[ConfigRefresh] task already registered, keeping existing schedule');
-            }
+            console.log('[ConfigRefresh] task already registered, keeping existing schedule');
         }
+
     } catch (e) {
         console.warn('[ConfigRefresh] registration error:', e);
     }

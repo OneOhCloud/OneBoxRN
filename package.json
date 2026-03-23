@@ -1,6 +1,6 @@
 {
   "name": "oneboxm",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "1.0.0",
   "expo": {
     "autolinking": {
