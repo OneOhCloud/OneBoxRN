@@ -48,6 +48,12 @@ export async function executeConfigRefresh(trigger: TriggerSource = 'auto'): Pro
             return BackgroundTaskResult.Failed;
         }
 
+        const info = parseSubscriptionUserinfo(response.headers.get('subscription-userinfo'));
+
+        SBConfig.setUsedTraffic(info.upload + info.download);
+        SBConfig.setTotalTraffic(info.total);
+        SBConfig.setExpireTime(info.expire);
+
         const content = await response.text();
 
         // Skip write if content hasn't changed
@@ -57,12 +63,8 @@ export async function executeConfigRefresh(trigger: TriggerSource = 'auto'): Pro
             return BackgroundTaskResult.Success;
         }
 
-        const info = parseSubscriptionUserinfo(response.headers.get('subscription-userinfo'));
-
         SBConfig.setConfigContent(content);
-        SBConfig.setUsedTraffic(info.upload + info.download);
-        SBConfig.setTotalTraffic(info.total);
-        SBConfig.setExpireTime(info.expire);
+
 
         detail = 'Config updated';
         console.log('[ConfigRefresh] config updated successfully');
