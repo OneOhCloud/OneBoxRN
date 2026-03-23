@@ -29,7 +29,7 @@ TaskManager.defineTask(Task.CONFIG_REFRESH_TASK, async () => {
 
 // 监听 App 状态切换
 AppState.addEventListener('change', async (nextAppState) => {
-    if (nextAppState === 'background') {
+    if (Platform.OS === 'ios' && nextAppState === 'background') {
         const result = await Task.executeConfigRefresh('manual-direct');
         console.log(`[AppState] manual config refresh on backgrounding: ${result}`);
     }
@@ -83,13 +83,14 @@ async function runFirstLaunchSetup() {
 
 export default function RootLayout() {
     const colorScheme = useColorScheme();
+
     useEffect(() => {
+
         const updateTask = async () => {
             await Task.registerConfigRefreshTask();
         };
         updateTask()
-    }, []);
-    useEffect(() => {
+
         // 需要每次启动都确保缓存数据库就位
         copyCacheDb().then(() => {
             console.log('[RootLayout] cache.db copy complete on subsequent launch');
