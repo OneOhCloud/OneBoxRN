@@ -53,6 +53,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-task-manager",
       [
         "expo-background-task",
         {
@@ -144,8 +145,7 @@
       "expo-localization",
       "expo-image",
       "expo-web-browser",
-      "expo-font",
-      "expo-background-task"
+      "expo-font"
     ],
     "experiments": {
       "autolinkingModuleResolution": true,
