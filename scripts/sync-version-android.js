@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// sync-version-android.js — Sync version from app.json to android/app/build.gradle
+// sync-version-android.js — Sync version from version.json to android/app/build.gradle
 //
 // Usage: node scripts/sync-version-android.js
 
@@ -7,9 +7,9 @@
 
 const fs = require('fs');
 
-const app = JSON.parse(fs.readFileSync('app.json', 'utf8'));
-const ver = app.expo.version;
-const code = app.expo.android.versionCode;
+const versionConfig = JSON.parse(fs.readFileSync('version.json', 'utf8'));
+const ver = versionConfig.version;
+const code = versionConfig.buildNumber;
 
 const gradlePath = 'android/app/build.gradle';
 

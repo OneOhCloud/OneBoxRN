@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// sync-version-ios.js — Sync version from app.json to iOS Info.plist
+// sync-version-ios.js — Sync version from version.json to iOS Info.plist
 //
 // Usage: node scripts/sync-version-ios.js <APP_NAME>
 
@@ -15,9 +15,9 @@ if (!appName) {
   process.exit(1);
 }
 
-const app = JSON.parse(fs.readFileSync('app.json', 'utf8'));
-const ver = app.expo.version;
-const build = app.expo.ios.buildNumber;
+const versionConfig = JSON.parse(fs.readFileSync('version.json', 'utf8'));
+const ver = versionConfig.version;
+const build = String(versionConfig.buildNumber);
 
 const plistPath = path.join('ios', appName, 'Info.plist');
 
