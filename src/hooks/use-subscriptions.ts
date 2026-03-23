@@ -1,7 +1,7 @@
 import { type SQLiteDatabase } from 'expo-sqlite';
-import { fetch } from 'expo/fetch';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
+import { fetchWithTimeout } from '@/utils';
 
 export interface Subscription {
     id: number;
@@ -40,23 +40,6 @@ export function useSubscriptions(db: SQLiteDatabase, options?: UseSubscriptionsO
             setError('加载订阅失败');
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    // 带超时的 fetch 辅助（默认 5000ms）
-    const fetchWithTimeout = async (input: string, init?: RequestInit, timeout = 5000) => {
-        if (typeof AbortController === 'undefined') {
-            return fetch(input, init as any);
-        }
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
-        try {
-            // 合并 signal
-            const mergedInit = { ...(init || {}), signal: controller.signal } as RequestInit;
-            const resp = await fetch(input, mergedInit as any);
-            return resp;
-        } finally {
-            clearTimeout(timeoutId);
         }
     };
 
@@ -112,7 +95,7 @@ export function useSubscriptions(db: SQLiteDatabase, options?: UseSubscriptionsO
                 headers: {
                     'User-Agent': 'SFM/1.2.19 (macos aarch64 26.2.0; sing-box 1.12.17; language zh-Hans-CN)',
                 },
-            }, 5000);
+            });
 
             if (!response.ok) {
                 throw new Error(`获取订阅失败，HTTP状态码: ${response.status}`);
@@ -170,7 +153,7 @@ export function useSubscriptions(db: SQLiteDatabase, options?: UseSubscriptionsO
                 headers: {
                     'User-Agent': 'SFM/1.2.19 (macos aarch64 26.2.0; sing-box 1.12.17; language zh-Hans-CN)',
                 },
-            }, 5000);
+            });
 
             if (!response.ok) {
                 throw new Error(`更新订阅失败，HTTP状态码: ${response.status}`);
@@ -235,7 +218,7 @@ export function useSubscriptions(db: SQLiteDatabase, options?: UseSubscriptionsO
                     headers: {
                         'User-Agent': 'SFM/1.2.19 (macos aarch64 26.2.0; sing-box 1.12.17; language zh-Hans-CN)',
                     },
-                }, 5000);
+                });
 
                 if (!response.ok) {
                     continue;

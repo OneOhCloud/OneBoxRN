@@ -6,11 +6,10 @@
 import * as BackgroundTask from 'expo-background-task';
 import { BackgroundTaskResult } from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
-import { fetch } from 'expo/fetch';
-
+import { Platform } from 'react-native';
 import { SBConfig, TaskLog } from '@/database/kv';
 import type { TaskStatus } from '@/database/kv';
-import { getSingBoxUserAgent } from '@/utils';
+import { fetchWithTimeout, getSingBoxUserAgent } from '@/utils';
 import { parseSubscriptionUserinfo } from '@/utils/subscription';
 
 export const CONFIG_REFRESH_TASK = 'config-refresh';
@@ -35,7 +34,7 @@ export async function executeConfigRefresh(): Promise<BackgroundTaskResult> {
     let detail: string | undefined;
 
     try {
-        const response = await fetch(url, {
+        const response = await fetchWithTimeout(url, {
             method: 'GET',
             headers: {
                 Accept: 'application/json',
@@ -103,19 +102,34 @@ export async function registerConfigRefreshTask() {
             return;
         }
 
-        // Always unregister + re-register to ensure a fresh WorkManager job exists.
-        // WorkManager OneTimeWorkRequest is cancelled by force-stop (swipe away),
-        // and `isTaskRegisteredAsync` may return true even when the job is gone.
         const isRegistered = await TaskManager.isTaskRegisteredAsync(CONFIG_REFRESH_TASK);
         console.log('[ConfigRefresh] task already registered:', isRegistered);
-        if (isRegistered) {
-            await BackgroundTask.unregisterTaskAsync(CONFIG_REFRESH_TASK);
-            console.log('[ConfigRefresh] unregistered stale task');
+
+        if (Platform.OS === 'android') {
+            // Android: always unregister + re-register.
+            // force-stop (swipe away) cancels WorkManager jobs, but isTaskRegisteredAsync
+            // still returns true (checks SharedPreferences, not WorkManager queue).
+            if (isRegistered) {
+                await BackgroundTask.unregisterTaskAsync(CONFIG_REFRESH_TASK);
+                console.log('[ConfigRefresh] unregistered stale task (Android)');
+            }
+            await BackgroundTask.registerTaskAsync(CONFIG_REFRESH_TASK, {
+                minimumInterval: 15,
+            });
+            console.log('[ConfigRefresh] task registered successfully');
+        } else {
+            // iOS: only register if not already registered.
+            // Re-registering cancels the pending BGProcessingTaskRequest and resets
+            // the schedule timer, which can prevent the task from ever executing.
+            if (!isRegistered) {
+                await BackgroundTask.registerTaskAsync(CONFIG_REFRESH_TASK, {
+                    minimumInterval: 15,
+                });
+                console.log('[ConfigRefresh] task registered successfully');
+            } else {
+                console.log('[ConfigRefresh] task already registered, keeping existing schedule');
+            }
         }
-        await BackgroundTask.registerTaskAsync(CONFIG_REFRESH_TASK, {
-            minimumInterval: 15, // 15 minutes (unit: minutes, minimum allowed)
-        });
-        console.log('[ConfigRefresh] task registered successfully');
     } catch (e) {
         console.warn('[ConfigRefresh] registration error:', e);
     }

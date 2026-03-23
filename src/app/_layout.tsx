@@ -5,11 +5,11 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
-import { fetch } from 'expo/fetch';
 
 import { VpnProvider } from '@/contexts/vpn-context';
 import { AppLaunchFlags } from '@/database/kv';
 import { registerConfigRefreshTask } from '@/tasks/config-refresh';
+import { fetchWithTimeout } from '@/utils';
 import { Asset } from 'expo-asset';
 import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
@@ -44,7 +44,7 @@ async function runFirstLaunchSetup() {
             await Notifications.requestPermissionsAsync();
         } else if (Platform.OS === 'ios') {
             // 苹果的网络权限需要在 app 运行时通过实际请求触发，无法通过静态清单声明或安装时授权，因此我们在首次启动时发出一个请求来触发权限对话框。
-            fetch('https://www.apple.com/library/test/success.html').then(() => {
+            fetchWithTimeout('https://www.apple.com/library/test/success.html').then(() => {
                 console.log('[RootLayout] network permission check complete');
             }).catch((e) => {
                 console.warn('[RootLayout] network permission check error:', e);

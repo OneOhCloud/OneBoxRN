@@ -1,9 +1,11 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { getLocales } from 'expo-localization';
+import { fetch } from 'expo/fetch';
 import { Platform } from 'react-native';
 import ExpoOneBox from './modules/expo-onebox';
 
+const DEFAULT_TIMEOUT_MS = 10_000;
 
 const iOSTag = 'SFI';
 const AndroidTag = 'SFA';
@@ -27,6 +29,37 @@ export function getSingBoxUserAgent(): string {
     const formatUA = `${ua} (${deviceInfo}; sing-box ${singboxVersion}; language ${language})`;
 
     return formatUA;
+}
 
+/**
+ * Fetch with automatic timeout via AbortController.
+ * Default timeout: 10 seconds.
+ * If the caller passes a signal in init, aborting either signal will cancel the request.
+ */
+export async function fetchWithTimeout(
+    input: string,
+    init?: RequestInit,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    // If the caller provided a signal, forward its abort to our controller
+    const callerSignal = init?.signal;
+    if (callerSignal) {
+        if (callerSignal.aborted) {
+            controller.abort();
+        } else {
+            callerSignal.addEventListener('abort', () => controller.abort(), { once: true });
+        }
+    }
+
+    try {
+        const { signal: _ignored, ...rest } = init || {};
+        const resp = await fetch(input, { ...rest, signal: controller.signal } as any);
+        return resp;
+    } finally {
+        clearTimeout(timeoutId);
+    }
 }
 

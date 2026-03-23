@@ -7,11 +7,10 @@ import i18n from '@/constants/language';
 import { Fonts } from '@/constants/theme';
 import { SBConfig } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
-import { getSingBoxUserAgent } from '@/utils';
+import { fetchWithTimeout, getSingBoxUserAgent } from '@/utils';
 import { parseSubscriptionUserinfo } from '@/utils/subscription';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { fetch } from 'expo/fetch';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -37,7 +36,7 @@ function useDownloadConfig(url: string | undefined) {
         const controller = new AbortController();
         const { signal } = controller;
 
-        fetch(url, {
+        fetchWithTimeout(url, {
             method: 'GET',
             headers: {
                 Accept: 'application/json',
