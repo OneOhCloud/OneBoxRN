@@ -197,19 +197,7 @@ _check-ios-env:
 # ── 签名注入 ────────────────────────────────────────────────
 _inject-ios-team:
 	@echo "▶ 确保 Xcode 项目包含 DEVELOPMENT_TEAM..."
-	@node -e " \
-	  const fs = require('fs'); \
-	  const f = 'ios/$(APP_NAME).xcodeproj/project.pbxproj'; \
-	  let txt = fs.readFileSync(f, 'utf8'); \
-	  const team = '$(IOS_TEAM_ID)'; \
-	  /* 替换已有的 DEVELOPMENT_TEAM */ \
-	  txt = txt.replace(/DEVELOPMENT_TEAM = [^;]*;/g, 'DEVELOPMENT_TEAM = ' + team + ';'); \
-	  /* 如果某个 buildSettings 块缺少 DEVELOPMENT_TEAM，在 CURRENT_PROJECT_VERSION 后注入 */ \
-	  txt = txt.replace(/(buildSettings\s*=\s*\{[^}]*?CURRENT_PROJECT_VERSION\s*=\s*[^;]*;)\n((?!\s*DEVELOPMENT_TEAM))/g, \
-	    '\$$1\n\t\t\t\tDEVELOPMENT_TEAM = ' + team + ';\n\$$2'); \
-	  fs.writeFileSync(f, txt); \
-	  console.log('  DEVELOPMENT_TEAM = ' + team); \
-	"
+	@node scripts/inject-ios-team.js "$(IOS_TEAM_ID)" "$(APP_NAME)"
 
 # ── 依赖同步 ────────────────────────────────────────────────
 _ensure-pods:
@@ -248,34 +236,8 @@ _update-tun-db:
 # ── 版本号同步（app.json → native） ─────────────────────────
 _sync-version-android:
 	@echo "▶ 同步版本号到 Android..."
-	@node -e " \
-	  const fs = require('fs'); \
-	  const app = JSON.parse(fs.readFileSync('app.json','utf8')); \
-	  const ver = app.expo.version; \
-	  const code = app.expo.android.versionCode; \
-	  const f = 'android/app/build.gradle'; \
-	  let txt = fs.readFileSync(f,'utf8'); \
-	  txt = txt.replace(/versionCode\s+\d+/, 'versionCode ' + code); \
-	  txt = txt.replace(/versionName\s+\"[^\"]*\"/, 'versionName \"' + ver + '\"'); \
-	  fs.writeFileSync(f, txt); \
-	  console.log('  versionCode=' + code + ', versionName=' + ver); \
-	"
+	@node scripts/sync-version-android.js
 
 _sync-version-ios:
 	@echo "▶ 同步版本号到 iOS..."
-	@node -e " \
-	  const fs = require('fs'); \
-	  const app = JSON.parse(fs.readFileSync('app.json','utf8')); \
-	  const ver = app.expo.version; \
-	  const build = app.expo.ios.buildNumber; \
-	  const f = 'ios/OneBoxM/Info.plist'; \
-	  let txt = fs.readFileSync(f,'utf8'); \
-	  txt = txt.replace( \
-	    /(<key>CFBundleShortVersionString<\/key>\s*<string>)[^<]*(<\/string>)/, \
-	    '\$$1' + ver + '\$$2'); \
-	  txt = txt.replace( \
-	    /(<key>CFBundleVersion<\/key>\s*<string>)[^<]*(<\/string>)/, \
-	    '\$$1' + build + '\$$2'); \
-	  fs.writeFileSync(f, txt); \
-	  console.log('  CFBundleShortVersionString=' + ver + ', CFBundleVersion=' + build); \
-	"
+	@node scripts/sync-version-ios.js "$(APP_NAME)"
