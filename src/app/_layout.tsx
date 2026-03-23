@@ -2,6 +2,9 @@
  * Root layout — Stack navigator with theme-aware navigation chrome.
  * Wraps the entire app in a ThemeProvider for react-navigation dark mode support.
  */
+
+import * as TaskManager from 'expo-task-manager';
+
 import { VpnProvider } from '@/contexts/vpn-context';
 import { AppLaunchFlags, PendingTrigger } from '@/database/kv';
 import * as Task from '@/tasks/config-refresh';
@@ -11,20 +14,30 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Asset } from 'expo-asset';
 import * as Notifications from 'expo-notifications';
 import { Stack } from 'expo-router';
-import * as TaskManager from 'expo-task-manager';
 import { useEffect } from 'react';
-import { Platform, useColorScheme } from 'react-native';
+import { AppState, Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '../global.css';
 import ExpoOneBox from '../modules/expo-onebox';
-
-// ─── Task Definition ─────────────────────────────────────────────────────────
-// Must be called at module top level (outside any component).
 
 TaskManager.defineTask(Task.CONFIG_REFRESH_TASK, async () => {
     const trigger = PendingTrigger.consume();
     return Task.executeConfigRefresh(trigger);
 });
+
+
+
+// 监听 App 状态切换
+AppState.addEventListener('change', async (nextAppState) => {
+    if (nextAppState === 'background') {
+        const result = await Task.executeConfigRefresh('manual-direct');
+        console.log(`[AppState] manual config refresh on backgrounding: ${result}`);
+    }
+});
+
+// ─── Task Definition ─────────────────────────────────────────────────────────
+// Must be called at module top level (outside any component).
+
 
 // ---------------------------------------------------------------------------
 // First-launch initialization helper
@@ -71,6 +84,12 @@ async function runFirstLaunchSetup() {
 export default function RootLayout() {
     const colorScheme = useColorScheme();
     useEffect(() => {
+        const updateTask = async () => {
+            await Task.registerConfigRefreshTask();
+        };
+        updateTask()
+    }, []);
+    useEffect(() => {
         // 需要每次启动都确保缓存数据库就位
         copyCacheDb().then(() => {
             console.log('[RootLayout] cache.db copy complete on subsequent launch');
@@ -83,7 +102,7 @@ export default function RootLayout() {
             runFirstLaunchSetup();
         }
 
-        Task.registerConfigRefreshTask();
+
     }, []);
 
     return (
