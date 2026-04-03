@@ -29,6 +29,9 @@
           "fetch",
           "processing"
         ],
+        "BGTaskSchedulerPermittedIdentifiers": [
+          "cloud.oneoh.networktools.config-refresh"
+        ],
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleLocalizations": [
           "en",
@@ -45,7 +48,8 @@
         "android.permission.WAKE_LOCK",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
       ]
     },
     "web": {
@@ -53,15 +57,6 @@
     },
     "plugins": [
       "expo-router",
-      "expo-task-manager",
-      [
-        "expo-background-task",
-        {
-          "taskNames": [
-            "config-refresh"
-          ]
-        }
-      ],
       [
         "expo-localization",
         {

@@ -1,243 +1,252 @@
-// import RulesModeTemplate from "@/database/template/zh/rules.jsonc";
-import { configType, SING_BOX_MAJOR_VERSION, SING_BOX_VERSION } from "@/definition";
-import { ExpoOneBox } from "@/modules/expo-onebox";
-import { SBConfig } from "./kv";
-import { getCustomRuleSet, getStoreValue, setStoreValue } from "./store";
-import TunGlobalConfig from "./template/zh/global";
-import TunRulesConfig from "./template/zh/rules";
+import { configType, SING_BOX_MAJOR_VERSION, SING_BOX_VERSION } from '@/definition';
+import { ExpoOneBox } from '@/modules/expo-onebox';
+import { SBConfig } from './kv';
+import { getCustomRuleSet, getStoreValue, setStoreValue } from './store';
+import TunGlobalConfig from './template/zh/global';
+import TunRulesConfig from './template/zh/rules';
 
+type Item = { tag: string; type: string };
+type Dict = any;
+type SBJSONConfig = Map<any, any> & { outbounds: any };
 
+export const GET_SUBSCRIPTIONS_LIST_SWR_KEY = 'get-subscriptions-list';
 
-type Item = {
-    tag: string;
-    type: string;
-}
-
-
-
-// 获取订阅列表的 SWR 键
-export const GET_SUBSCRIPTIONS_LIST_SWR_KEY = 'get-subscriptions-list'
-
-export interface TerminatedPayload {
-    code: number | null;
-    signal: number | null;
-}
-
+export interface TerminatedPayload { code: number | null; signal: number | null }
 export type StatusChangedPayload = void | TerminatedPayload;
 
+// ─── Config template cache key ───────────────────────────────────────────────
 
 export async function getConfigTemplateCacheKey(mode: configType): Promise<string> {
-    const cacheKey = `key-sing-box-${SING_BOX_MAJOR_VERSION}-${mode}-template-config-cache`;
-    return cacheKey;
+    return `key-sing-box-${SING_BOX_MAJOR_VERSION}-${mode}-template-config-cache`;
 }
 
-
-type Dict = any;
+// ─── DNS rewrite ─────────────────────────────────────────────────────────────
 
 const BEST_DNS_TIMEOUT_MS = 2000;
-const FALLBACK_DNS = "119.29.29.29";
+const FALLBACK_DNS = '119.29.29.29';
 
 async function getBestDnsWithTimeout(fallback: string): Promise<string> {
     try {
-        const result = await Promise.race([
+        return await Promise.race([
             ExpoOneBox.getBestDns(),
             new Promise<string>((_, reject) =>
                 setTimeout(() => reject(new Error(`getBestDns 超时（${BEST_DNS_TIMEOUT_MS}ms）`)), BEST_DNS_TIMEOUT_MS)
             ),
         ]);
-        return result;
     } catch (e) {
-        console.warn("getBestDns 失败或超时，降级使用 fallback DNS：", fallback, e);
+        console.warn('[Config] getBestDns 失败或超时，使用 fallback DNS:', fallback, e);
         return fallback;
     }
 }
 
-export async function updateDNS2Config(newConfig: Dict) {
+export async function updateDNS2Config(newConfig: Dict): Promise<void> {
     for (let i = 0; i < newConfig.dns.servers.length; i++) {
-        console.log(`检查 DNS 服务器 ${i}，标签为 ${newConfig.dns.servers[i].tag}，类型为 ${newConfig.dns.servers[i].type}`);
         const server = newConfig.dns.servers[i];
-        console.log("当前 DNS 服务器配置：", server);
-        if (server.tag === "system") {
-            console.log("找到系统 DNS 服务器，正在获取最佳 DNS 地址...");
+        if (server.tag === 'system') {
             const fallback = server.server?.trim() || FALLBACK_DNS;
-            let directDNS = await getBestDnsWithTimeout(fallback);
-            console.log("获取到的最佳 DNS 地址：", directDNS);
-            await setStoreValue("directDNS", directDNS);
-            console.log("当前使用直连 DNS 地址：", directDNS);
-            server.type = "udp";
+            const directDNS = await getBestDnsWithTimeout(fallback);
+            await setStoreValue('directDNS', directDNS);
+            console.log('[Config] 直连 DNS:', directDNS);
+            server.type = 'udp';
             server.server = directDNS.trim();
             server.server_port = 53;
-            console.log("启用 UDP DNS 模式, 服务器地址：", server.server);
             return;
-        } else {
-            console.log(`跳过 DNS 服务器 ${server.tag}，类型为 ${server.type}`);
         }
     }
 }
 
-
-async function rewriteConfig(newConfig: Dict) {
-    console.log("重写配置文件，注入 DNS 设置和实验性功能");
+async function rewriteConfig(newConfig: Dict): Promise<void> {
+    console.log('[Config] rewriteConfig: 注入 DNS + experimental');
     try {
         await updateDNS2Config(newConfig);
-
     } catch (error) {
-        console.error("更新 DNS 配置失败，可能会导致 DNS 解析问题", error);
+        console.error('[Config] 更新 DNS 配置失败:', error);
         throw error;
     }
-    newConfig["experimental"]["clash_api"] = {};
-    console.log("重写配置文件完成");
+    newConfig['experimental']['clash_api'] = {};
 }
+
+// ─── Local bundled templates ──────────────────────────────────────────────────
 
 export function getDefaultConfigTemplate(mode: configType, version: string): string {
-    if (version.startsWith("v1.12") || version.startsWith("v1.13")) {
+    if (version.startsWith('v1.12') || version.startsWith('v1.13')) {
         switch (mode) {
-            case 'tun-rules':
-                return JSON.stringify(TunRulesConfig);
-            case 'tun-global':
-                return JSON.stringify(TunGlobalConfig);
-            default:
-                throw new Error(`Unsupported config type: ${mode}`);
+            case 'tun-rules':  return JSON.stringify(TunRulesConfig);
+            case 'tun-global': return JSON.stringify(TunGlobalConfig);
+            default: throw new Error(`Unsupported config type: ${mode}`);
         }
-    } else {
-        alert("Only version 1.12.x and 1.13.x is supported at the moment.")
-        throw new Error("Unsupported version")
     }
+    throw new Error(`Unsupported version: ${version}`);
 }
 
+// ─── Remote template URLs ─────────────────────────────────────────────────────
 
-type SBJSONConfig = Map<any, any> & {
-    outbounds: any
+const REMOTE_TEMPLATE_URLS: Record<configType, string> = {
+    'tun-rules':  'https://raw.githubusercontent.com/OneOhCloud/conf-template/refs/heads/main/conf/1.13/zh-cn/tun-rules.jsonc',
+    'tun-global': 'https://raw.githubusercontent.com/OneOhCloud/conf-template/refs/heads/main/conf/1.13/zh-cn/tun-global.jsonc',
+};
+
+const REMOTE_FETCH_TIMEOUT_MS = 5000;
+
+// 剥离 JSONC 注释（单行 // 和多行块注释），使 JSON.parse 可正常解析。
+// 注意：不处理字符串内的注释字符，对标准 JSONC 配置已足够。
+function stripJsonComments(text: string): string {
+    return text
+        .replace(/\/\*[\s\S]*?\*\//g, '')   // 多行注释
+        .replace(/\/\/[^\n\r]*/g, '');       // 单行注释
 }
 
 /**
- * 只提取配置文件中的服务器节点配置合并到配置文件中
+ * 从 GitHub 拉取指定 mode 的配置模板。
+ * 超时 5 s 或请求失败时返回 null。
  */
-export async function updateVPNServerConfigFromDB(dbConfigData: SBJSONConfig, newConfig: SBJSONConfig): Promise<string> {
+async function fetchRemoteTemplate(mode: configType): Promise<string | null> {
+    const url = REMOTE_TEMPLATE_URLS[mode];
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REMOTE_FETCH_TIMEOUT_MS);
+    try {
+        const resp = await fetch(url, { signal: controller.signal });
+        clearTimeout(timer);
+        if (!resp.ok) {
+            console.warn(`[Template] Remote fetch failed for "${mode}": HTTP ${resp.status}`);
+            return null;
+        }
+        const text = await resp.text();
+        console.log(`[Template] Remote template fetched for "${mode}" (${text.length} bytes)`);
+        return text;
+    } catch (e) {
+        clearTimeout(timer);
+        if ((e as Error).name === 'AbortError') {
+            console.warn(`[Template] Remote fetch timed out for "${mode}"`);
+        } else {
+            console.warn(`[Template] Remote fetch error for "${mode}":`, e);
+        }
+        return null;
+    }
+}
 
+/**
+ * 获取指定 mode 的配置模板，优先级：
+ *  1. 远程 GitHub（成功则更新缓存）
+ *  2. 本地缓存（上次成功拉取的结果）
+ *  3. 本地内置模板（最终兜底）
+ */
+async function getConfigTemplate(mode: configType): Promise<Dict> {
+    const cacheKey = await getConfigTemplateCacheKey(mode);
+
+    // 1. 尝试从远程拉取
+    const remoteText = await fetchRemoteTemplate(mode);
+    if (remoteText) {
+        try {
+            const parsed = JSON.parse(stripJsonComments(remoteText));
+            await setStoreValue(cacheKey, JSON.stringify(parsed));
+            console.log(`[Template] Using remote template for "${mode}"`);
+            return parsed;
+        } catch (e) {
+            console.warn(`[Template] Failed to parse remote template for "${mode}":`, e);
+        }
+    }
+
+    // 2. 尝试本地缓存（上次成功的远程结果）
+    const cached = await getStoreValue(cacheKey, null);
+    if (cached) {
+        try {
+            console.log(`[Template] Using cached template for "${mode}"`);
+            return JSON.parse(cached);
+        } catch (e) {
+            console.warn(`[Template] Failed to parse cached template for "${mode}":`, e);
+        }
+    }
+
+    // 3. 兜底：使用本地内置模板
+    console.log(`[Template] Using local bundled template for "${mode}"`);
+    return JSON.parse(getDefaultConfigTemplate(mode, SING_BOX_VERSION));
+}
+
+// ─── Server node injection ────────────────────────────────────────────────────
+
+export async function updateVPNServerConfigFromDB(
+    dbConfigData: SBJSONConfig,
+    newConfig: SBJSONConfig
+): Promise<string> {
     const outboundsSelectorIndex = 1;
     const outboundsUrltestIndex = 2;
 
-    const outbound_groups = newConfig["outbounds"];
-    const outboundsSelector = outbound_groups[outboundsSelectorIndex]["outbounds"];
-    const outboundsUrltest = outbound_groups[outboundsUrltestIndex]["outbounds"];
+    const outboundGroups = newConfig['outbounds'];
+    const outboundsSelector: string[] = outboundGroups[outboundsSelectorIndex]['outbounds'];
+    const outboundsUrltest: string[] = outboundGroups[outboundsUrltestIndex]['outbounds'];
 
-
-    let serverList = dbConfigData.outbounds.filter((item: Item) => {
-        // zh: 只找配置文件中的服务器的节点配置
-        // en: Only find the node configuration of the server in the configuration file
-        let flag = item.type !== "selector" && item.type !== "urltest" && item.type !== "direct" && item.type !== "block";
-
-        // zh: sing-box 1.12 版本开始，dns 类型的节点不再需要
-        // en: From sing-box version 1.12, dns type nodes are no longer
-        flag = flag && item.type !== "dns";
+    const serverList = dbConfigData.outbounds.filter((item: Item) => {
+        let flag =
+            item.type !== 'selector' &&
+            item.type !== 'urltest' &&
+            item.type !== 'direct' &&
+            item.type !== 'block';
+        flag = flag && item.type !== 'dns';
         return flag;
     });
 
-
-    for (let i = 0; i < serverList.length; i++) {
-        serverList[i]["domain_resolver"] = "system";
-        outboundsSelector.push(serverList[i].tag);
-
+    const tags: string[] = [];
+    for (const server of serverList) {
+        server['domain_resolver'] = 'system';
+        outboundsSelector.push(server.tag);
+        tags.push(server.tag);
     }
+    outboundsUrltest.push(...tags);
+    outboundGroups.push(...serverList);
 
-    const urltestNameList: string[] = [];
-    serverList.forEach((item: any) => {
-        urltestNameList.push(item.tag);
-    })
-
-    outboundsUrltest.push(...urltestNameList);
-
-    outbound_groups.push(...serverList);
     return JSON.stringify(newConfig);
 }
 
+// ─── TUN modes ───────────────────────────────────────────────────────────────
 
-
-async function getConfigTemplate(mode: configType): Promise<any> {
-
-    // 使用缓存机制来解耦配置模板来源
-    // 后面可以灵活更换配置模板的存储位置，比如定期从远程服务器/本地文件获取等方式写入缓存
-    const cacheKey = await getConfigTemplateCacheKey(mode);
-    let config = await getStoreValue(cacheKey, getDefaultConfigTemplate(mode, SING_BOX_VERSION));
-    console.debug(`Fetched config template for mode ${mode} from cache key ${cacheKey}`);
-    return JSON.parse(config);
-}
-
-
-export async function getTunConfig(config: string) {
-    let configJson = JSON.parse(config)
-
+export async function getTunConfig(config: string): Promise<string> {
+    const configJson = JSON.parse(config);
     const newConfig = await getConfigTemplate('tun-rules');
 
-    // 根据当前的 Stage 版本设置日志等级
-    // let level = await getStoreValue(STAGE_VERSION_STORE_KEY) === "dev" ? "debug" : "info";
-    // newConfig.log.level = level;
-    console.log("写入[规则]TUN代理配置文件");
-    // let dbConfigData = await getSubscriptionConfig(identifier);
-    // const appConfigPath = await path.appConfigDir();
-    // const dbCacheFilePath = await path.join(appConfigPath, 'tun-cache-rule-v1.db');
-    let directCustomRuleSet = await getCustomRuleSet('direct');
-    let proxyCustomRuleSet = await getCustomRuleSet('proxy');
+    console.log('[Config] Building tun-rules config');
 
+    const directRuleSet = await getCustomRuleSet('direct');
+    const proxyRuleSet  = await getCustomRuleSet('proxy');
 
-    if (directCustomRuleSet) {
-        // 找到包含 direct-tag.oneoh.cloud 的规则的坐标，插入自定义规则
-        for (let i = 0; i < newConfig.route.rules.length; i++) {
-            let rule = newConfig.route.rules[i];
-            if (rule.domain && Array.isArray(rule.domain) && rule.domain.includes('direct-tag.oneoh.cloud')) {
-                rule.domain.push(...directCustomRuleSet.domain);
-                rule.domain_suffix.push(...directCustomRuleSet.domain_suffix);
-                rule.ip_cidr.push(...directCustomRuleSet.ip_cidr);
-                break;
-            }
-
+    for (const rule of newConfig.route.rules) {
+        if (!rule.domain || !Array.isArray(rule.domain)) continue;
+        if (rule.domain.includes('direct-tag.oneoh.cloud')) {
+            rule.domain.push(...directRuleSet.domain);
+            rule.domain_suffix.push(...directRuleSet.domain_suffix);
+            rule.ip_cidr.push(...directRuleSet.ip_cidr);
+        }
+        if (rule.domain.includes('proxy-tag.oneoh.cloud')) {
+            rule.domain.push(...proxyRuleSet.domain);
+            rule.domain_suffix.push(...proxyRuleSet.domain_suffix);
+            rule.ip_cidr.push(...proxyRuleSet.ip_cidr);
         }
     }
 
-    if (proxyCustomRuleSet) {
-        for (let i = 0; i < newConfig.route.rules.length; i++) {
-            let rule = newConfig.route.rules[i];
-            if (rule.domain && Array.isArray(rule.domain) && rule.domain.includes('proxy-tag.oneoh.cloud')) {
-                rule.domain.push(...proxyCustomRuleSet.domain);
-                rule.domain_suffix.push(...proxyCustomRuleSet.domain_suffix);
-                rule.ip_cidr.push(...proxyCustomRuleSet.ip_cidr);
-                break;
-            }
-        }
-    }
-
-    console.log("当前 TUN Stack:", newConfig.inbounds[0].stack);
+    console.log('[Config] TUN Stack:', newConfig.inbounds?.[0]?.stack);
     await rewriteConfig(newConfig);
-    return await updateVPNServerConfigFromDB(configJson, newConfig);
+    return updateVPNServerConfigFromDB(configJson, newConfig);
 }
 
-export default async function getGlobalTunConfig(config: string) {
-    let configJson = JSON.parse(config)
+/** 全局代理模式：所有流量走 ExitGateway，使用 tun-global 模板 */
+export default async function getGlobalTunConfig(config: string): Promise<string> {
+    const configJson = JSON.parse(config);
     const newConfig = await getConfigTemplate('tun-global');
-    // let level = await getStoreValue(STAGE_VERSION_STORE_KEY) === "dev" ? "debug" : "info";
-    // newConfig.log.level = level;
+    console.log('[Config] Building tun-global config');
     await rewriteConfig(newConfig);
-    return await updateVPNServerConfigFromDB(configJson, newConfig);
-
+    return updateVPNServerConfigFromDB(configJson, newConfig);
 }
 
+// ─── Entry point ─────────────────────────────────────────────────────────────
 
-// 获取经过处理的配置文件
 export async function getProcessedConfig(): Promise<string> {
-    let mode = SBConfig.getMode();
-    let configContent = SBConfig.getConfigContent();
-    if (!configContent) {
-        throw new Error("No config content found");
-    }
+    const mode = SBConfig.getMode();
+    const configContent = SBConfig.getConfigContent();
+    if (!configContent) throw new Error('No config content found');
 
     switch (mode) {
-        case 'tun-rules':
-            return await getTunConfig(configContent);
-        case 'tun-global':
-            return await getGlobalTunConfig(configContent);
-        default:
-            throw new Error(`Unsupported config type: ${mode}`);
+        case 'tun-rules':  return getTunConfig(configContent);
+        case 'tun-global': return getGlobalTunConfig(configContent);
+        default: throw new Error(`Unsupported config type: ${mode}`);
     }
-
 }

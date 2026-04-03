@@ -1,122 +1,100 @@
 /**
- * Background config refresh task.
- * Registered once at app start; runs every ~15 minutes (system-scheduled).
- * If a subscription URL is stored, re-fetches it and updates SBConfig.
+ * Background config refresh — native implementation.
+ *
+ * The actual periodic background work runs fully natively:
+ *   iOS:     BGAppRefreshTask (BackgroundConfigRefresh.swift)
+ *   Android: WorkManager CoroutineWorker (BackgroundConfigWorker.kt)
+ *
+ * This module provides the JS-facing API to register/unregister the native task,
+ * trigger a foreground refresh, and sync native results into SBConfig (MMKV) when
+ * the app foregrounds.
  */
-import type { TaskStatus, TriggerSource } from '@/database/kv';
+import type { ConfigRefreshResult } from '@/modules/expo-onebox/src/ExpoOneBox.types';
+import ExpoOneBox from '@/modules/expo-onebox';
 import { SBConfig, TaskLog } from '@/database/kv';
-import { fetchWithTimeout, getSingBoxUserAgent } from '@/utils';
-import { parseSubscriptionUserinfo } from '@/utils/subscription';
-import * as BackgroundTask from 'expo-background-task';
-import { BackgroundTaskResult } from 'expo-background-task';
-import * as TaskManager from 'expo-task-manager';
+import { getSingBoxUserAgent } from '@/utils';
 
 export const CONFIG_REFRESH_TASK = 'config-refresh';
 
-// ─── Task Body ───────────────────────────────────────────────────────────────
-// Extracted so it can be invoked directly from the dev screen for testing,
-// since triggerTaskWorkerForTestingAsync skips execution when the app is in foreground.
-
-export async function executeConfigRefresh(trigger: TriggerSource = 'auto'): Promise<BackgroundTaskResult> {
-    console.log(`[ConfigRefresh] ⚡ task triggered (${trigger}) at`, new Date().toISOString());
-    const start = Date.now();
-    const url = SBConfig.getConfigLink();
-
-    if (!url) {
-        console.log('[ConfigRefresh] no config URL set, skipping');
-        return BackgroundTaskResult.Success;
-    }
-
-    console.log('[ConfigRefresh] fetching config from:', url.substring(0, 50) + '...');
-
-    let status: TaskStatus = 'success';
-    let detail: string | undefined;
-
-    try {
-        const response = await fetchWithTimeout(url, {
-            method: 'GET',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'User-Agent': getSingBoxUserAgent(),
-            },
-        });
-
-        if (!response.ok) {
-            status = 'failed';
-            detail = `HTTP ${response.status}`;
-            return BackgroundTaskResult.Failed;
-        }
-
-        const info = parseSubscriptionUserinfo(response.headers.get('subscription-userinfo'));
-
-        SBConfig.setUsedTraffic(info.upload + info.download);
-        SBConfig.setTotalTraffic(info.total);
-        SBConfig.setExpireTime(info.expire);
-
-        const content = await response.text();
-
-        // Skip write if content hasn't changed
-        if (content === SBConfig.getConfigContent()) {
-            status = 'skipped';
-            detail = 'Content unchanged';
-            return BackgroundTaskResult.Success;
-        }
-
-        SBConfig.setConfigContent(content);
-
-
-        detail = 'Config updated';
-        console.log('[ConfigRefresh] config updated successfully');
-        return BackgroundTaskResult.Success;
-    } catch (e) {
-        status = 'failed';
-        detail = e instanceof Error ? e.message : String(e);
-        console.warn('[ConfigRefresh] task error:', e);
-        return BackgroundTaskResult.Failed;
-    } finally {
-        console.log(`[ConfigRefresh] task finished: status=${status}, duration=${Date.now() - start}ms`);
-        TaskLog.append(url, {
-            time: new Date(start).toISOString(),
-            status,
-            trigger,
-            duration: Date.now() - start,
-            detail,
-        });
-    }
-}
-
-
-
-
 // ─── Registration ─────────────────────────────────────────────────────────────
 
-export async function registerConfigRefreshTask() {
+/**
+ * Register (or update) the native periodic background config refresh.
+ * No-ops if no config URL is stored yet.
+ */
+export async function registerConfigRefreshTask(): Promise<void> {
+    const url = SBConfig.getConfigLink();
+    if (!url) {
+        console.log('[ConfigRefresh] no config URL set, skipping registration');
+        return;
+    }
     try {
-
-        const status = await BackgroundTask.getStatusAsync();
-        console.log('[ConfigRefresh] system background task status:', status);
-        if (status === BackgroundTask.BackgroundTaskStatus.Restricted) {
-            console.log('[ConfigRefresh] background tasks RESTRICTED, cannot register');
-            return;
-        }
-
-        const allTasks = await TaskManager.getRegisteredTasksAsync();
-        console.log('[ConfigRefresh] all registered tasks:', JSON.stringify(allTasks, null, 2));
-
-        const isRegistered = await TaskManager.isTaskRegisteredAsync(CONFIG_REFRESH_TASK);
-        console.log('[ConfigRefresh] task already registered:', isRegistered);
-
-        if (!isRegistered) {
-            await BackgroundTask.registerTaskAsync(CONFIG_REFRESH_TASK, {
-                minimumInterval: 30,
-            });
-            console.log('[ConfigRefresh] task registered successfully');
-        } else {
-            console.log('[ConfigRefresh] task already registered, keeping existing schedule');
-        }
-
+        await ExpoOneBox.registerBackgroundConfigRefresh(url, getSingBoxUserAgent(), 1800);
+        console.log('[ConfigRefresh] native background task registered');
     } catch (e) {
         console.warn('[ConfigRefresh] registration error:', e);
     }
+}
+
+// ─── Foreground execution ─────────────────────────────────────────────────────
+
+/**
+ * Execute a config refresh immediately (foreground / dev screen).
+ * Uses the same DNS-resolved fetcher as the background task.
+ */
+export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null> {
+    const url = SBConfig.getConfigLink();
+    if (!url) {
+        console.log('[ConfigRefresh] no config URL, skipping');
+        return null;
+    }
+    console.log('[ConfigRefresh] executing foreground refresh…');
+    const result = await ExpoOneBox.executeConfigRefreshNow(url, getSingBoxUserAgent());
+    applyResultToSBConfig(result, url, 'manual-direct');
+    return result;
+}
+
+// ─── Foreground sync ──────────────────────────────────────────────────────────
+
+/**
+ * Read and clear the last result stored by the native background task, then
+ * apply it to SBConfig (MMKV). Call this whenever the app returns to foreground
+ * so UI state reflects background-executed refreshes.
+ */
+export function syncNativeResultToJS(): void {
+    try {
+        const result = ExpoOneBox.getLastConfigRefreshResult();
+        if (!result) return;
+        const url = SBConfig.getConfigLink();
+        if (url) applyResultToSBConfig(result, url, 'auto');
+    } catch (e) {
+        console.warn('[ConfigRefresh] syncNativeResultToJS error:', e);
+    }
+}
+
+// ─── Internal ─────────────────────────────────────────────────────────────────
+
+function applyResultToSBConfig(
+    result: ConfigRefreshResult,
+    url: string,
+    trigger: 'auto' | 'manual-direct',
+): void {
+    if (result.status === 'success') {
+        SBConfig.setUsedTraffic(result.subscriptionUpload + result.subscriptionDownload);
+        SBConfig.setTotalTraffic(result.subscriptionTotal);
+        SBConfig.setExpireTime(result.subscriptionExpire);
+        if (result.content && result.content !== SBConfig.getConfigContent()) {
+            SBConfig.setConfigContent(result.content);
+        }
+    }
+
+    TaskLog.append(url, {
+        time: result.timestamp,
+        status: result.status as 'success' | 'failed' | 'skipped',
+        trigger,
+        duration: result.durationMs,
+        detail: result.error,
+    });
+
+    console.log(`[ConfigRefresh] result applied: status=${result.status}, duration=${result.durationMs}ms`);
 }

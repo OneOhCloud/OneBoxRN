@@ -47,7 +47,8 @@ GRADLE_SIGN_ARGS := \
         update-tun-db \
         _check-android-env _check-ios-env \
         _sync-version-android _sync-version-ios _update-tun-db \
-        _ensure-pods _ensure-android-codegen _inject-ios-team
+	_ensure-pods _ensure-android-codegen _inject-ios-team \
+	_verify-android-version
 
 # ── 帮助 ────────────────────────────────────────────────────
 help:
@@ -108,16 +109,18 @@ run-ios: _check-ios-env _update-tun-db _ensure-pods _inject-ios-team
 
 android: android-aab
 
-android-aab: _check-android-env _update-tun-db _sync-version-android _ensure-android-codegen
+android-aab: _check-android-env _update-tun-db _ensure-android-codegen _sync-version-android
 	@echo "▶ 构建 Android AAB (release)..."
 	cd $(ANDROID_DIR) && ./gradlew bundleRelease $(GRADLE_SIGN_ARGS)
+	@$(MAKE) _verify-android-version
 	@mkdir -p $(TARGET_DIR)
 	@cp $(ANDROID_OUT_AAB) $(TARGET_DIR)/$(APP_NAME).aab
 	@echo "✅ AAB → $(TARGET_DIR)/$(APP_NAME).aab"
 
-android-apk: _check-android-env _update-tun-db _sync-version-android _ensure-android-codegen
+android-apk: _check-android-env _update-tun-db _ensure-android-codegen _sync-version-android
 	@echo "▶ 构建 Android APK (release)..."
 	cd $(ANDROID_DIR) && ./gradlew assembleRelease $(GRADLE_SIGN_ARGS)
+	@$(MAKE) _verify-android-version
 	@mkdir -p $(TARGET_DIR)
 	@cp $(ANDROID_OUT_APK) $(TARGET_DIR)/$(APP_NAME).apk
 	@echo "✅ APK → $(TARGET_DIR)/$(APP_NAME).apk"
@@ -215,6 +218,24 @@ _ensure-android-codegen:
 	else \
 		echo "✔ Android codegen 已就绪"; \
 	fi
+
+_verify-android-version:
+	@echo "▶ 校验 Android 版本号..."
+	@expected_code=$$(node -p "require('./version.json').buildNumber"); \
+	expected_name=$$(node -p "require('./version.json').version"); \
+	manifest=$$(find "$(ANDROID_DIR)/app/build/intermediates/merged_manifests/release" -name AndroidManifest.xml | head -n 1); \
+	if [ -z "$$manifest" ]; then \
+		echo "❌ 找不到 release merged manifest，无法校验版本号"; \
+		exit 1; \
+	fi; \
+	actual_code=$$(grep -o 'android:versionCode="[0-9][0-9]*"' "$$manifest" | head -n 1 | sed 's/.*="//; s/"$$//'); \
+	actual_name=$$(grep -o 'android:versionName="[^"]*"' "$$manifest" | head -n 1 | sed 's/.*="//; s/"$$//'); \
+	if [ "$$actual_code" != "$$expected_code" ] || [ "$$actual_name" != "$$expected_name" ]; then \
+		echo "❌ Android 版本校验失败: expected code=$$expected_code name=$$expected_name, actual code=$$actual_code name=$$actual_name"; \
+		echo "   manifest=$$manifest"; \
+		exit 1; \
+	fi; \
+	echo "✅ Android 版本校验通过: code=$$actual_code, name=$$actual_name"
 
 # ── tun.db 更新（超过 24h 自动下载） ────────────────────────
 update-tun-db:

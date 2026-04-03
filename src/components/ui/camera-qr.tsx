@@ -13,11 +13,14 @@ import { Alert, Linking, Pressable, Text, View } from 'react-native';
 const SCHEME = 'oneoh-networktools://config';
 
 /** Parse QR data into a route-compatible payload */
-function resolveQRData(raw: string): { data: string } | null {
+function resolveQRData(raw: string): { data: string; apply?: string } | null {
     if (raw.startsWith(SCHEME)) {
         const url = new URL(raw);
         const data = url.searchParams.get('data');
-        if (data) return { data };
+        if (data) {
+            const apply = url.searchParams.get('apply') ?? undefined;
+            return { data, apply };
+        }
     }
     if (raw.startsWith('https://')) {
         const data = btoa(raw);
@@ -114,7 +117,8 @@ export default function CameraQR({ onHandleClose }: CameraQRProps) {
         const resolved = resolveQRData(result.data);
         if (resolved) {
             onHandleClose();
-            router.push(`/config?data=${encodeURIComponent(resolved.data)}`);
+            const applyParam = resolved.apply ? `&apply=${resolved.apply}` : '';
+            router.push(`/config?data=${encodeURIComponent(resolved.data)}${applyParam}`);
         } else {
             Alert.alert(i18n.t('qr_unrecognized'), i18n.t('qr_invalid_content'), [
                 { text: i18n.t('ok'), onPress: () => { scannedRef.current = false; } },

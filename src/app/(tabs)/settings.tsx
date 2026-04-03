@@ -128,10 +128,9 @@ export default function SettingsScreen() {
     let versionDetail = '';
     if (Platform.OS === 'web') {
         versionDetail = `Build: ${Constants.expoConfig?.extra?.webBuildNumber ?? '\u2014'}`;
-    } else if (Platform.OS === 'ios') {
-        versionDetail = `Build: ${Constants.expoConfig?.ios?.buildNumber ?? '\u2014'}`;
-    } else if (Platform.OS === 'android') {
-        versionDetail = `Build: ${Constants.expoConfig?.android?.versionCode ?? '\u2014'}`;
+    } else {
+        // Read actual native build number at runtime so it stays correct even if the store increments it
+        versionDetail = `Build: ${Constants.nativeBuildVersion ?? '\u2014'}`;
     }
 
     const theme = useTheme();

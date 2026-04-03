@@ -5,14 +5,12 @@
 import { lightImpact } from '@/components/ui/haptics';
 import { CONFIG_REFRESH_TASK, executeConfigRefresh, registerConfigRefreshTask } from '@/tasks/config-refresh';
 import { Fonts, Spacing } from '@/constants/theme';
-import { SBConfig, TaskLog, PendingTrigger } from '@/database/kv';
+import { SBConfig, TaskLog } from '@/database/kv';
 import type { TaskLogEntry, TaskRecord, TaskStatus, TriggerSource } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
+import ExpoOneBox from '@/modules/expo-onebox';
 import { Ionicons } from '@expo/vector-icons';
-import * as BackgroundTask from 'expo-background-task';
-import { BackgroundTaskStatus } from 'expo-background-task';
 import { router } from 'expo-router';
-import * as TaskManager from 'expo-task-manager';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,7 +19,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface TaskInfo {
     isRegistered: boolean;
-    taskStatus: BackgroundTaskStatus | null;
 }
 
 interface ConfigState {
@@ -39,15 +36,6 @@ function formatBytes(bytes: number): string {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
-}
-
-function sysStatusLabel(status: BackgroundTaskStatus | null): string {
-    if (status === null) return 'Unknown';
-    return status === BackgroundTaskStatus.Available ? 'Available' : 'Restricted';
-}
-
-function sysStatusColor(status: BackgroundTaskStatus | null): string {
-    return status === BackgroundTaskStatus.Available ? '#34C759' : '#FF9500';
 }
 
 function taskStatusColor(status: TaskStatus): string {
@@ -210,11 +198,8 @@ export default function DevScreen() {
 
     const load = useCallback(async () => {
         setLoading(true);
-        const [taskStatus, isRegistered] = await Promise.all([
-            BackgroundTask.getStatusAsync().catch(() => null),
-            TaskManager.isTaskRegisteredAsync(CONFIG_REFRESH_TASK).catch(() => false),
-        ]);
-        setTaskInfo({ isRegistered, taskStatus });
+        const isRegistered = await ExpoOneBox.isBackgroundConfigRefreshRegistered().catch(() => false);
+        setTaskInfo({ isRegistered });
 
         const link = SBConfig.getConfigLink();
         setConfig({
@@ -288,12 +273,6 @@ export default function DevScreen() {
                             theme={theme}
                         />
                         <Row
-                            label="System Status"
-                            value={sysStatusLabel(taskInfo?.taskStatus ?? null)}
-                            valueColor={sysStatusColor(taskInfo?.taskStatus ?? null)}
-                            theme={theme}
-                        />
-                        <Row
                             label="Registered"
                             value={taskInfo?.isRegistered ? 'Yes' : 'No'}
                             valueColor={taskInfo?.isRegistered ? '#34C759' : '#FF3B30'}
@@ -309,9 +288,8 @@ export default function DevScreen() {
                                 lightImpact();
                                 try {
                                     console.log('[Dev] executing config refresh directly...');
-                                    const result = await executeConfigRefresh('manual-direct');
-                                    console.log('[Dev] executeConfigRefresh result:', result);
-                                    const label = result === 1 ? 'Success' : 'Failed';
+                                    const result = await executeConfigRefresh();
+                                    const label = result?.status === 'success' ? 'Success' : (result?.status ?? 'No URL');
                                     Alert.alert('Task Result', `${label}\nCheck logs for details.`);
                                     load();
                                 } catch (e) {
@@ -335,39 +313,7 @@ export default function DevScreen() {
                             onPress={async () => {
                                 lightImpact();
                                 try {
-                                    console.log('[Dev] triggering worker via system API...');
-                                    PendingTrigger.set('manual-worker');
-                                    await BackgroundTask.triggerTaskWorkerForTestingAsync();
-                                    Alert.alert('Worker Triggered', 'Task worker has been triggered.\nCheck logs for details.');
-                                    load();
-                                } catch (e) {
-                                    const msg = e instanceof Error ? e.message : String(e);
-                                    console.warn('[Dev] trigger worker error:', e);
-                                    Alert.alert('Trigger Error', msg);
-                                }
-                            }}
-                            style={({ pressed }) => ({
-                                paddingVertical: 12,
-                                borderBottomWidth: StyleSheet.hairlineWidth,
-                                borderBottomColor: theme.border,
-                                opacity: pressed ? 0.6 : 1,
-                            })}
-                        >
-                            <Text style={{ fontSize: 14, color: '#AF52DE', textAlign: 'center', fontWeight: '600' }}>
-                                Trigger Worker
-                            </Text>
-                        </Pressable>
-                        <Pressable
-                            onPress={async () => {
-                                lightImpact();
-                                try {
-                                    // Unregister first, then re-register
-                                    const isRegistered = await TaskManager.isTaskRegisteredAsync(CONFIG_REFRESH_TASK);
-                                    if (isRegistered) {
-                                        console.log('[Dev] unregistering task first...');
-                                        await BackgroundTask.unregisterTaskAsync(CONFIG_REFRESH_TASK);
-                                    }
-                                    console.log('[Dev] re-registering task...');
+                                    console.log('[Dev] re-registering native background task...');
                                     await registerConfigRefreshTask();
                                     Alert.alert('Re-register', 'Task has been re-registered. Check logs.');
                                     load();

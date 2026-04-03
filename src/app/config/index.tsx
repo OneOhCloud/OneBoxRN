@@ -5,14 +5,16 @@
 import { mediumImpact, notifyError, notifySuccess } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
 import { Fonts } from '@/constants/theme';
+import { getProcessedConfig } from '@/database/helper';
 import { SBConfig } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
+import ExpoOneBox, { VPN_STATUS } from '@/modules/expo-onebox';
 import { fetchWithTimeout, getSingBoxUserAgent } from '@/utils';
 import { parseSubscriptionUserinfo } from '@/utils/subscription';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─── Download Hook ──────────────────────────────────────────
@@ -346,19 +348,101 @@ function DefaultView() {
 
 export default function ConfigScreen() {
     const theme = useTheme();
-    const { data: deepLinkData } = useLocalSearchParams<{ data: string }>();
+    const { data: deepLinkData, apply } = useLocalSearchParams<{ data: string; apply?: string }>();
+    const shouldApply = apply === '1';
 
-    let url: string | undefined;
+    let decodedUrl: string | undefined;
     if (deepLinkData) {
         try {
-            url = atob(deepLinkData);
-            if (!url.startsWith('https://')) url = undefined;
+            decodedUrl = atob(deepLinkData);
+            if (!decodedUrl.startsWith('https://')) decodedUrl = undefined;
         } catch {
-            url = undefined;
+            decodedUrl = undefined;
         }
     }
 
-    const { data, error, isLoading, extraInfo } = useDownloadConfig(url);
+    // When apply=1 and VPN is running, we must stop the VPN first before downloading.
+    // `downloadUrl` is only set (triggering the fetch) once any required stop is complete.
+    const [downloadUrl, setDownloadUrl] = useState<string | undefined>(undefined);
+    const [isStopping, setIsStopping] = useState(false);
+    const stopInitiatedRef = useRef(false);
+
+    useEffect(() => {
+        if (!decodedUrl) return;
+        if (!shouldApply) {
+            setDownloadUrl(decodedUrl);
+            return;
+        }
+        // shouldApply: stop VPN if running, then trigger download
+        if (stopInitiatedRef.current) return;
+        stopInitiatedRef.current = true;
+
+        const currentStatus = ExpoOneBox.getStatus();
+        if (currentStatus === VPN_STATUS.STARTED || currentStatus === VPN_STATUS.STARTING) {
+            let cancelled = false;
+            setIsStopping(true);
+            ExpoOneBox.stop()
+                .catch(() => { /* stop failed — proceed to download anyway */ })
+                .finally(() => {
+                    if (!cancelled) {
+                        setIsStopping(false);
+                        setDownloadUrl(decodedUrl);
+                    }
+                });
+            return () => { cancelled = true; };
+        } else {
+            setDownloadUrl(decodedUrl);
+        }
+    // decodedUrl and shouldApply are derived from route params and never change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const { data, error, isLoading, extraInfo } = useDownloadConfig(downloadUrl);
+
+    const [isApplying, setIsApplying] = useState(false);
+    const appliedRef = useRef(false);
+
+    useEffect(() => {
+        if (!data || !shouldApply || appliedRef.current) return;
+        appliedRef.current = true;
+
+        let cancelled = false;
+
+        async function startAfterImport() {
+            setIsApplying(true);
+            try {
+                if (Platform.OS === 'android') {
+                    const hasPermission = await ExpoOneBox.checkVpnPermission();
+                    if (!hasPermission) {
+                        const granted = await ExpoOneBox.requestVpnPermission();
+                        if (!granted) {
+                            Alert.alert(i18n.t('insufficient_permission'), i18n.t('permission_required'));
+                            return;
+                        }
+                    }
+                }
+                if (cancelled) return;
+
+                const processedConfig = await getProcessedConfig();
+                await ExpoOneBox.start(processedConfig);
+
+                if (cancelled) return;
+                router.dismissTo('/');
+            } catch (e: unknown) {
+                if (cancelled) return;
+                const msg = e instanceof Error ? e.message : i18n.t('operation_failed');
+                Alert.alert(i18n.t('error'), msg);
+            } finally {
+                if (!cancelled) setIsApplying(false);
+            }
+        }
+
+        startAfterImport();
+
+        return () => { cancelled = true; };
+    }, [data, shouldApply]);
+
+    const busy = isStopping || isLoading || isApplying;
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
@@ -397,10 +481,10 @@ export default function ConfigScreen() {
             </View>
 
             {/* Content states */}
-            {isLoading && <LoadingView />}
-            {!isLoading && error && <ErrorView message={error.message} />}
-            {!isLoading && !error && data && <SuccessView extraInfo={extraInfo} />}
-            {!isLoading && !error && !data && <DefaultView />}
+            {busy && <LoadingView />}
+            {!busy && error && <ErrorView message={error.message} />}
+            {!busy && !error && data && <SuccessView extraInfo={extraInfo} />}
+            {!busy && !error && !data && <DefaultView />}
         </SafeAreaView>
     );
 }

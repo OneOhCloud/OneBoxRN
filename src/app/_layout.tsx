@@ -3,10 +3,9 @@
  * Wraps the entire app in a ThemeProvider for react-navigation dark mode support.
  */
 
-import * as TaskManager from 'expo-task-manager';
-
 import { VpnProvider } from '@/contexts/vpn-context';
-import { AppLaunchFlags, PendingTrigger } from '@/database/kv';
+import { DatabaseProvider } from '@/database/sqlite3';
+import { AppLaunchFlags, migrateMMKVToSQLite } from '@/database/kv';
 import * as Task from '@/tasks/config-refresh';
 import { fetchWithTimeout } from '@/utils';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
@@ -19,24 +18,6 @@ import { AppState, Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '../global.css';
 import ExpoOneBox from '../modules/expo-onebox';
-
-TaskManager.defineTask(Task.CONFIG_REFRESH_TASK, async () => {
-    const trigger = PendingTrigger.consume();
-    return Task.executeConfigRefresh(trigger);
-});
-
-
-
-// 监听 App 状态切换
-AppState.addEventListener('change', async (nextAppState) => {
-    if (Platform.OS === 'ios' && nextAppState === 'background') {
-        const result = await Task.executeConfigRefresh('manual-direct');
-        console.log(`[AppState] manual config refresh on backgrounding: ${result}`);
-    }
-});
-
-// ─── Task Definition ─────────────────────────────────────────────────────────
-// Must be called at module top level (outside any component).
 
 
 // ---------------------------------------------------------------------------
@@ -63,6 +44,15 @@ async function runFirstLaunchSetup() {
         if (Platform.OS === 'android') {
             // Request notification permission via expo-notifications (Android 13+ POST_NOTIFICATIONS)
             await Notifications.requestPermissionsAsync();
+            // Request battery optimization exemption so the VPN service can run unrestricted in the background
+            try {
+                const exempt = ExpoOneBox.checkBatteryOptimizationExemption();
+                if (!exempt) {
+                    await ExpoOneBox.requestBatteryOptimizationExemption();
+                }
+            } catch (e) {
+                console.warn('[FirstLaunch] battery optimization exemption request failed:', e);
+            }
         } else if (Platform.OS === 'ios') {
             // 苹果的网络权限需要在 app 运行时通过实际请求触发，无法通过静态清单声明或安装时授权，因此我们在首次启动时发出一个请求来触发权限对话框。
             fetchWithTimeout('https://www.apple.com/library/test/success.html').then(() => {
@@ -85,11 +75,19 @@ export default function RootLayout() {
     const colorScheme = useColorScheme();
 
     useEffect(() => {
+        // MMKV → SQLite 数据迁移（同步执行，幂等，迁移完成后删除 MMKV 数据）
+        migrateMMKVToSQLite();
 
-        const updateTask = async () => {
-            await Task.registerConfigRefreshTask();
-        };
-        updateTask()
+        // Sync any result that the native background task stored while the app was suspended
+        Task.syncNativeResultToJS();
+
+        const appStateSub = AppState.addEventListener('change', (nextState) => {
+            if (nextState === 'active') {
+                Task.syncNativeResultToJS();
+            }
+        });
+
+        Task.registerConfigRefreshTask();
 
         // 需要每次启动都确保缓存数据库就位
         copyCacheDb().then(() => {
@@ -98,33 +96,34 @@ export default function RootLayout() {
             console.warn('[RootLayout] cache.db copy error on subsequent launch:', e);
         });
 
-
         if (AppLaunchFlags.isFirstLaunch()) {
             runFirstLaunchSetup();
         }
 
-
+        return () => appStateSub.remove();
     }, []);
 
     return (
-        <GestureHandlerRootView style={{ flex: 1 }}>
-            <BottomSheetModalProvider>
-                <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                    <VpnProvider>
-                        <Stack screenOptions={{ headerShown: false }}>
-                            <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '主页' }} />
-                            <Stack.Screen
-                                name="config"
-                                options={{
-                                    headerShown: false,
-                                    presentation: 'card',
-                                    animation: 'slide_from_right',
-                                }}
-                            />
-                        </Stack>
-                    </VpnProvider>
-                </ThemeProvider>
-            </BottomSheetModalProvider>
-        </GestureHandlerRootView>
+        <DatabaseProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+                <BottomSheetModalProvider>
+                    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                        <VpnProvider>
+                            <Stack screenOptions={{ headerShown: false }}>
+                                <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '主页' }} />
+                                <Stack.Screen
+                                    name="config"
+                                    options={{
+                                        headerShown: false,
+                                        presentation: 'card',
+                                        animation: 'slide_from_right',
+                                    }}
+                                />
+                            </Stack>
+                        </VpnProvider>
+                    </ThemeProvider>
+                </BottomSheetModalProvider>
+            </GestureHandlerRootView>
+        </DatabaseProvider>
     );
 }
