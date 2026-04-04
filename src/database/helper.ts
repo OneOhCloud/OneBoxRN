@@ -56,14 +56,16 @@ export async function updateDNS2Config(newConfig: Dict): Promise<void> {
 }
 
 async function rewriteConfig(newConfig: Dict): Promise<void> {
-    console.log('[Config] rewriteConfig: 注入 DNS + experimental');
+    console.log('[Config] rewriteConfig: 注入 DNS，清理未用字段');
     try {
         await updateDNS2Config(newConfig);
     } catch (error) {
         console.error('[Config] 更新 DNS 配置失败:', error);
         throw error;
     }
-    newConfig['experimental']['clash_api'] = {};
+    if (newConfig['experimental']) {
+        delete newConfig['experimental']['clash_api'];
+    }
 }
 
 // ─── Local bundled templates ──────────────────────────────────────────────────

@@ -5,11 +5,12 @@
 import { mediumImpact, notifyError, notifySuccess } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
 import { Fonts } from '@/constants/theme';
+import { fmtBytes } from '@/components/ui/home/subscription-info-card';
 import { getProcessedConfig } from '@/database/helper';
-import { SBConfig } from '@/database/kv';
+import { SubscriptionStore } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox, { VPN_STATUS } from '@/modules/expo-onebox';
-import { fetchWithTimeout, getSingBoxUserAgent } from '@/utils';
+import { fetchWithTimeout, getRemoteNameByContentDisposition, getSingBoxUserAgent, urlHostname } from '@/utils';
 import { parseSubscriptionUserinfo } from '@/utils/subscription';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -58,11 +59,19 @@ function useDownloadConfig(url: string | undefined) {
                         response.headers.get('subscription-userinfo')
                     );
 
-                    SBConfig.setUsedTraffic(upload + download);
-                    SBConfig.setTotalTraffic(total);
-                    SBConfig.setExpireTime(expire);
-                    SBConfig.setConfigLink(url);
-                    SBConfig.setConfigContent(content);
+                    const name =
+                        getRemoteNameByContentDisposition(response.headers.get('content-disposition') ?? '')
+                        ?? SubscriptionStore.findByUrl(url)?.name
+                        ?? urlHostname(url, 'Subscription');
+
+                    SubscriptionStore.upsertByUrl({
+                        name,
+                        url,
+                        usedTraffic: upload + download,
+                        totalTraffic: total,
+                        expireTime: expire,
+                        configContent: content,
+                    });
                     setExtraInfo({ upload, download, total, expire });
                     notifySuccess();
                 } else {
@@ -88,14 +97,6 @@ function useDownloadConfig(url: string | undefined) {
     }, [url]);
 
     return { data, error, isLoading, extraInfo };
-}
-
-// ─── Byte Formatter ─────────────────────────────────────────
-function formatBytes(bytes: number): string {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
 }
 
 // ─── Shared: Icon Orb ───────────────────────────────────────
@@ -130,7 +131,7 @@ function LoadingView() {
     return (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background }}>
             <IconOrb name="cloud-download-outline" color="#007AFF" tint="#007AFF18" />
-            <Text style={{ fontSize: 17, fontWeight: '600', fontFamily: Fonts?.rounded, color: theme.text, marginTop: 20, letterSpacing: -0.4 }}>
+            <Text style={{ fontSize: 17, fontWeight: '600', fontFamily: Fonts?.rounded, color: theme.text, marginTop: 20, letterSpacing: -0.4, lineHeight: 24 }}>
                 {i18n.t('config_downloading')}
             </Text>
             <Text style={{ fontSize: 15, color: theme.textSecondary, marginTop: 6 }}>
@@ -147,7 +148,7 @@ function ErrorView({ message }: { message: string }) {
     return (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, backgroundColor: theme.background }}>
             <IconOrb name="alert-circle" color="#FF3B30" tint="#FF3B3015" />
-            <Text style={{ fontSize: 17, fontWeight: '600', fontFamily: Fonts?.rounded, color: theme.text, marginTop: 20, letterSpacing: -0.4 }}>
+            <Text style={{ fontSize: 17, fontWeight: '600', fontFamily: Fonts?.rounded, color: theme.text, marginTop: 20, letterSpacing: -0.4, lineHeight: 24 }}>
                 {i18n.t('config_download_failed_title')}
             </Text>
             <Text style={{ fontSize: 15, color: theme.textSecondary, marginTop: 6, textAlign: 'center' }}>
@@ -235,7 +236,7 @@ function SuccessView({
     return (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, backgroundColor: theme.background }}>
             <IconOrb name="checkmark-circle" color="#34C759" tint="#34C75915" />
-            <Text style={{ fontSize: 17, fontWeight: '600', fontFamily: Fonts?.rounded, color: theme.text, marginTop: 20, letterSpacing: -0.4 }}>
+            <Text style={{ fontSize: 17, fontWeight: '600', fontFamily: Fonts?.rounded, color: theme.text, marginTop: 20, letterSpacing: -0.4, lineHeight: 24 }}>
                 {i18n.t('config_import_success_title')}
             </Text>
             <Text style={{ fontSize: 15, color: theme.textSecondary, marginTop: 6 }}>
@@ -263,7 +264,7 @@ function SuccessView({
                                 {i18n.t('config_traffic_label')}
                             </Text>
                             <Text style={{ fontSize: 13, fontWeight: '600', color: isNearLimit ? '#FF3B30' : theme.text }}>
-                                {i18n.t('config_traffic_remaining', { amount: formatBytes(left) })}
+                                {i18n.t('config_traffic_remaining', { amount: fmtBytes(left) })}
                             </Text>
                         </View>
                         {/* Progress track */}
@@ -289,10 +290,10 @@ function SuccessView({
                             }}
                         >
                             <Text style={{ fontSize: 12, color: theme.textSecondary }}>
-                                {i18n.t('config_traffic_used_label', { amount: formatBytes(used), percent: usedPercent.toFixed(1) })}
+                                {i18n.t('config_traffic_used_label', { amount: fmtBytes(used), percent: usedPercent.toFixed(1) })}
                             </Text>
                             <Text style={{ fontSize: 12, color: theme.textSecondary }}>
-                                {i18n.t('config_traffic_total_label', { amount: formatBytes(total) })}
+                                {i18n.t('config_traffic_total_label', { amount: fmtBytes(total) })}
                             </Text>
                         </View>
                     </View>
@@ -321,7 +322,7 @@ function SuccessView({
                     opacity: pressed ? 0.72 : 1,
                 })}
             >
-                <Text style={{ color: '#ffffff', fontSize: 17, fontWeight: '600', letterSpacing: -0.3, fontFamily: Fonts?.rounded }}>
+                <Text style={{ color: '#ffffff', fontSize: 17, fontWeight: '600', letterSpacing: -0.3, fontFamily: Fonts?.rounded, lineHeight: 24 }}>
                     {i18n.t('config_get_started')}
                 </Text>
             </Pressable>
@@ -373,23 +374,47 @@ export default function ConfigScreen() {
             setDownloadUrl(decodedUrl);
             return;
         }
-        // shouldApply: stop VPN if running, then trigger download
+        // shouldApply: stop VPN first, wait for STOPPED event, then trigger download
         if (stopInitiatedRef.current) return;
         stopInitiatedRef.current = true;
 
         const currentStatus = ExpoOneBox.getStatus();
         if (currentStatus === VPN_STATUS.STARTED || currentStatus === VPN_STATUS.STARTING) {
-            let cancelled = false;
+            let resolved = false;
             setIsStopping(true);
-            ExpoOneBox.stop()
-                .catch(() => { /* stop failed — proceed to download anyway */ })
-                .finally(() => {
-                    if (!cancelled) {
-                        setIsStopping(false);
-                        setDownloadUrl(decodedUrl);
-                    }
-                });
-            return () => { cancelled = true; };
+
+            const STOP_TIMEOUT_MS = 10000;
+
+            const proceed = () => {
+                if (resolved) return;
+                resolved = true;
+                clearTimeout(timeoutId);
+                statusListener.remove();
+                setIsStopping(false);
+                setDownloadUrl(decodedUrl);
+            };
+
+            // Wait for native STOPPED status — stop() resolves when the command is sent,
+            // not when the VPN tunnel is fully torn down.
+            const statusListener = ExpoOneBox.addListener('onStatusChange', (event) => {
+                if (event.status === VPN_STATUS.STOPPED) proceed();
+            });
+
+            const timeoutId = setTimeout(() => {
+                console.warn('[Config] VPN stop wait timeout — proceeding with download');
+                proceed();
+            }, STOP_TIMEOUT_MS);
+
+            ExpoOneBox.stop().catch(() => {
+                // stop() rejected (e.g. already stopped) — proceed after brief delay
+                setTimeout(proceed, 300);
+            });
+
+            return () => {
+                resolved = true;
+                clearTimeout(timeoutId);
+                statusListener.remove();
+            };
         } else {
             setDownloadUrl(decodedUrl);
         }

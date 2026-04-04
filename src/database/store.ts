@@ -13,7 +13,6 @@ import {
 import { kvDelete, kvGet, kvSet } from './kv';
 
 export const LANGUAGE_STORE_KEY = 'language';
-export const CLASH_API_SECRET = 'clash_api_secret_key';
 
 // ─── SQLite-backed store wrapper ─────────────────────────────────────────────
 // All values are stored as strings in kv_store.
@@ -93,37 +92,6 @@ export async function setAllowLan(value: boolean): Promise<void> {
     store.set(ALLOWLAN_STORE_KEY, value);
 }
 
-export async function getClashApiSecret(): Promise<string> {
-    const secret = await store.get(CLASH_API_SECRET);
-    if (secret) return secret as string;
-
-    async function generateRandomHex(bytes: number): Promise<string> {
-        const anyGlobal: any = globalThis;
-        const anyCrypto = anyGlobal.crypto;
-        if (anyCrypto && typeof anyCrypto.getRandomValues === 'function') {
-            const array = new Uint8Array(bytes);
-            anyCrypto.getRandomValues(array);
-            return Array.from(array).map((b: number) => b.toString(16).padStart(2, '0')).join('');
-        }
-        try {
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            require('react-native-get-random-values');
-            const polyCrypto = (globalThis as any).crypto;
-            if (polyCrypto && typeof polyCrypto.getRandomValues === 'function') {
-                const array = new Uint8Array(bytes);
-                polyCrypto.getRandomValues(array);
-                return Array.from(array).map((b: number) => b.toString(16).padStart(2, '0')).join('');
-            }
-        } catch { /* ignore */ }
-        const arr = new Uint8Array(bytes);
-        for (let i = 0; i < bytes; i++) arr[i] = Math.floor(Math.random() * 256);
-        return Array.from(arr).map((b: number) => b.toString(16).padStart(2, '0')).join('');
-    }
-
-    const randomSecret = await generateRandomHex(12);
-    store.set(CLASH_API_SECRET, randomSecret);
-    return randomSecret;
-}
 
 export async function isBypassRouterEnabled(): Promise<boolean> {
     return Boolean(await store.get(ENABLE_BYPASS_ROUTER_STORE_KEY));

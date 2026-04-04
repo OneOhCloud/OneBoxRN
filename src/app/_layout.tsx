@@ -5,7 +5,7 @@
 
 import { VpnProvider } from '@/contexts/vpn-context';
 import { DatabaseProvider } from '@/database/sqlite3';
-import { AppLaunchFlags, migrateMMKVToSQLite } from '@/database/kv';
+import { AppLaunchFlags, migrateMMKVToSQLite, migrateV1SubscriptionToMulti } from '@/database/kv';
 import * as Task from '@/tasks/config-refresh';
 import { fetchWithTimeout } from '@/utils';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
@@ -77,6 +77,8 @@ export default function RootLayout() {
     useEffect(() => {
         // MMKV → SQLite 数据迁移（同步执行，幂等，迁移完成后删除 MMKV 数据）
         migrateMMKVToSQLite();
+        // 单订阅 → 多订阅格式迁移（依赖 MMKV 迁移完成后执行）
+        migrateV1SubscriptionToMulti();
 
         // Sync any result that the native background task stored while the app was suspended
         Task.syncNativeResultToJS();

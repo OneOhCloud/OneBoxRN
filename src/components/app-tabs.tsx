@@ -20,12 +20,12 @@ export default function AppTabs() {
         >
             <NativeTabs.Trigger name="index">
                 <NativeTabs.Trigger.Label>{i18n.t('tab_connect')}</NativeTabs.Trigger.Label>
-                <NativeTabs.Trigger.Icon sf="shield.fill" md="vpn_key" />
+                <NativeTabs.Trigger.Icon sf="shield.fill" md="security" />
             </NativeTabs.Trigger>
 
-            <NativeTabs.Trigger name="info">
-                <NativeTabs.Trigger.Label>{i18n.t('tab_info')}</NativeTabs.Trigger.Label>
-                <NativeTabs.Trigger.Icon sf="chart.bar.fill" md="bar_chart" />
+            <NativeTabs.Trigger name="subscriptions">
+                <NativeTabs.Trigger.Label>{i18n.t('tab_subscriptions')}</NativeTabs.Trigger.Label>
+                <NativeTabs.Trigger.Icon sf="rectangle.stack.fill" md="layers" />
             </NativeTabs.Trigger>
 
             <NativeTabs.Trigger name="settings">

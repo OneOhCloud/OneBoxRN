@@ -31,6 +31,21 @@ export function getSingBoxUserAgent(): string {
     return formatUA;
 }
 
+/** Extract the hostname from a URL string; returns fallback on parse failure. */
+export function urlHostname(url: string, fallback = ''): string {
+    try { return new URL(url).hostname; } catch { return fallback; }
+}
+
+/** Parse subscription name from a Content-Disposition header value. Returns null if not found. */
+export function getRemoteNameByContentDisposition(contentDisposition: string): string | null {
+    const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+    const matches = filenameRegex.exec(contentDisposition);
+    if (matches != null && matches[1]) {
+        return decodeURIComponent(matches[1].replace(/['"]/g, ''));
+    }
+    return null;
+}
+
 /**
  * Fetch with automatic timeout via AbortController.
  * Default timeout: 10 seconds.

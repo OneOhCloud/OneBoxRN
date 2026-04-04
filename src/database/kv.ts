@@ -1,4 +1,5 @@
 import { configType } from '@/definition';
+import { urlHostname } from '@/utils';
 import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
 import { createMMKV } from 'react-native-mmkv';
@@ -194,30 +195,196 @@ export function migrateMMKVToSQLite(): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SBConfig — 订阅配置核心数据
+// Subscription — multi-subscription data model
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Subscription {
+    id: string;
+    name: string;
+    url: string;
+    usedTraffic: number;
+    totalTraffic: number;
+    expireTime: number;
+    configContent: string;
+    addedAt: number;
+}
+
+function generateSubId(): string {
+    return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+const SUB_IDS_KEY    = 'sub_ids';
+const ACTIVE_SUB_KEY = 'active_sub_id';
+
+function subKey(id: string): string { return `sub_${id}`; }
+
+export const SubscriptionStore = {
+    getIds(): string[] {
+        const raw = kvGet(SUB_IDS_KEY);
+        if (!raw) return [];
+        try { return JSON.parse(raw) as string[]; } catch { return []; }
+    },
+
+    getAll(): Subscription[] {
+        return this.getIds()
+            .map(id => this.getById(id))
+            .filter((s): s is Subscription => s !== null);
+    },
+
+    getById(id: string): Subscription | null {
+        const raw = kvGet(subKey(id));
+        if (!raw) return null;
+        try { return JSON.parse(raw) as Subscription; } catch { return null; }
+    },
+
+    getActiveId(): string | null {
+        return kvGet(ACTIVE_SUB_KEY);
+    },
+
+    setActiveId(id: string): void {
+        kvSet(ACTIVE_SUB_KEY, id);
+    },
+
+    getActive(): Subscription | null {
+        const id = this.getActiveId();
+        if (!id) {
+            // Auto-promote first subscription if no active is set
+            const ids = this.getIds();
+            if (ids.length > 0) {
+                kvSet(ACTIVE_SUB_KEY, ids[0]);
+                return this.getById(ids[0]);
+            }
+            return null;
+        }
+        return this.getById(id);
+    },
+
+    add(data: Omit<Subscription, 'id' | 'addedAt'>): Subscription {
+        const id = generateSubId();
+        const sub: Subscription = { ...data, id, addedAt: Date.now() };
+        const ids = this.getIds();
+        ids.push(id);
+        kvSet(SUB_IDS_KEY, JSON.stringify(ids));
+        kvSet(subKey(id), JSON.stringify(sub));
+        return sub;
+    },
+
+    update(id: string, patch: Partial<Omit<Subscription, 'id' | 'addedAt'>>): void {
+        const existing = this.getById(id);
+        if (!existing) return;
+        kvSet(subKey(id), JSON.stringify({ ...existing, ...patch }));
+    },
+
+    delete(id: string): void {
+        const ids = this.getIds().filter(i => i !== id);
+        kvSet(SUB_IDS_KEY, JSON.stringify(ids));
+        kvDelete(subKey(id));
+        if (this.getActiveId() === id) {
+            if (ids.length > 0) kvSet(ACTIVE_SUB_KEY, ids[0]);
+            else kvDelete(ACTIVE_SUB_KEY);
+        }
+    },
+
+    findByUrl(url: string): Subscription | null {
+        return this.getAll().find(s => s.url === url) ?? null;
+    },
+
+    /** Update existing subscription by URL, or add a new one. Sets it as active. */
+    upsertByUrl(data: Omit<Subscription, 'id' | 'addedAt'>): Subscription {
+        const existing = this.findByUrl(data.url);
+        if (existing) {
+            this.update(existing.id, data);
+            this.setActiveId(existing.id);
+            return { ...existing, ...data };
+        }
+        const sub = this.add(data);
+        this.setActiveId(sub.id);
+        return sub;
+    },
+};
+
+// ─── V1 single-subscription → multi-subscription migration ───────────────────
+
+const SUB_MIGRATION_V1_FLAG = 'sub_migration_v1';
+
+/**
+ * One-time migration from single-subscription kv keys to SubscriptionStore format.
+ * Must be called after migrateMMKVToSQLite().
+ */
+export function migrateV1SubscriptionToMulti(): void {
+    if (kvGet(SUB_MIGRATION_V1_FLAG) === '1') return;
+
+    const url = kvGet('configLink');
+    if (url) {
+        console.log('[KV] Migrating v1 single-subscription to multi-subscription format...');
+        let name = kvGet('configName') ?? '';
+        if (!name || name === 'default') {
+            name = urlHostname(url, 'Subscription');
+        }
+        const sub = SubscriptionStore.add({
+            name,
+            url,
+            usedTraffic: Number(kvGet('usedTraffic') ?? '0'),
+            totalTraffic: Number(kvGet('totalTraffic') ?? '1'),
+            expireTime: Number(kvGet('expireTime') ?? '0'),
+            configContent: kvGet('configContent') ?? '',
+        });
+        kvSet(ACTIVE_SUB_KEY, sub.id);
+        kvDelete('configLink');
+        kvDelete('configName');
+        kvDelete('usedTraffic');
+        kvDelete('totalTraffic');
+        kvDelete('expireTime');
+        kvDelete('configContent');
+        console.log('[KV] V1 subscription migrated, id:', sub.id);
+    }
+
+    kvSet(SUB_MIGRATION_V1_FLAG, '1');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SBConfig — compat shim over the active subscription
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const SBConfig = {
-    setConfigLink:    (link: string)     => kvSet('configLink', link),
-    getConfigLink:    ():string | null   => kvGet('configLink'),
+    getConfigLink: (): string | null => SubscriptionStore.getActive()?.url ?? null,
+    setConfigLink: (url: string) => {
+        const a = SubscriptionStore.getActive();
+        if (a) SubscriptionStore.update(a.id, { url });
+    },
 
-    setConfigName:    (name: string)     => kvSet('configName', name),
-    getConfigName:    (): string         => kvGet('configName') ?? 'default',
+    getConfigName: (): string => SubscriptionStore.getActive()?.name ?? 'default',
+    setConfigName: (name: string) => {
+        const a = SubscriptionStore.getActive();
+        if (a) SubscriptionStore.update(a.id, { name });
+    },
 
-    setUsedTraffic:   (n: number)        => kvSet('usedTraffic', String(n)),
-    getUsedTraffic:   (): number         => Number(kvGet('usedTraffic') ?? '0'),
+    getUsedTraffic: (): number => SubscriptionStore.getActive()?.usedTraffic ?? 0,
+    setUsedTraffic: (n: number) => {
+        const a = SubscriptionStore.getActive();
+        if (a) SubscriptionStore.update(a.id, { usedTraffic: n });
+    },
 
-    setTotalTraffic:  (n: number)        => kvSet('totalTraffic', String(n)),
-    getTotalTraffic:  (): number         => Number(kvGet('totalTraffic') ?? '1'),
+    getTotalTraffic: (): number => SubscriptionStore.getActive()?.totalTraffic ?? 1,
+    setTotalTraffic: (n: number) => {
+        const a = SubscriptionStore.getActive();
+        if (a) SubscriptionStore.update(a.id, { totalTraffic: n });
+    },
 
-    setExpireTime:    (t: number)        => kvSet('expireTime', String(t)),
-    getExpireTime:    (): number         => Number(kvGet('expireTime') ?? '0'),
+    getExpireTime: (): number => SubscriptionStore.getActive()?.expireTime ?? 0,
+    setExpireTime: (t: number) => {
+        const a = SubscriptionStore.getActive();
+        if (a) SubscriptionStore.update(a.id, { expireTime: t });
+    },
 
-    setConfigContent: (content: string)  => kvSet('configContent', content),
-    getConfigContent: (): string         => kvGet('configContent') ?? '',
+    getConfigContent: (): string => SubscriptionStore.getActive()?.configContent ?? '',
+    setConfigContent: (content: string) => {
+        const a = SubscriptionStore.getActive();
+        if (a) SubscriptionStore.update(a.id, { configContent: content });
+    },
 
-    setMode:          (mode: configType) => kvSet('mode', mode),
-    getMode:          (): configType     => (kvGet('mode') as configType) ?? 'tun-rules',
+    setMode: (mode: configType) => kvSet('mode', mode),
+    getMode: (): configType    => (kvGet('mode') as configType) ?? 'tun-rules',
 };
 
 // ─── Task Execution Log ──────────────────────────────────────────────────────

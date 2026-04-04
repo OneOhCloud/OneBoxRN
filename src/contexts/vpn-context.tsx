@@ -1,4 +1,5 @@
 import i18n from '@/constants/language';
+import { getProcessedConfig } from '@/database/helper';
 import { SBConfig } from '@/database/kv';
 import { configType } from '@/definition';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -43,6 +44,32 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     const setMode = useCallback((m: configType) => {
         setModeState(m);
         SBConfig.setMode(m);
+
+        // If the VPN is running, restart immediately with the new mode config.
+        // stop() resolves when the command is sent, not when the tunnel is fully down,
+        // so we wait for the STOPPED status event before re-starting.
+        const currentStatus = ExpoOneBox.getStatus();
+        if (currentStatus !== VPN_STATUS.STARTED && currentStatus !== VPN_STATUS.STARTING) return;
+
+        const STOP_TIMEOUT_MS = 10_000;
+        let done = false;
+        const proceed = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            sub.remove();
+            getProcessedConfig()
+                .then(config => ExpoOneBox.start(config))
+                .catch(e => console.warn('[VPN] Mode switch restart failed:', e));
+        };
+        const sub = ExpoOneBox.addListener('onStatusChange', (e) => {
+            if (e.status === VPN_STATUS.STOPPED) proceed();
+        });
+        const timer = setTimeout(() => {
+            console.warn('[VPN] Mode switch: stop timeout, restarting anyway');
+            proceed();
+        }, STOP_TIMEOUT_MS);
+        ExpoOneBox.stop().catch(() => setTimeout(proceed, 300));
     }, []);
 
     const syncStatus = useCallback(() => {
