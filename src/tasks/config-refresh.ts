@@ -40,7 +40,7 @@ export async function registerConfigRefreshTask(): Promise<void> {
 
 /**
  * Execute a config refresh immediately (foreground / dev screen).
- * Uses the same DNS-resolved fetcher as the background task.
+ * Uses the native DNS-resolved fetcher (NWConnection + custom SNI) on iOS.
  */
 export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null> {
     const url = SBConfig.getConfigLink();
