@@ -1,23 +1,10 @@
+import { getSingBoxUserAgent } from '@/utils';
 import { fetchSubscriptionWithFallback } from '@/utils/subscription-loader';
-import Constants from 'expo-constants';
-import { getLocales } from 'expo-localization';
 import { type SQLiteDatabase } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 
-const SING_BOX_VERSION = '1.13.0';
-
-function buildUserAgent(): string {
-    const clientName = Platform.OS === 'android' ? 'SFA' : 'SFI';
-    const appVersion = Constants.expoConfig?.version ?? '1.0.0';
-    const os = Platform.OS;
-    const arch = 'arm64';
-    const osVersion = Platform.Version;
-    const language = getLocales()[0]?.languageTag ?? 'en';
-    return `${clientName}/${appVersion} (${os} ${arch} ${osVersion}; sing-box ${SING_BOX_VERSION}; language ${language})`;
-}
-
-const SUBSCRIPTION_USER_AGENT = buildUserAgent();
+const SUBSCRIPTION_USER_AGENT = getSingBoxUserAgent()
 
 
 export interface Subscription {
