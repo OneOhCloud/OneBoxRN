@@ -21,6 +21,25 @@ const KNOWN_DOMAIN_SHA256 = '183a5526e76751b07cd57236bc8f253d5424e02a3fc7da7c30f
 const VERIFIED_LIST_URL = 'https://www.sing-box.net/verified_subscriptions_sha256.txt';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Accelerator reachability cache (null = unchecked, true/false = result)
+// ─────────────────────────────────────────────────────────────────────────────
+
+let acceleratorAvailable: boolean | null = null;
+
+async function checkAcceleratorAvailability(): Promise<void> {
+    if (!ACCELERATE_URL) {
+        acceleratorAvailable = false;
+        return;
+    }
+    try {
+        await fetchWithTimeout(ACCELERATE_URL, { method: 'HEAD' }, 5_000);
+        acceleratorAvailable = true;
+    } catch {
+        acceleratorAvailable = false;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -125,9 +144,8 @@ export async function fetchSubscriptionWithFallback(
 
     if (!verified) {
         console.warn(
-            `[CONFIG_LOAD] 方式=VERIFICATION_FAILED, 域名SHA256=${domainSha256}, 预期=${KNOWN_DOMAIN_SHA256}`,
+            `[CONFIG_LOAD] 方式=DOMAIN_UNVERIFIED, 域名SHA256=${domainSha256}, 加速备用已禁用`,
         );
-        throw new Error(`订阅域名验证失败: ${hostname}`);
     }
 
     const requestHeaders = { 'User-Agent': userAgent };
@@ -154,7 +172,14 @@ export async function fetchSubscriptionWithFallback(
         primaryErrorLabel = (err as Error).name; // 'AbortError' | 'TypeError'
     }
 
-    // ── Step 3: accelerator fallback ─────────────────────────────────────────
+    // ── Step 3: accelerator fallback (verified domains only) ─────────────────
+    if (!verified) {
+        console.warn(
+            `[CONFIG_LOAD] 方式=ACCELERATOR_SKIPPED, 原因=域名未验证, 主地址原因=${primaryErrorLabel}`,
+        );
+        throw new Error(`订阅加载失败: 主地址不可达(${primaryErrorLabel}), 域名未验证禁止使用加速`);
+    }
+
     if (acceleratorAvailable === null) {
         await checkAcceleratorAvailability();
     }
