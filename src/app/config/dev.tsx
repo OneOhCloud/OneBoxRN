@@ -171,6 +171,14 @@ function RecordRow({ record, isLast, theme }: { record: TaskRecord; isLast: bool
                     <Text style={{ fontSize: 10, color: tColor, fontFamily: Fonts?.mono, fontWeight: '600' }}>
                         {triggerLabel(record.trigger)}
                     </Text>
+                    <Text style={{ fontSize: 10, color, fontFamily: Fonts?.mono, fontWeight: '600' }}>
+                        {record.status}
+                    </Text>
+                    {record.contentChanged && (
+                        <Text style={{ fontSize: 10, color: '#007AFF', fontFamily: Fonts?.mono, fontWeight: '600' }}>
+                            updated
+                        </Text>
+                    )}
                 </View>
                 <Text style={{ fontSize: 12, color: theme.textSecondary, fontFamily: Fonts?.mono }}>
                     {formatDuration(record.duration)}

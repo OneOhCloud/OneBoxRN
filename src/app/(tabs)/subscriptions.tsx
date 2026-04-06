@@ -3,8 +3,8 @@
  */
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { mediumImpact, notifyError, notifySuccess } from '@/components/ui/haptics';
 import CameraQR from '@/components/ui/camera-qr';
+import { mediumImpact, notifyError, notifySuccess } from '@/components/ui/haptics';
 import { ImportUrlModal } from '@/components/ui/home/import-url-modal';
 import { ModeSelector } from '@/components/ui/home/mode-selector';
 import { fmtBytes } from '@/components/ui/home/subscription-info-card';
@@ -17,7 +17,7 @@ import { executeConfigRefresh } from '@/tasks/config-refresh';
 import { urlHostname } from '@/utils';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -263,6 +263,7 @@ export default function SubscriptionsScreen() {
     const [subs, setSubs] = useState<Subscription[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
+    const refreshingRef = useRef(false);
     const [cameraVisible, setCameraVisible] = useState(false);
     const [importUrlVisible, setImportUrlVisible] = useState(false);
 
@@ -286,7 +287,8 @@ export default function SubscriptionsScreen() {
     }, [loadData]);
 
     const handleRefresh = useCallback(async () => {
-        if (refreshing) return;
+        if (refreshingRef.current) return;
+        refreshingRef.current = true;
         setRefreshing(true);
         try {
             const result = await executeConfigRefresh();
@@ -301,9 +303,10 @@ export default function SubscriptionsScreen() {
             notifyError();
             Alert.alert(i18n.t('sub_refresh_failed'), e instanceof Error ? e.message : '');
         } finally {
+            refreshingRef.current = false;
             setRefreshing(false);
         }
-    }, [refreshing, loadData]);
+    }, [loadData]);
 
     const handleImportClose = useCallback(() => { setImportUrlVisible(false); loadData(); }, [loadData]);
     const handleCameraClose = useCallback(() => { setCameraVisible(false); loadData(); }, [loadData]);
@@ -339,12 +342,6 @@ export default function SubscriptionsScreen() {
                         contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: BottomTabInset + Spacing.three, gap: 20 }}
                         showsVerticalScrollIndicator={false}
                     >
-                        {/* Routing mode */}
-                        <View>
-                            <SectionLabel text={i18n.t('section_routing_mode')} />
-                            <ModeSelector hideSectionLabel />
-                        </View>
-
                         {/* Subscriptions */}
                         {subs.length === 0 ? (
                             <EmptyState
@@ -352,7 +349,14 @@ export default function SubscriptionsScreen() {
                                 onImportUrl={() => setImportUrlVisible(true)}
                             />
                         ) : (
+
+
                             <View style={{ gap: 20 }}>
+                                {/* Routing mode */}
+                                <View>
+                                    <SectionLabel text={i18n.t('section_routing_mode')} />
+                                    <ModeSelector hideSectionLabel />
+                                </View>
                                 <View>
                                     <SectionLabel text={i18n.t('sub_section_list')} />
                                     <Card>

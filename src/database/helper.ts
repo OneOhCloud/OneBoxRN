@@ -178,6 +178,11 @@ export async function updateVPNServerConfigFromDB(
     const outboundsSelector: string[] = outboundGroups[outboundsSelectorIndex]['outbounds'];
     const outboundsUrltest: string[] = outboundGroups[outboundsUrltestIndex]['outbounds'];
 
+    // Collect tags already present in the template to avoid duplicates
+    const existingTags = new Set<string>(
+        outboundGroups.map((o: Item) => o.tag).filter(Boolean)
+    );
+
     const serverList = dbConfigData.outbounds.filter((item: Item) => {
         let flag =
             item.type !== 'selector' &&
@@ -188,14 +193,20 @@ export async function updateVPNServerConfigFromDB(
         return flag;
     });
 
-    const tags: string[] = [];
+    const deduplicatedServers: Item[] = [];
     for (const server of serverList) {
+        if (existingTags.has(server.tag)) {
+            console.warn(`[Config] Skipping server with duplicate tag: "${server.tag}"`);
+            continue;
+        }
+        existingTags.add(server.tag);
         server['domain_resolver'] = 'system';
+        deduplicatedServers.push(server);
         outboundsSelector.push(server.tag);
-        tags.push(server.tag);
+        outboundsUrltest.push(server.tag);
     }
-    outboundsUrltest.push(...tags);
-    outboundGroups.push(...serverList);
+
+    outboundGroups.push(...deduplicatedServers);
 
     return JSON.stringify(newConfig);
 }

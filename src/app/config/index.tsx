@@ -467,7 +467,9 @@ export default function ConfigScreen() {
         return () => { cancelled = true; };
     }, [data, shouldApply]);
 
-    const busy = isStopping || isLoading || isApplying;
+    // When apply=1, keep showing loading until navigation fires (covers the gap
+    // between isLoading→false and isApplying→true across the effect render cycle)
+    const busy = isStopping || isLoading || isApplying || (shouldApply && !!data);
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
@@ -508,7 +510,7 @@ export default function ConfigScreen() {
             {/* Content states */}
             {busy && <LoadingView />}
             {!busy && error && <ErrorView message={error.message} />}
-            {!busy && !error && data && <SuccessView extraInfo={extraInfo} />}
+            {!busy && !error && data && !shouldApply && <SuccessView extraInfo={extraInfo} />}
             {!busy && !error && !data && <DefaultView />}
         </SafeAreaView>
     );

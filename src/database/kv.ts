@@ -400,6 +400,8 @@ export interface TaskRecord {
     trigger: TriggerSource;
     /** Duration in ms */
     duration: number;
+    /** Whether the config content was updated in this run */
+    contentChanged?: boolean;
     /** Optional detail, e.g. error message */
     detail?: string;
 }

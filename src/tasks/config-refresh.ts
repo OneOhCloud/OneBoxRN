@@ -79,12 +79,14 @@ function applyResultToSBConfig(
     url: string,
     trigger: 'auto' | 'manual-direct',
 ): void {
+    let contentChanged = false;
     if (result.status === 'success') {
         SBConfig.setUsedTraffic(result.subscriptionUpload + result.subscriptionDownload);
         SBConfig.setTotalTraffic(result.subscriptionTotal);
         SBConfig.setExpireTime(result.subscriptionExpire);
         if (result.content && result.content !== SBConfig.getConfigContent()) {
             SBConfig.setConfigContent(result.content);
+            contentChanged = true;
         }
     }
 
@@ -93,6 +95,7 @@ function applyResultToSBConfig(
         status: result.status as 'success' | 'failed' | 'skipped',
         trigger,
         duration: result.durationMs,
+        contentChanged,
         detail: result.error,
     });
 
