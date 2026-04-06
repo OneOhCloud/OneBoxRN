@@ -10,9 +10,13 @@
  * the app foregrounds.
  */
 import type { ConfigRefreshResult } from '@/modules/expo-onebox/src/ExpoOneBox.types';
+import Constants from 'expo-constants';
 import ExpoOneBox from '@/modules/expo-onebox';
 import { SBConfig, TaskLog } from '@/database/kv';
 import { getSingBoxUserAgent } from '@/utils';
+
+const ACCELERATE_URL: string | null =
+    (Constants.expoConfig?.extra?.accelerateUrl as string | null) || null;
 
 export const CONFIG_REFRESH_TASK = 'config-refresh';
 
@@ -29,7 +33,7 @@ export async function registerConfigRefreshTask(): Promise<void> {
         return;
     }
     try {
-        await ExpoOneBox.registerBackgroundConfigRefresh(url, getSingBoxUserAgent(), 1800);
+        await ExpoOneBox.registerBackgroundConfigRefresh(url, getSingBoxUserAgent(), 1800, ACCELERATE_URL);
         console.log('[ConfigRefresh] native background task registered');
     } catch (e) {
         console.warn('[ConfigRefresh] registration error:', e);
@@ -40,7 +44,7 @@ export async function registerConfigRefreshTask(): Promise<void> {
 
 /**
  * Execute a config refresh immediately (foreground / dev screen).
- * Uses the native DNS-resolved fetcher (NWConnection + custom SNI) on iOS.
+ * Fallback logic (primary → accelerated) is handled entirely in the native layer.
  */
 export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null> {
     const url = SBConfig.getConfigLink();
@@ -49,7 +53,7 @@ export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null
         return null;
     }
     console.log('[ConfigRefresh] executing foreground refresh…');
-    const result = await ExpoOneBox.executeConfigRefreshNow(url, getSingBoxUserAgent());
+    const result = await ExpoOneBox.executeConfigRefreshNow(url, getSingBoxUserAgent(), ACCELERATE_URL);
     applyResultToSBConfig(result, url, 'manual-direct');
     return result;
 }

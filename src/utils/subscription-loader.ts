@@ -10,22 +10,15 @@
 
 import { fetchWithTimeout } from '@/utils';
 import Constants from 'expo-constants';
-import { fetch } from 'expo/fetch';
 
 // ── Compile-time constant ─────────────────────────────────────────────────────
-// Populated from ACCELERATE_URL env var via app.config.ts at build time.
+// Populated from accelerateUrl env var via app.config.ts at build time.
 const ACCELERATE_URL: string | null =
     (Constants.expoConfig?.extra?.accelerateUrl as string | null) ?? null;
 
 // ── Domain verification constants ─────────────────────────────────────────────
 const KNOWN_DOMAIN_SHA256 = '183a5526e76751b07cd57236bc8f253d5424e02a3fc7da7c30f80919e975125a';
 const VERIFIED_LIST_URL = 'https://www.sing-box.net/verified_subscriptions_sha256.txt';
-
-// ── Accelerator availability cache ────────────────────────────────────────────
-// null  = not yet checked
-// true  = reachable (TCP:443 OK)
-// false = unreachable or no accelerator configured
-let acceleratorAvailable: boolean | null = null;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers
@@ -66,33 +59,6 @@ function buildAcceleratedUrl(originalUrl: string, domainSha256: string): string 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Probe accelerator TCP:443 reachability.
- * Uses an HTTP HEAD request as a TCP connectivity probe (RN has no raw sockets).
- * Result is cached in the module-level `acceleratorAvailable` variable.
- * Call once at app startup, or it will be called lazily on first subscription load.
- */
-export async function checkAcceleratorAvailability(): Promise<boolean> {
-    if (!ACCELERATE_URL) {
-        acceleratorAvailable = false;
-        return false;
-    }
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5_000);
-    try {
-        // Any HTTP response — even 4xx/5xx — means TCP:443 is open.
-        await fetch(`${ACCELERATE_URL}/`, { method: 'HEAD', signal: controller.signal } as any);
-        acceleratorAvailable = true;
-    } catch {
-        acceleratorAvailable = false;
-    } finally {
-        clearTimeout(timer);
-    }
-
-    return acceleratorAvailable;
-}
 
 /**
  * Verify a subscription hostname against:
