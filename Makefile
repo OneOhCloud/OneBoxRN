@@ -221,7 +221,7 @@ _ensure-android-codegen:
 
 _verify-android-version:
 	@echo "▶ 校验 Android 版本号..."
-	@expected_code=$$(node -p "require('./version.json').buildNumber"); \
+	@expected_code=$$(node -p "require('./version.json').androidVersionCode"); \
 	expected_name=$$(node -p "require('./version.json').version"); \
 	manifest=$$(find "$(ANDROID_DIR)/app/build/intermediates/merged_manifests/release" -name AndroidManifest.xml | head -n 1); \
 	if [ -z "$$manifest" ]; then \

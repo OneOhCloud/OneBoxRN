@@ -17,7 +17,7 @@ if (!appName) {
 
 const versionConfig = JSON.parse(fs.readFileSync('version.json', 'utf8'));
 const ver = versionConfig.version;
-const build = String(versionConfig.buildNumber);
+const build = String(versionConfig.iosBuildNumber);
 
 const plistPath = path.join('ios', appName, 'Info.plist');
 
