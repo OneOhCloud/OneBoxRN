@@ -1,7 +1,24 @@
+import { fetchSubscriptionWithFallback } from '@/utils/subscription-loader';
+import Constants from 'expo-constants';
+import { getLocales } from 'expo-localization';
 import { type SQLiteDatabase } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
-import { fetchWithTimeout } from '@/utils';
+import { Alert, Platform } from 'react-native';
+
+const SING_BOX_VERSION = '1.13.0';
+
+function buildUserAgent(): string {
+    const clientName = Platform.OS === 'android' ? 'SFA' : 'SFI';
+    const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+    const os = Platform.OS;
+    const arch = 'arm64';
+    const osVersion = Platform.Version;
+    const language = getLocales()[0]?.languageTag ?? 'en';
+    return `${clientName}/${appVersion} (${os} ${arch} ${osVersion}; sing-box ${SING_BOX_VERSION}; language ${language})`;
+}
+
+const SUBSCRIPTION_USER_AGENT = buildUserAgent();
+
 
 export interface Subscription {
     id: number;
@@ -90,18 +107,8 @@ export function useSubscriptions(db: SQLiteDatabase, options?: UseSubscriptionsO
         try {
             const identifier = Date.now().toString(36) + Math.random().toString(36).substr(2);
 
-            const response = await fetchWithTimeout(url.trim(), {
-                method: 'GET',
-                headers: {
-                    'User-Agent': 'SFM/1.2.19 (macos aarch64 26.2.0; sing-box 1.12.17; language zh-Hans-CN)',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`获取订阅失败，HTTP状态码: ${response.status}`);
-            }
-
-            const configContent = await response.text();
+            const response = await fetchSubscriptionWithFallback(url.trim(), SUBSCRIPTION_USER_AGENT);
+            const configContent = response.content;
 
             if (!configContent || configContent.trim() === '') {
                 throw new Error('订阅配置内容为空');
@@ -148,18 +155,11 @@ export function useSubscriptions(db: SQLiteDatabase, options?: UseSubscriptionsO
                 throw new Error('订阅地址无效');
             }
 
-            const response = await fetchWithTimeout(subscription.subscription_url, {
-                method: 'GET',
-                headers: {
-                    'User-Agent': 'SFM/1.2.19 (macos aarch64 26.2.0; sing-box 1.12.17; language zh-Hans-CN)',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`更新订阅失败，HTTP状态码: ${response.status}`);
-            }
-
-            const configContent = await response.text();
+            const response = await fetchSubscriptionWithFallback(
+                subscription.subscription_url,
+                SUBSCRIPTION_USER_AGENT,
+            );
+            const configContent = response.content;
 
             if (!configContent || configContent.trim() === '') {
                 throw new Error('订阅配置内容为空');
@@ -213,18 +213,11 @@ export function useSubscriptions(db: SQLiteDatabase, options?: UseSubscriptionsO
                     continue;
                 }
 
-                const response = await fetchWithTimeout(subscription.subscription_url, {
-                    method: 'GET',
-                    headers: {
-                        'User-Agent': 'SFM/1.2.19 (macos aarch64 26.2.0; sing-box 1.12.17; language zh-Hans-CN)',
-                    },
-                });
-
-                if (!response.ok) {
-                    continue;
-                }
-
-                const configContent = await response.text();
+                const response = await fetchSubscriptionWithFallback(
+                    subscription.subscription_url,
+                    SUBSCRIPTION_USER_AGENT,
+                );
+                const configContent = response.content;
                 if (!configContent || configContent.trim() === '') {
                     continue;
                 }
