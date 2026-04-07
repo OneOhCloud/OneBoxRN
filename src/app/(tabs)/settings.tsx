@@ -12,6 +12,7 @@ import { useVpn } from '@/contexts/vpn-context';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox from '@/modules/expo-onebox';
 import { Ionicons } from '@expo/vector-icons';
+import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import React, { useRef } from 'react';
@@ -97,10 +98,10 @@ export default function SettingsScreen() {
         aboutTapTimer.current = setTimeout(() => { aboutTapCount.current = 0; }, 800);
     }
 
-    const appVersion = Constants.expoConfig?.version ?? '—';
+    const appVersion = Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? '—';
     const buildVersion = Platform.OS === 'web'
         ? String(Constants.expoConfig?.extra?.webBuildNumber ?? '—')
-        : String(Constants.nativeBuildVersion ?? '—');
+        : Application.nativeBuildVersion ?? String(Constants.nativeBuildVersion ?? '—');
     const coreVersion = ExpoOneBox.getLibBoxVersion() || '—';
 
     const versionValue = showBuild ? `${appVersion} (${i18n.t('build')} ${buildVersion})` : appVersion;
