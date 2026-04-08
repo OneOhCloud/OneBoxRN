@@ -136,6 +136,7 @@
       ],
       "./scripts/withOneBoxMTunnel.js",
       "./scripts/withGradleBuildOptimization.js",
+      "./scripts/withAndroidStatusBar.js",
       "./scripts/withReleaseSigningConfig.js",
       "./scripts/withFmtFix.js",
       "expo-localization",

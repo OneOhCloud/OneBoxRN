@@ -13,6 +13,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Asset } from 'expo-asset';
 import * as Notifications from 'expo-notifications';
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AppState, Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -108,6 +109,7 @@ export default function RootLayout() {
     return (
         <DatabaseProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
+                <StatusBar style="auto" />
                 <BottomSheetModalProvider>
                     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
                         <VpnProvider>
