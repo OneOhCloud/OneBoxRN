@@ -36,7 +36,7 @@ export function urlHostname(url: string, fallback = ''): string {
     try { return new URL(url).hostname; } catch { return fallback; }
 }
 
-/** Parse subscription name from a Content-Disposition header value. Returns null if not found. */
+/** Parse profile name from a Content-Disposition header value. Returns null if not found. */
 export function getRemoteNameByContentDisposition(contentDisposition: string): string | null {
     const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
     const matches = filenameRegex.exec(contentDisposition);

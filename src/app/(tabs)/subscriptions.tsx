@@ -1,5 +1,5 @@
 /**
- * Subscriptions Screen — routing mode selector + multi-subscription management.
+ * Profiles Screen — routing mode selector + multi-profile management.
  */
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -100,7 +100,7 @@ function TrafficBar({ used, total }: { used: number; total: number }) {
     );
 }
 
-// ─── Subscription list row ────────────────────────────────────────────────────
+// ─── Profile list row ─────────────────────────────────────────────────────────
 
 function SubscriptionRow({
     sub,
@@ -161,7 +161,7 @@ function SubscriptionRow({
     );
 }
 
-// ─── Active subscription detail ───────────────────────────────────────────────
+// ─── Active profile detail ────────────────────────────────────────────────────
 
 function ActiveSubDetail({
     sub,
@@ -342,7 +342,7 @@ export default function SubscriptionsScreen() {
                         contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: BottomTabInset + Spacing.three, gap: 20 }}
                         showsVerticalScrollIndicator={false}
                     >
-                        {/* Subscriptions */}
+                        {/* Profiles */}
                         {subs.length === 0 ? (
                             <EmptyState
                                 onScanQR={() => setCameraVisible(true)}

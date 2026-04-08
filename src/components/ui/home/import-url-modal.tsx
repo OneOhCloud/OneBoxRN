@@ -12,7 +12,7 @@ interface ImportUrlModalProps {
     onClose: () => void;
 }
 
-/** Page-sheet modal for importing a subscription URL */
+/** Page-sheet modal for importing a profile URL */
 export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
     const theme = useTheme();
     const [url, setUrl] = useState('');

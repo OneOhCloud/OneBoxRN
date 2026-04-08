@@ -8,7 +8,7 @@ interface EmptyStateProps {
     onImportUrl: () => void;
 }
 
-/** Shown when no subscription config has been imported yet */
+/** Shown when no profile has been imported yet */
 export function EmptyState({ onScanQR, onImportUrl }: EmptyStateProps) {
     const theme = useTheme();
     return (

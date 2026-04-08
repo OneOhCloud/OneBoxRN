@@ -26,7 +26,7 @@ export default function AppTabs() {
             <TabButton>连接</TabButton>
           </TabTrigger>
           <TabTrigger name="subscriptions" href="/subscriptions" asChild>
-            <TabButton>订阅</TabButton>
+            <TabButton>配置</TabButton>
           </TabTrigger>
           <TabTrigger name="settings" href="/settings" asChild>
             <TabButton>设置</TabButton>
