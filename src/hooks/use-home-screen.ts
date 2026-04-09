@@ -21,7 +21,6 @@ export function useHomeScreen() {
         total: SBConfig.getTotalTraffic(),
         expire: SBConfig.getExpireTime(),
     }));
-    const [cameraVisible, setCameraVisible] = useState(false);
     const [importUrlVisible, setImportUrlVisible] = useState(false);
 
     const isMounted = useRef(false);
@@ -73,11 +72,6 @@ export function useHomeScreen() {
         }
     }, [connected, loading]);
 
-    const handleCameraClose = useCallback(() => {
-        setCameraVisible(false);
-        setHasConfig(!!SBConfig.getConfigContent());
-    }, []);
-
     const handleImportUrlClose = useCallback(() => {
         setImportUrlVisible(false);
         setHasConfig(!!SBConfig.getConfigContent());
@@ -88,12 +82,9 @@ export function useHomeScreen() {
         loading,
         hasConfig,
         subInfo,
-        cameraVisible,
         importUrlVisible,
-        setCameraVisible,
         setImportUrlVisible,
         handleToggleConnect,
-        handleCameraClose,
         handleImportUrlClose,
     };
 }

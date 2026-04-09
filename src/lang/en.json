@@ -53,6 +53,7 @@
     "open_logs": "Runtime Logs",
     "open_settings_failed": "Failed to open settings. Please open settings manually and allow camera access for this app.",
     "open_settings": "Open Settings",
+    "or": "Or",
     "operation_failed": "Operation failed",
     "outbound_connections": "Outbound Connections",
     "permission_required": "VPN permission is required to connect",
@@ -85,8 +86,9 @@
     "sub_url": "Source URL",
     "sub_traffic_used": "Used %{used} / %{total}",
     "sub_expire": "Expiry Date",
-    "sub_refresh": "Refresh Now",
-    "sub_refreshing": "Refreshing…",
+    "sub_refresh": "Refresh",
+    "sub_refreshing": "Refreshing",
+    "remote_config": "Remote Config",
     "sub_refresh_success": "Profile updated",
     "sub_refresh_failed": "Refresh failed",
     "sub_delete": "Delete Profile",
@@ -119,5 +121,9 @@
     "config_traffic_total_label": "Total %{amount}",
     "config_no_expire": "No Expiry",
     "config_get_started": "Get Started",
-    "config_deep_link_hint": "Import via deep link or QR scan"
+    "config_deep_link_hint": "Import via deep link or QR scan",
+    "days_remaining": "(%{days} days left)",
+    "traffic_used": "Used",
+    "traffic_remaining": "Remaining",
+    "traffic_total": "Total"
 }

@@ -1,16 +1,17 @@
 /**
  * Profiles Screen — routing mode selector + multi-profile management.
+ * Redesigned with unified active profile card + simplified profile list.
  */
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import CameraQR from '@/components/ui/camera-qr';
 import { mediumImpact, notifyError, notifySuccess } from '@/components/ui/haptics';
+import { EmptyState } from '@/components/ui/home/empty-state';
 import { ImportUrlModal } from '@/components/ui/home/import-url-modal';
 import { ModeSelector } from '@/components/ui/home/mode-selector';
 import { fmtBytes } from '@/components/ui/home/subscription-info-card';
-import { SectionLabel } from '@/components/ui/home/traffic-card';
 import i18n from '@/constants/language';
 import { BottomTabInset, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useVpn } from '@/contexts/vpn-context';
 import { Subscription, SubscriptionStore } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import { executeConfigRefresh } from '@/tasks/config-refresh';
@@ -18,89 +19,119 @@ import { urlHostname } from '@/utils';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Circle, Svg } from 'react-native-svg';
 
 // ─── Shared card shell ────────────────────────────────────────────────────────
 
 function Card({ children, style }: { children: React.ReactNode; style?: object }) {
     const theme = useTheme();
     return (
-        <View style={[{ backgroundColor: theme.cardBackground, borderRadius: 14, paddingHorizontal: 16, overflow: 'hidden' }, style]}>
+        <View style={[{ backgroundColor: theme.cardBackground, borderRadius: 20, paddingHorizontal: 16, overflow: 'hidden' }, style]}>
             {children}
         </View>
     );
 }
 
-// ─── Card row ─────────────────────────────────────────────────────────────────
+// ─── Circular progress or icon placeholder ─────────────────────────────────
 
-function CardRow({
-    icon,
-    iconColor,
-    label,
-    value,
-    onPress,
-    isLast,
-}: {
-    icon: React.ComponentProps<typeof Ionicons>['name'];
-    iconColor: string;
-    label: string;
-    value?: string;
-    onPress?: () => void;
-    isLast?: boolean;
-}) {
-    const theme = useTheme();
-    return (
-        <Pressable
-            onPress={() => { if (onPress) { mediumImpact(); onPress(); } }}
-            style={({ pressed }) => ({
-                opacity: pressed && onPress ? 0.55 : 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingVertical: 12,
-                gap: 12,
-                borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
-                borderBottomColor: theme.border,
-            })}
-        >
-            <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: iconColor, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name={icon} size={16} color="#fff" />
-            </View>
-            <Text style={{ flex: 1, fontSize: 15, color: theme.text, fontFamily: Fonts?.sans }}>{label}</Text>
-            {value !== undefined && (
-                <Text numberOfLines={1} style={{ fontSize: 13, color: theme.textSecondary, maxWidth: 180 }}>{value}</Text>
-            )}
-            {onPress && <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />}
-        </Pressable>
-    );
-}
+function TrafficIndicator({ percentage, color, hasData, textSecondaryColor }: { percentage: number; color: string; hasData: boolean; textSecondaryColor: string }) {
+    const size = 160;
 
-// ─── Traffic bar ──────────────────────────────────────────────────────────────
+    if (hasData) {
+        const strokeWidth = 5;
+        const radius = (size - strokeWidth) / 2;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference - (percentage / 100) * circumference;
 
-function TrafficBar({ used, total }: { used: number; total: number }) {
-    const theme = useTheme();
-    const pct = total > 0 ? Math.min((used / total) * 100, 100) : 0;
-    const nearLimit = pct > 85;
-    const remaining = Math.max(0, total - used);
-
-    return (
-        <View style={{ paddingVertical: 12 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text style={{ fontSize: 13, color: theme.textSecondary }}>
-                    {i18n.t('sub_traffic_used', { used: fmtBytes(used), total: fmtBytes(total) })}
-                </Text>
-                <Text style={{ fontSize: 13, color: nearLimit ? '#FF3B30' : theme.textSecondary }}>
-                    {i18n.t('config_traffic_remaining', { amount: fmtBytes(remaining) })}
+        return (
+            <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+                    {/* Background circle */}
+                    <Circle
+                        cx={size / 2}
+                        cy={size / 2}
+                        r={radius}
+                        stroke="#E5E5EA"
+                        strokeWidth={strokeWidth}
+                        fill="none"
+                    />
+                    {/* Progress circle */}
+                    <Circle
+                        cx={size / 2}
+                        cy={size / 2}
+                        r={radius}
+                        stroke={color}
+                        strokeWidth={strokeWidth}
+                        fill="none"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={offset}
+                        strokeLinecap="round"
+                        rotation="-90"
+                        origin={`${size / 2}, ${size / 2}`}
+                    />
+                </Svg>
+                {/* Percentage text */}
+                <Text style={{ position: 'absolute', fontSize: 28, fontWeight: '600', color }}>
+                    {Math.round(percentage)}%
                 </Text>
             </View>
-            <View style={{ height: 5, borderRadius: 3, backgroundColor: theme.backgroundElement }}>
-                <View style={{ height: 5, borderRadius: 3, width: `${pct}%`, backgroundColor: nearLimit ? '#FF3B30' : '#007AFF' }} />
-            </View>
+        );
+    }
+
+    // No data: show icon instead
+    return (
+        <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Ionicons name="cloud-circle" size={128} color={textSecondaryColor} />
         </View>
     );
 }
 
-// ─── Profile list row ─────────────────────────────────────────────────────────
+// ─── Traffic bar — labels above values, wrapped around indicator ──────────────
+
+function TrafficBar({ used, total }: { used: number; total: number }) {
+    const theme = useTheme();
+    const hasData = total > 0;
+    const pct = hasData ? Math.min((used / total) * 100, 100) : 0;
+    const nearLimit = pct > 85;
+    const remaining = Math.max(0, total - used);
+    const color = nearLimit ? '#FF3B30' : '#007AFF';
+
+    return (
+        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+            <View style={{ flex: 1, gap: 12, paddingTop: 4 }}>
+                <View>
+                    <Text style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 2 }}>
+                        {i18n.t('traffic_used')}
+                    </Text>
+                    <Text style={{ fontSize: 16, color: theme.text, fontWeight: '600' }}>
+                        {hasData ? fmtBytes(used) : '-'}
+                    </Text>
+                </View>
+                <View>
+                    <Text style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 2 }}>
+                        {i18n.t('traffic_remaining')}
+                    </Text>
+                    <Text style={{ fontSize: 16, color: nearLimit ? '#FF3B30' : theme.text, fontWeight: '600' }}>
+                        {hasData ? fmtBytes(remaining) : '-'}
+                    </Text>
+                </View>
+                <View>
+                    <Text style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 2 }}>
+                        {i18n.t('traffic_total')}
+                    </Text>
+                    <Text style={{ fontSize: 16, color: theme.text, fontWeight: '600' }}>
+                        {hasData ? fmtBytes(total) : '-'}
+                    </Text>
+                </View>
+            </View>
+            <TrafficIndicator percentage={pct} color={color} hasData={hasData} textSecondaryColor={theme.textSecondary} />
+        </View>
+    );
+}
+
+// ─── Simplified profile list row (just name + checkmark + delete) ──────────────
 
 function SubscriptionRow({
     sub,
@@ -116,7 +147,6 @@ function SubscriptionRow({
     onDelete: () => void;
 }) {
     const theme = useTheme();
-    const hostname = urlHostname(sub.url, sub.url);
 
     return (
         <Pressable
@@ -132,139 +162,168 @@ function SubscriptionRow({
             })}
         >
             <View style={{
-                width: 22, height: 22, borderRadius: 11,
-                borderWidth: isActive ? 0 : 1.5,
+                width: 20, height: 20, borderRadius: 10,
+                borderWidth: isActive ? 0 : 2,
                 borderColor: theme.border,
                 backgroundColor: isActive ? '#007AFF' : 'transparent',
                 alignItems: 'center', justifyContent: 'center',
             }}>
-                {isActive && <Ionicons name="checkmark" size={13} color="#fff" />}
+                {isActive && <Ionicons name="checkmark" size={12} color="#fff" />}
             </View>
 
-            <View style={{ flex: 1, minWidth: 0 }}>
-                <Text numberOfLines={1} style={{ fontSize: 15, color: theme.text, fontFamily: Fonts?.sans }}>
-                    {sub.name}
-                </Text>
-                <Text numberOfLines={1} style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}>
-                    {hostname}
-                </Text>
-            </View>
+            <Text numberOfLines={1} style={{ flex: 1, fontSize: 15, color: theme.text, fontFamily: Fonts?.sans }}>
+                {sub.name}
+            </Text>
 
             <Pressable
                 onPress={() => { mediumImpact(); onDelete(); }}
                 hitSlop={8}
                 style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1, padding: 4 })}
             >
-                <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                <Ionicons name="trash-outline" size={18} color={theme.textSecondary} />
             </Pressable>
         </Pressable>
     );
 }
 
-// ─── Active profile detail ────────────────────────────────────────────────────
+// ─── Unified active profile card ──────────────────────────────────────────────
 
-function ActiveSubDetail({
+function ActiveProfileCard({
     sub,
     refreshing,
     onRefresh,
-    onScanQR,
-    onImportUrl,
 }: {
     sub: Subscription;
     refreshing: boolean;
     onRefresh: () => void;
-    onScanQR: () => void;
-    onImportUrl: () => void;
 }) {
     const theme = useTheme();
+    const isZh = i18n.locale.startsWith('zh');
+
     const expireDate = sub.expireTime > 0
         ? new Date(sub.expireTime * 1000).toLocaleDateString(
-            i18n.locale.startsWith('zh') ? 'zh-CN' : 'en-US',
-            { year: 'numeric', month: '2-digit', day: '2-digit' }
+            isZh ? 'zh-CN' : 'en-US',
+            isZh
+                ? { year: 'numeric', month: 'long', day: 'numeric' }
+                : { year: 'numeric', month: 'short', day: 'numeric' }
         )
-        : i18n.t('config_no_expire');
+        : null;
 
-    return (
-        <View style={{ gap: 20 }}>
-            {/* Info */}
-            <View>
-                <SectionLabel text={i18n.t('sub_section_info')} />
-                <Card>
-                    <CardRow icon="person-circle-outline" iconColor="#5856D6" label={i18n.t('sub_name')} value={sub.name} />
-                    <CardRow icon="link-outline" iconColor="#007AFF" label={i18n.t('sub_url')} value={urlHostname(sub.url, sub.url)} isLast={sub.totalTraffic <= 1 && sub.expireTime <= 0} />
-                    {sub.totalTraffic > 1 && (
-                        <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }}>
-                            <TrafficBar used={sub.usedTraffic} total={sub.totalTraffic} />
+    const daysLeft = sub.expireTime > 0
+        ? Math.max(0, Math.ceil((sub.expireTime * 1000 - Date.now()) / 86400000))
+        : null;
+
+    const daysLeftColor = daysLeft !== null && daysLeft < 30 ? '#FF3B30' : theme.text;
+    const hasData = sub.totalTraffic > 0 || sub.expireTime > 0;
+
+    if (hasData) {
+        // With data: show full card with traffic and expiry
+        return (
+            <Card style={{ paddingVertical: 20 }}>
+                {/* Header: Name + Refresh button */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text, flex: 1 }}>
+                        {sub.name || i18n.t('remote_config')}
+                    </Text>
+                    <Pressable
+                        disabled={refreshing}
+                        onPress={() => { if (!refreshing) { mediumImpact(); onRefresh(); } }}
+                        style={({ pressed }) => ({
+                            opacity: refreshing ? 0.4 : (pressed ? 0.6 : 1),
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 4,
+                            paddingHorizontal: 8,
+                            paddingVertical: 6,
+                        })}
+                    >
+                        <Ionicons
+                            name="refresh-outline"
+                            size={14}
+                            color={refreshing ? theme.textSecondary : '#007AFF'}
+                        />
+                        <Text style={{ fontSize: 12, color: refreshing ? theme.textSecondary : '#007AFF' }}>
+                            {refreshing ? i18n.t('sub_refreshing') : i18n.t('sub_refresh')}
+                        </Text>
+                    </Pressable>
+                </View>
+
+                {/* Info rows */}
+                <View style={{ gap: 16 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons name="link-outline" size={14} color="#007AFF" />
+                        <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: theme.text }}>{urlHostname(sub.url, sub.url)}</Text>
+                    </View>
+
+                    <TrafficBar used={sub.usedTraffic} total={sub.totalTraffic} />
+
+                    {expireDate ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Ionicons name="calendar-outline" size={14} color={daysLeftColor} />
+                            <Text style={{ fontSize: 13, color: daysLeftColor }}>
+                                {expireDate}
+                                {daysLeft !== null && ` ${i18n.t('days_remaining', { days: daysLeft })}`}
+                            </Text>
+                        </View>
+                    ) : (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Ionicons name="calendar-outline" size={14} color={theme.textSecondary} />
+                            <Text style={{ fontSize: 13, color: theme.textSecondary }}>
+                                {i18n.t('config_no_expire')}
+                            </Text>
                         </View>
                     )}
-                    {sub.expireTime > 0 && (
-                        <CardRow icon="calendar-outline" iconColor="#34C759" label={i18n.t('sub_expire')} value={expireDate} isLast />
-                    )}
-                </Card>
-            </View>
+                </View>
+            </Card>
+        );
+    }
 
-            {/* Actions */}
-            <View>
-                <SectionLabel text={i18n.t('sub_section_actions')} />
-                <Card>
-                    <CardRow
-                        icon="refresh-outline" iconColor="#007AFF"
-                        label={refreshing ? i18n.t('sub_refreshing') : i18n.t('sub_refresh')}
-                        onPress={refreshing ? undefined : onRefresh}
-                    />
-                    <CardRow icon="qr-code-outline" iconColor="#FF9500" label={i18n.t('scan_qr')} onPress={onScanQR} />
-                    <CardRow icon="link-outline" iconColor="#FF9500" label={i18n.t('import_url')} onPress={onImportUrl} isLast />
-                </Card>
-            </View>
-        </View>
-    );
-}
-
-// ─── Empty state ──────────────────────────────────────────────────────────────
-
-function EmptyState({ onScanQR, onImportUrl }: { onScanQR: () => void; onImportUrl: () => void }) {
-    const theme = useTheme();
+    // No data: compact card with title, URL, and full-height refresh button
     return (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: theme.backgroundElement, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Ionicons name="cloud-download-outline" size={28} color={theme.textSecondary} />
+        <Card style={{ paddingVertical: 24, paddingHorizontal: 0, flexDirection: 'row', overflow: 'visible' }}>
+            <View style={{ flex: 1, paddingHorizontal: 16, justifyContent: 'center', gap: 24 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text }}>
+                    {i18n.t('remote_config')}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="link-outline" size={14} color="#007AFF" />
+                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: theme.text }}>
+                        {urlHostname(sub.url, sub.url)}
+                    </Text>
+                </View>
             </View>
-            <ThemedText style={{ fontSize: 17, fontWeight: '600', fontFamily: Fonts?.rounded, letterSpacing: -0.4, lineHeight: 24, marginBottom: 6 }}>
-                {i18n.t('sub_empty_title')}
-            </ThemedText>
-            <ThemedText themeColor="textSecondary" style={{ fontSize: 14, textAlign: 'center', marginBottom: 28 }}>
-                {i18n.t('sub_empty_desc')}
-            </ThemedText>
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-                <Pressable
-                    onPress={() => { mediumImpact(); onScanQR(); }}
-                    style={({ pressed }) => ({ flex: 1, alignItems: 'center', paddingVertical: 13, borderRadius: 12, backgroundColor: theme.backgroundElement, opacity: pressed ? 0.55 : 1 })}
-                >
-                    <Ionicons name="qr-code-outline" size={20} color={theme.text} style={{ marginBottom: 5 }} />
-                    <ThemedText style={{ fontSize: 13, fontWeight: '500' }}>{i18n.t('scan_qr')}</ThemedText>
-                </Pressable>
-                <Pressable
-                    onPress={() => { mediumImpact(); onImportUrl(); }}
-                    style={({ pressed }) => ({ flex: 1, alignItems: 'center', paddingVertical: 13, borderRadius: 12, backgroundColor: '#007AFF', opacity: pressed ? 0.72 : 1 })}
-                >
-                    <Ionicons name="link-outline" size={20} color="#fff" style={{ marginBottom: 5 }} />
-                    <Text style={{ fontSize: 13, fontWeight: '500', color: '#fff' }}>{i18n.t('import_url')}</Text>
-                </Pressable>
-            </View>
-        </View>
+
+            <Pressable
+                disabled={refreshing}
+                onPress={() => { if (!refreshing) { mediumImpact(); onRefresh(); } }}
+                style={({ pressed }) => ({
+                    paddingHorizontal: 16,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    opacity: refreshing ? 0.4 : (pressed ? 0.6 : 1),
+                })}
+            >
+                <Ionicons
+                    name="refresh-outline"
+                    size={24}
+                    color={refreshing ? theme.textSecondary : '#007AFF'}
+                />
+            </Pressable>
+        </Card>
     );
 }
+
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function SubscriptionsScreen() {
     const theme = useTheme();
+    const { connected } = useVpn();
 
     const [subs, setSubs] = useState<Subscription[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const refreshingRef = useRef(false);
-    const [cameraVisible, setCameraVisible] = useState(false);
     const [importUrlVisible, setImportUrlVisible] = useState(false);
 
     const loadData = useCallback(() => {
@@ -309,7 +368,6 @@ export default function SubscriptionsScreen() {
     }, [loadData]);
 
     const handleImportClose = useCallback(() => { setImportUrlVisible(false); loadData(); }, [loadData]);
-    const handleCameraClose = useCallback(() => { setCameraVisible(false); loadData(); }, [loadData]);
 
     const activeSub = subs.find(s => s.id === activeId) ?? null;
 
@@ -323,11 +381,14 @@ export default function SubscriptionsScreen() {
                         <ThemedText style={{ flex: 1, fontSize: 28, fontWeight: '700', fontFamily: Fonts?.rounded, letterSpacing: -0.5, lineHeight: 36 }}>
                             {i18n.t('sub_title')}
                         </ThemedText>
+
                         <Pressable
-                            onPress={() => { mediumImpact(); setImportUrlVisible(true); }}
+                            onPress={() => {
+                                mediumImpact();
+                                setImportUrlVisible(true);
+                            }}
                             style={({ pressed }) => ({
                                 width: 36, height: 36, borderRadius: 18,
-                                backgroundColor: theme.backgroundElement,
                                 alignItems: 'center', justifyContent: 'center',
                                 opacity: pressed ? 0.55 : 1,
                             })}
@@ -335,53 +396,46 @@ export default function SubscriptionsScreen() {
                         >
                             <Ionicons name="add" size={22} color={theme.text} />
                         </Pressable>
+
                     </View>
 
-                    {/* Scrollable content — routing mode always at top */}
+                    {/* Scrollable content */}
                     <ScrollView
                         contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: BottomTabInset + Spacing.three, gap: 20 }}
                         showsVerticalScrollIndicator={false}
                     >
-                        {/* Profiles */}
                         {subs.length === 0 ? (
                             <EmptyState
-                                onScanQR={() => setCameraVisible(true)}
+                                onScanQR={() => setImportUrlVisible(true)}
                                 onImportUrl={() => setImportUrlVisible(true)}
                             />
                         ) : (
-
-
                             <View style={{ gap: 20 }}>
-                                {/* Routing mode */}
-                                <View>
-                                    <SectionLabel text={i18n.t('section_routing_mode')} />
-                                    <ModeSelector hideSectionLabel />
-                                </View>
-                                <View>
-                                    <SectionLabel text={i18n.t('sub_section_list')} />
-                                    <Card>
-                                        {subs.map((sub, idx) => (
-                                            <SubscriptionRow
-                                                key={sub.id}
-                                                sub={sub}
-                                                isActive={sub.id === activeId}
-                                                isLast={idx === subs.length - 1}
-                                                onActivate={() => handleActivate(sub.id)}
-                                                onDelete={() => handleDelete(sub)}
-                                            />
-                                        ))}
-                                    </Card>
-                                </View>
+                                {/* Routing mode — only when profiles exist */}
+                                <ModeSelector hideSectionLabel />
 
+                                {/* Active profile card (if selected) */}
                                 {activeSub && (
-                                    <ActiveSubDetail
+                                    <ActiveProfileCard
                                         sub={activeSub}
                                         refreshing={refreshing}
                                         onRefresh={handleRefresh}
-                                        onScanQR={() => setCameraVisible(true)}
-                                        onImportUrl={() => setImportUrlVisible(true)}
                                     />
                                 )}
+
+                                {/* Profiles list */}
+                                <Card>
+                                    {subs.map((sub, idx) => (
+                                        <SubscriptionRow
+                                            key={sub.id}
+                                            sub={sub}
+                                            isActive={sub.id === activeId}
+                                            isLast={idx === subs.length - 1}
+                                            onActivate={() => handleActivate(sub.id)}
+                                            onDelete={() => handleDelete(sub)}
+                                        />
+                                    ))}
+                                </Card>
                             </View>
                         )}
                     </ScrollView>
@@ -389,11 +443,6 @@ export default function SubscriptionsScreen() {
             </SafeAreaView>
 
             <ImportUrlModal visible={importUrlVisible} onClose={handleImportClose} />
-            <Modal visible={cameraVisible} onRequestClose={handleCameraClose}>
-                <View style={{ flex: 1, backgroundColor: '#000' }}>
-                    <CameraQR onHandleClose={handleCameraClose} />
-                </View>
-            </Modal>
         </ThemedView>
     );
 }

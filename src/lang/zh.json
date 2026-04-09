@@ -53,6 +53,7 @@
     "open_logs": "运行日志",
     "open_settings_failed": "无法打开设置。请手动打开设置并允许此应用访问相机。",
     "open_settings": "打开设置",
+    "or": "或",
     "operation_failed": "操作失败",
     "outbound_connections": "出站连接",
     "permission_required": "需要 VPN 权限才能连接",
@@ -85,8 +86,9 @@
     "sub_url": "配置链接",
     "sub_traffic_used": "已用 %{used} / %{total}",
     "sub_expire": "到期时间",
-    "sub_refresh": "立即刷新",
-    "sub_refreshing": "刷新中…",
+    "sub_refresh": "刷新",
+    "sub_refreshing": "刷新中",
+    "remote_config": "远程配置文件",
     "sub_refresh_success": "配置已更新",
     "sub_refresh_failed": "刷新失败",
     "sub_delete": "删除配置",
@@ -119,5 +121,9 @@
     "config_traffic_total_label": "共 %{amount}",
     "config_no_expire": "永久有效",
     "config_get_started": "开始使用",
-    "config_deep_link_hint": "请通过深链或扫码导入配置"
+    "config_deep_link_hint": "请通过深链或扫码导入配置",
+    "days_remaining": "（剩余 %{days} 天）",
+    "traffic_used": "已用",
+    "traffic_remaining": "剩余",
+    "traffic_total": "共"
 }
