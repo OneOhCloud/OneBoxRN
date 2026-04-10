@@ -2,20 +2,21 @@
  * Developer Tools — hidden page, accessible by tapping "About" section 3 times.
  * Shows background task status, subscription config state, and task execution history.
  */
-import { lightImpact } from '@/components/ui/haptics';
-import { CONFIG_REFRESH_TASK, executeConfigRefresh, registerConfigRefreshTask } from '@/tasks/config-refresh';
-import { Fonts, Spacing } from '@/constants/theme';
+import { AccelerateUrlSettingCard } from '@/components/dev/accelerate-url-setting-card';
+import { BackgroundTaskCard } from '@/components/dev/background-task-card';
+import { ConfigStateCard } from '@/components/dev/config-state-card';
+import { DebugActionsCard } from '@/components/dev/debug-actions-card';
+import { DevHeader } from '@/components/dev/dev-header';
+import { ExecutionHistoryCard } from '@/components/dev/execution-history-card';
+import { PrimaryUrlTestCard } from '@/components/dev/primary-url-test-card';
+import { Spacing } from '@/constants/theme';
+import type { TaskLogEntry } from '@/database/kv';
 import { SBConfig, TaskLog } from '@/database/kv';
-import type { TaskLogEntry, TaskRecord, TaskStatus, TriggerSource } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox from '@/modules/expo-onebox';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-// ─── Types ────────────────────────────────────────────────────
 
 interface TaskInfo {
     isRegistered: boolean;
@@ -28,172 +29,6 @@ interface ConfigState {
     totalTraffic: number;
     expireTime: number;
 }
-
-// ─── Helpers ──────────────────────────────────────────────────
-
-function formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
-}
-
-function taskStatusColor(status: TaskStatus): string {
-    switch (status) {
-        case 'success': return '#34C759';
-        case 'skipped': return '#FF9500';
-        case 'failed': return '#FF3B30';
-    }
-}
-
-function relativeTime(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'Just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ${mins % 60}m ago`;
-    const days = Math.floor(hrs / 24);
-    return `${days}d ago`;
-}
-
-function formatTime(iso: string): string {
-    const d = new Date(iso);
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-function formatDuration(ms: number): string {
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(1)}s`;
-}
-
-function triggerLabel(trigger: TriggerSource | undefined): string {
-    switch (trigger) {
-        case 'manual-direct': return 'Direct';
-        case 'manual-worker': return 'Worker';
-        case 'auto': return 'Auto';
-        default: return 'Auto'; // legacy records without trigger field
-    }
-}
-
-function triggerColor(trigger: TriggerSource | undefined): string {
-    switch (trigger) {
-        case 'manual-direct': return '#007AFF';
-        case 'manual-worker': return '#AF52DE';
-        default: return '#8E8E93';
-    }
-}
-
-// ─── Row ─────────────────────────────────────────────────────
-
-function Row({
-    label,
-    value,
-    valueColor,
-    isLast,
-    theme,
-}: {
-    label: string;
-    value: string;
-    valueColor?: string;
-    isLast?: boolean;
-    theme: ReturnType<typeof useTheme>;
-}) {
-    return (
-        <View
-            style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                paddingVertical: 11,
-                borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
-                borderBottomColor: theme.border,
-            }}
-        >
-            <Text style={{ fontSize: 14, color: theme.textSecondary }}>{label}</Text>
-            <Text
-                style={{
-                    fontSize: 14,
-                    fontWeight: '500',
-                    color: valueColor ?? theme.text,
-                    fontFamily: Fonts?.mono,
-                    maxWidth: 220,
-                }}
-                numberOfLines={1}
-            >
-                {value}
-            </Text>
-        </View>
-    );
-}
-
-function Card({ title, children, theme }: { title: string; children: React.ReactNode; theme: ReturnType<typeof useTheme> }) {
-    return (
-        <View style={{ marginBottom: 24 }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginLeft: 4 }}>
-                {title}
-            </Text>
-            <View
-                style={{
-                    backgroundColor: theme.cardBackground,
-                    borderRadius: 14,
-                    paddingHorizontal: 16,
-                    borderWidth: StyleSheet.hairlineWidth,
-                    borderColor: theme.border,
-                }}
-            >
-                {children}
-            </View>
-        </View>
-    );
-}
-
-// ─── Task Record Row ─────────────────────────────────────────
-
-function RecordRow({ record, isLast, theme }: { record: TaskRecord; isLast: boolean; theme: ReturnType<typeof useTheme> }) {
-    const color = taskStatusColor(record.status);
-    const tColor = triggerColor(record.trigger);
-    return (
-        <View
-            style={{
-                paddingVertical: 10,
-                borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
-                borderBottomColor: theme.border,
-            }}
-        >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
-                    <Text style={{ fontSize: 13, color: theme.text, fontFamily: Fonts?.mono }}>
-                        {formatTime(record.time)}
-                    </Text>
-                    <Text style={{ fontSize: 10, color: tColor, fontFamily: Fonts?.mono, fontWeight: '600' }}>
-                        {triggerLabel(record.trigger)}
-                    </Text>
-                    <Text style={{ fontSize: 10, color, fontFamily: Fonts?.mono, fontWeight: '600' }}>
-                        {record.status}
-                    </Text>
-                    {record.contentChanged && (
-                        <Text style={{ fontSize: 10, color: '#007AFF', fontFamily: Fonts?.mono, fontWeight: '600' }}>
-                            updated
-                        </Text>
-                    )}
-                </View>
-                <Text style={{ fontSize: 12, color: theme.textSecondary, fontFamily: Fonts?.mono }}>
-                    {formatDuration(record.duration)}
-                </Text>
-            </View>
-            {record.detail ? (
-                <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2, marginLeft: 12 }} numberOfLines={1}>
-                    {record.detail}
-                </Text>
-            ) : null}
-        </View>
-    );
-}
-
-// ─── Screen ──────────────────────────────────────────────────
 
 export default function DevScreen() {
     const theme = useTheme();
@@ -229,13 +64,6 @@ export default function DevScreen() {
 
     useEffect(() => { load(); }, [load]);
 
-    const expireDate = config && config.expireTime > 0
-        ? new Date(config.expireTime * 1000).toLocaleString()
-        : 'N/A';
-
-    // Reverse chronological for display
-    const records = taskLog?.records ? [...taskLog.records].reverse() : [];
-
     return (
         <View
             style={{
@@ -247,25 +75,7 @@ export default function DevScreen() {
                 paddingRight: insets.right,
             }}
         >
-            {/* Header */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingBottom: 16 }}>
-                <Pressable
-                    onPress={() => router.back()}
-                    style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.6 : 1 })}
-                >
-                    <Ionicons name="chevron-back" size={20} color="#007AFF" />
-                    <Text style={{ color: '#007AFF', fontSize: 16 }}>Back</Text>
-                </Pressable>
-                <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text, fontFamily: Fonts?.rounded }}>
-                    Developer
-                </Text>
-                <Pressable
-                    onPress={() => { lightImpact(); load(); }}
-                    style={({ pressed }) => ({ padding: 8, opacity: pressed ? 0.6 : 1 })}
-                >
-                    <Ionicons name="refresh" size={20} color="#007AFF" />
-                </Pressable>
-            </View>
+            <DevHeader onRefresh={load} />
 
             {loading ? (
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -273,146 +83,20 @@ export default function DevScreen() {
                 </View>
             ) : (
                 <ScrollView contentContainerStyle={{ paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
-                    {/* Background Task */}
-                    <Card title="Background Task" theme={theme}>
-                        <Row
-                            label="Task Name"
-                            value={CONFIG_REFRESH_TASK}
-                            theme={theme}
+                    <AccelerateUrlSettingCard onSettingChanged={load} />
+                    <PrimaryUrlTestCard onSettingChanged={load} />
+                    {taskInfo && <BackgroundTaskCard isRegistered={taskInfo.isRegistered} />}
+                    <DebugActionsCard onExecuted={load} />
+                    {config && (
+                        <ConfigStateCard
+                            link={config.link}
+                            contentLength={config.contentLength}
+                            usedTraffic={config.usedTraffic}
+                            totalTraffic={config.totalTraffic}
+                            expireTime={config.expireTime}
                         />
-                        <Row
-                            label="Registered"
-                            value={taskInfo?.isRegistered ? 'Yes' : 'No'}
-                            valueColor={taskInfo?.isRegistered ? '#34C759' : '#FF3B30'}
-                            theme={theme}
-                            isLast
-                        />
-                    </Card>
-
-                    {/* Debug Actions */}
-                    <Card title="Debug Actions" theme={theme}>
-                        <Pressable
-                            onPress={async () => {
-                                lightImpact();
-                                try {
-                                    console.log('[Dev] executing config refresh directly...');
-                                    const result = await executeConfigRefresh();
-                                    const label = result?.status === 'success' ? 'Success' : (result?.status ?? 'No URL');
-                                    Alert.alert('Task Result', `${label}\nCheck logs for details.`);
-                                    load();
-                                } catch (e) {
-                                    const msg = e instanceof Error ? e.message : String(e);
-                                    console.warn('[Dev] direct execute error:', e);
-                                    Alert.alert('Execute Error', msg);
-                                }
-                            }}
-                            style={({ pressed }) => ({
-                                paddingVertical: 12,
-                                borderBottomWidth: StyleSheet.hairlineWidth,
-                                borderBottomColor: theme.border,
-                                opacity: pressed ? 0.6 : 1,
-                            })}
-                        >
-                            <Text style={{ fontSize: 14, color: '#007AFF', textAlign: 'center', fontWeight: '600' }}>
-                                Execute Directly
-                            </Text>
-                        </Pressable>
-                        <Pressable
-                            onPress={async () => {
-                                lightImpact();
-                                try {
-                                    console.log('[Dev] re-registering native background task...');
-                                    await registerConfigRefreshTask();
-                                    Alert.alert('Re-register', 'Task has been re-registered. Check logs.');
-                                    load();
-                                } catch (e) {
-                                    const msg = e instanceof Error ? e.message : String(e);
-                                    console.warn('[Dev] re-register error:', e);
-                                    Alert.alert('Re-register Error', msg);
-                                }
-                            }}
-                            style={({ pressed }) => ({
-                                paddingVertical: 12,
-                                opacity: pressed ? 0.6 : 1,
-                            })}
-                        >
-                            <Text style={{ fontSize: 14, color: '#FF9500', textAlign: 'center', fontWeight: '600' }}>
-                                Re-register Task
-                            </Text>
-                        </Pressable>
-                    </Card>
-
-                    {/* Config State */}
-                    <Card title="Subscription Config" theme={theme}>
-                        <Row
-                            label="Config URL"
-                            value={config?.link ?? 'None'}
-                            valueColor={config?.link ? theme.text : '#FF3B30'}
-                            theme={theme}
-                        />
-                        <Row
-                            label="Content Size"
-                            value={config ? formatBytes(config.contentLength) : '—'}
-                            theme={theme}
-                        />
-                        <Row
-                            label="Used Traffic"
-                            value={config ? formatBytes(config.usedTraffic) : '—'}
-                            theme={theme}
-                        />
-                        <Row
-                            label="Total Traffic"
-                            value={config ? formatBytes(config.totalTraffic) : '—'}
-                            theme={theme}
-                        />
-                        <Row
-                            label="Expire Time"
-                            value={expireDate}
-                            theme={theme}
-                            isLast
-                        />
-                    </Card>
-
-                    {/* Task Execution History */}
-                    <Card title="Execution History" theme={theme}>
-                        {taskLog ? (
-                            <>
-                                <Row
-                                    label="Total Runs"
-                                    value={String(taskLog.totalCount)}
-                                    theme={theme}
-                                />
-                                <Row
-                                    label="Last Run"
-                                    value={taskLog.lastExecutedAt ? relativeTime(taskLog.lastExecutedAt) : 'Never'}
-                                    valueColor={taskLog.lastExecutedAt ? theme.text : theme.textSecondary}
-                                    theme={theme}
-                                />
-                                <Row
-                                    label="Last Status"
-                                    value={taskLog.lastStatus ?? '—'}
-                                    valueColor={taskLog.lastStatus ? taskStatusColor(taskLog.lastStatus) : theme.textSecondary}
-                                    theme={theme}
-                                    isLast={records.length === 0}
-                                />
-                            </>
-                        ) : (
-                            <Row label="Status" value="No config URL" valueColor={theme.textSecondary} theme={theme} isLast />
-                        )}
-                    </Card>
-
-                    {records.length > 0 && (
-                        <Card title={`Recent Records (${records.length})`} theme={theme}>
-                            {records.map((r, i) => (
-                                <RecordRow
-                                    key={r.time + i}
-                                    record={r}
-                                    isLast={i === records.length - 1}
-                                    theme={theme}
-                                />
-                            ))}
-                        </Card>
                     )}
+                    <ExecutionHistoryCard taskLog={taskLog} />
                 </ScrollView>
             )}
         </View>

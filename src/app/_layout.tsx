@@ -81,6 +81,19 @@ export default function RootLayout() {
         // 单订阅 → 多订阅格式迁移（依赖 MMKV 迁移完成后执行）
         migrateV1SubscriptionToMulti();
 
+        // Initialize domain verification data (fetch and cache) before registering background task
+        Task.initializeConfigRefresh()
+            .then(() => {
+                console.log('[RootLayout] config refresh initialization complete');
+                // Now register background task with populated verification data
+                Task.registerConfigRefreshTask();
+            })
+            .catch((e) => {
+                console.warn('[RootLayout] config refresh initialization error:', e);
+                // Still register task even if verification data fetch failed, it will use defaults
+                Task.registerConfigRefreshTask();
+            });
+
         // Sync any result that the native background task stored while the app was suspended
         Task.syncNativeResultToJS();
 
@@ -89,8 +102,6 @@ export default function RootLayout() {
                 Task.syncNativeResultToJS();
             }
         });
-
-        Task.registerConfigRefreshTask();
 
         // 需要每次启动都确保缓存数据库就位
         copyCacheDb().then(() => {
