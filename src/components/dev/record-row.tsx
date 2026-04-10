@@ -1,21 +1,24 @@
 import { Fonts } from '@/constants/theme';
 import type { TaskRecord } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { formatDuration, formatTime, taskStatusColor, triggerColor, triggerLabel } from '@/utils/dev-utils';
 
 interface RecordRowProps {
     record: TaskRecord;
     isLast: boolean;
+    onPress?: () => void;
 }
 
-export function RecordRow({ record, isLast }: RecordRowProps) {
+export function RecordRow({ record, isLast, onPress }: RecordRowProps) {
     const theme = useTheme();
     const color = taskStatusColor(record.status);
     const tColor = triggerColor(record.trigger);
 
     return (
-        <View
+        <TouchableOpacity
+            onPress={onPress}
+            activeOpacity={0.6}
             style={{
                 paddingVertical: 10,
                 borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
@@ -49,6 +52,6 @@ export function RecordRow({ record, isLast }: RecordRowProps) {
                     {record.detail}
                 </Text>
             ) : null}
-        </View>
+        </TouchableOpacity>
     );
 }

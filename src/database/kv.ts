@@ -404,6 +404,32 @@ export interface TaskRecord {
     contentChanged?: boolean;
     /** Optional detail, e.g. error message */
     detail?: string;
+    /** Detailed info: method used (primary/accelerated/fallback), etc. */
+    details?: {
+        method?: 'primary' | 'accelerated' | 'fallback' | 'test_mode';
+        usedAccelerate?: boolean;
+        error?: string;
+        fallbackReason?: string;
+        traffic?: {
+            upload: number;
+            download: number;
+            total: number;
+            expire: number;
+        };
+        urls?: {
+            primary?: string;
+            accelerated?: string;
+        };
+        subscriptionInfo?: {
+            rawHeader?: string;  // 原始 subscription-userinfo 响应头
+            parsed?: {
+                upload: number;
+                download: number;
+                total: number;
+                expire: number;
+            };
+        };
+    };
 }
 
 export interface TaskLogEntry {

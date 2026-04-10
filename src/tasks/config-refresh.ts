@@ -59,6 +59,8 @@ export function setTestPrimaryUrlUnavailable(enabled: boolean): void {
 /**
  * Register (or update) the native periodic background config refresh.
  * No-ops if no config URL is stored yet.
+ * Always passes original URL + accelerate URL to native, so both foreground and background
+ * config refresh can respect the user's priority setting via executeRefreshWith(tryAccelerateFirst).
  */
 export async function registerConfigRefreshTask(): Promise<void> {
     const url = SBConfig.getConfigLink();
@@ -67,21 +69,12 @@ export async function registerConfigRefreshTask(): Promise<void> {
         return;
     }
     try {
-        if (getUseAccelerateUrl()) {
-            // 优先使用加速链接
-            if (!ACCELERATE_URL) {
-                console.log('[ConfigRefresh] accelerate URL not configured, falling back to default');
-                await ExpoOneBox.registerBackgroundConfigRefresh(url, getSingBoxUserAgent(), 1800, ACCELERATE_URL);
-                console.log('[ConfigRefresh] native background task registered (default with fallback)');
-                return;
-            }
-            await ExpoOneBox.registerBackgroundConfigRefresh(ACCELERATE_URL, getSingBoxUserAgent(), 1800, null);
-            console.log('[ConfigRefresh] native background task registered (accelerated)');
-        } else {
-            // 默认逻辑：url 作为主，accelerateUrl 作为回落（原生层会做 SHA256 校验）
-            await ExpoOneBox.registerBackgroundConfigRefresh(url, getSingBoxUserAgent(), 1800, ACCELERATE_URL);
-            console.log('[ConfigRefresh] native background task registered (default with fallback)');
-        }
+        const accelerateUrl = ACCELERATE_URL || null;
+        const priority = getUseAccelerateUrl() ? 'accelerated' : 'default';
+        console.log(`[ConfigRefresh] registering background task (priority=${priority})`);
+        // Always pass original URL + accelerate URL, so native can construct accelerated URLs correctly
+        await ExpoOneBox.registerBackgroundConfigRefresh(url, getSingBoxUserAgent(), 1800, accelerateUrl);
+        console.log('[ConfigRefresh] background task registered with config + accelerate URL');
     } catch (e) {
         console.warn('[ConfigRefresh] registration error:', e);
     }
@@ -91,10 +84,12 @@ export async function registerConfigRefreshTask(): Promise<void> {
 
 /**
  * Execute a config refresh immediately (foreground / dev screen).
- * - When accelerate switch is OFF: use primary URL with accelerate fallback (default behavior)
- * - When accelerate switch is ON: prioritize accelerate URL
- * Native layer uses verification data for SHA256 validation during fallback.
- * Test mode: simulates primary URL unavailable to test fallback behavior.
+ * Core logic (unified):
+ *   1. Try primary URL
+ *   2. If fails and domain is verified → fallback to accelerate URL
+ *   3. Return result with method info
+ *
+ * Test mode: simulates primary URL unavailable to test fallback path.
  */
 export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null> {
     const url = SBConfig.getConfigLink();
@@ -104,28 +99,14 @@ export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null
     }
 
     const testMode = getTestPrimaryUrlUnavailable();
+    const testModeMsg = testMode ? ' [TEST MODE: primary unavailable]' : '';
+    console.log(`[ConfigRefresh] executing foreground refresh…${testModeMsg}`);
 
-    if (getUseAccelerateUrl()) {
-        // 优先使用加速链接
-        if (!ACCELERATE_URL) {
-            console.log('[ConfigRefresh] accelerate URL not configured, falling back to default');
-            const result = await ExpoOneBox.executeConfigRefreshNow(url, getSingBoxUserAgent(), null, testMode);
-            applyResultToSBConfig(result, url, 'manual-direct', false);
-            return result;
-        }
-        console.log('[ConfigRefresh] executing foreground refresh (accelerated)…');
-        const result = await ExpoOneBox.executeConfigRefreshNow(ACCELERATE_URL, getSingBoxUserAgent(), null, testMode);
-        applyResultToSBConfig(result, url, 'manual-direct', true);
-        return result;
-    } else {
-        // 默认逻辑：primary URL with accelerate fallback
-        // Native layer validates domain SHA256 before allowing fallback
-        const testModeMsg = testMode ? ' [TEST MODE: simulating primary URL unavailable]' : '';
-        console.log(`[ConfigRefresh] executing foreground refresh (default with fallback)…${testModeMsg}`);
-        const result = await ExpoOneBox.executeConfigRefreshNow(url, getSingBoxUserAgent(), ACCELERATE_URL, testMode);
-        applyResultToSBConfig(result, url, 'manual-direct', false);
-        return result;
-    }
+    // Always pass both primary and accelerate URLs to native
+    // Native layer will: primary → fail → verify domain → accelerate
+    const result = await ExpoOneBox.executeConfigRefreshNow(url, getSingBoxUserAgent(), ACCELERATE_URL || null, testMode);
+    applyResultToSBConfig(result, url, 'manual-direct', { primary: url, accelerated: ACCELERATE_URL || undefined });
+    return result;
 }
 
 // ─── Foreground sync ──────────────────────────────────────────────────────────
@@ -141,8 +122,7 @@ export function syncNativeResultToJS(): void {
         if (!result) return;
         const url = SBConfig.getConfigLink();
         if (url) {
-            const usedAccelerate = getUseAccelerateUrl() && !!ACCELERATE_URL;
-            applyResultToSBConfig(result, url, 'auto', usedAccelerate);
+            applyResultToSBConfig(result, url, 'auto', { primary: url, accelerated: ACCELERATE_URL || undefined });
         }
     } catch (e) {
         console.warn('[ConfigRefresh] syncNativeResultToJS error:', e);
@@ -155,7 +135,7 @@ function applyResultToSBConfig(
     result: ConfigRefreshResult,
     url: string,
     trigger: 'auto' | 'manual-direct',
-    usedAccelerate: boolean = false,
+    urls?: { primary?: string; accelerated?: string },
 ): void {
     let contentChanged = false;
     if (result.status === 'success') {
@@ -168,6 +148,26 @@ function applyResultToSBConfig(
         }
     }
 
+    // Parse subscription info from raw header if available
+    const parseSubUserInfo = (header?: string) => {
+        if (!header) return undefined;
+        const extract = (key: string) => {
+            const match = new RegExp(`${key}=(\\d+)`).exec(header);
+            return match ? parseInt(match[1]) : 0;
+        };
+        return {
+            upload: extract('upload'),
+            download: extract('download'),
+            total: extract('total'),
+            expire: extract('expire'),
+        };
+    };
+
+    // Record traffic data from subscription header
+    const trafficData = result.subscriptionUserinfoHeader
+        ? parseSubUserInfo(result.subscriptionUserinfoHeader)
+        : undefined;
+
     TaskLog.append(url, {
         time: result.timestamp,
         status: result.status as 'success' | 'failed' | 'skipped',
@@ -175,8 +175,16 @@ function applyResultToSBConfig(
         duration: result.durationMs,
         contentChanged,
         detail: result.error,
+        details: {
+            method: result.method,
+            urls,
+            traffic: trafficData,
+            subscriptionInfo: result.subscriptionUserinfoHeader ? {
+                rawHeader: result.subscriptionUserinfoHeader,
+                parsed: trafficData,
+            } : undefined,
+        },
     });
 
-    const method = usedAccelerate ? 'accelerated' : 'default with fallback';
-    console.log(`[ConfigRefresh] result applied: status=${result.status}, duration=${result.durationMs}ms, method=${method}`);
+    console.log(`[ConfigRefresh] result applied: status=${result.status}, duration=${result.durationMs}ms, method=${result.method || 'unknown'}`);
 }

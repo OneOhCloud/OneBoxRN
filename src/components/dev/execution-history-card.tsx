@@ -1,8 +1,10 @@
-import type { TaskLogEntry } from '@/database/kv';
+import type { TaskLogEntry, TaskRecord } from '@/database/kv';
 import { relativeTime, taskStatusColor } from '@/utils/dev-utils';
+import { useState } from 'react';
 import { Card } from './card';
 import { RecordRow } from './record-row';
 import { Row } from './row';
+import { TaskDetailModal } from './task-detail-modal';
 
 interface ExecutionHistoryCardProps {
     taskLog: TaskLogEntry | null;
@@ -10,6 +12,7 @@ interface ExecutionHistoryCardProps {
 
 export function ExecutionHistoryCard({ taskLog }: ExecutionHistoryCardProps) {
     const records = taskLog?.records ? [...taskLog.records].reverse() : [];
+    const [selectedRecord, setSelectedRecord] = useState<TaskRecord | null>(null);
 
     return (
         <>
@@ -44,10 +47,17 @@ export function ExecutionHistoryCard({ taskLog }: ExecutionHistoryCardProps) {
                             key={r.time + i}
                             record={r}
                             isLast={i === records.length - 1}
+                            onPress={() => setSelectedRecord(r)}
                         />
                     ))}
                 </Card>
             )}
+
+            <TaskDetailModal
+                record={selectedRecord}
+                visible={selectedRecord !== null}
+                onClose={() => setSelectedRecord(null)}
+            />
         </>
     );
 }
