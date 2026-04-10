@@ -6,7 +6,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Modal, Pressable, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface ImportUrlModalProps {
@@ -53,6 +53,10 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
             animationType="slide"
             presentationStyle="pageSheet"
         >
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
             <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
                 {/* Header */}
                 <View
@@ -140,7 +144,24 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
                         <ThemedText style={{ fontWeight: '600' }}>{i18n.t('scan_qr')}</ThemedText>
                     </Pressable>
                 </View>
+
+                {/* Bottom cancel button */}
+                <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+                    <Pressable
+                        onPress={onClose}
+                        style={({ pressed }) => ({
+                            alignItems: 'center',
+                            paddingVertical: 16,
+                            borderRadius: 16,
+                            backgroundColor: theme.backgroundElement,
+                            opacity: pressed ? 0.6 : 1,
+                        })}
+                    >
+                        <ThemedText style={{ fontSize: 17, fontWeight: '500' }}>{i18n.t('cancel')}</ThemedText>
+                    </Pressable>
+                </View>
             </SafeAreaView>
+            </KeyboardAvoidingView>
         </Modal>
     );
 }

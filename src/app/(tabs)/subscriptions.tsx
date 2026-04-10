@@ -9,16 +9,15 @@ import { EmptyState } from '@/components/ui/home/empty-state';
 import { ImportUrlModal } from '@/components/ui/home/import-url-modal';
 import { ModeSelector } from '@/components/ui/home/mode-selector';
 import { ActiveProfileCard } from '@/components/ui/subscriptions/active-profile-card';
-import { Card } from '@/components/ui/subscriptions/card';
 import { SubscriptionRow } from '@/components/ui/subscriptions/subscription-row';
 import i18n from '@/constants/language';
 import { BottomTabInset, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
+import { getProcessedConfig } from '@/database/helper';
 import { SubscriptionStore } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox, { VPN_STATUS } from '@/modules/expo-onebox';
 import { executeConfigRefresh } from '@/tasks/config-refresh';
-import { getProcessedConfig } from '@/database/helper';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
@@ -143,7 +142,7 @@ export default function SubscriptionsScreen() {
                                 onImportUrl={() => setImportUrlVisible(true)}
                             />
                         ) : (
-                            <View style={{ gap: 20 }}>
+                            <View style={{ gap: 32 }}>
                                 {/* Routing mode — only when profiles exist */}
                                 <ModeSelector hideSectionLabel />
 
@@ -169,28 +168,36 @@ export default function SubscriptionsScreen() {
                                         borderWidth: 0.5,
                                         borderColor: theme.glassBorder,
                                         paddingVertical: 14,
+                                        marginTop: 8,
                                         opacity: pressed ? 0.6 : 1,
                                     })}
                                 >
-                                    <Ionicons name="add-circle-outline" size={18} color="#007AFF" />
-                                    <ThemedText style={{ fontSize: 15, fontWeight: '600', color: '#007AFF' }}>
+                                    <Ionicons name="add" size={18} color={theme.textSecondary} />
+                                    <ThemedText style={{ fontSize: 15, fontWeight: '500' }} themeColor="textSecondary">
                                         {i18n.t('import_subscription')}
                                     </ThemedText>
                                 </Pressable>
 
                                 {/* Profiles list */}
-                                <Card>
+                                <View style={{
+                                    backgroundColor: theme.glassBackground,
+                                    borderRadius: 20,
+                                    paddingHorizontal: 16,
+                                    borderWidth: 0.5,
+                                    borderColor: theme.glassBorder,
+                                }}>
                                     {subs.map((sub, idx) => (
                                         <SubscriptionRow
                                             key={sub.id}
                                             sub={sub}
                                             isActive={sub.id === activeId}
+                                            isFirst={idx === 0}
                                             isLast={idx === subs.length - 1}
                                             onActivate={() => handleActivate(sub.id)}
                                             onDelete={() => handleDelete(sub)}
                                         />
                                     ))}
-                                </Card>
+                                </View>
                             </View>
                         )}
                     </ScrollView>

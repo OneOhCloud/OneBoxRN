@@ -31,9 +31,7 @@ export function ModeSelector({ hideSectionLabel }: { hideSectionLabel?: boolean 
                     borderRadius: 16,
                     padding: 4,
                     gap: 2,
-                    backgroundColor: theme.glassBackground,
-                    borderWidth: 0.5,
-                    borderColor: theme.glassBorder,
+                    backgroundColor: theme.backgroundElement,
                 }}
             >
                 {OPTIONS.map((opt) => {

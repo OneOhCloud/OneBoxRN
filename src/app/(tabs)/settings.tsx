@@ -24,7 +24,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 function Card({ children }: { children: React.ReactNode }) {
     const theme = useTheme();
     return (
-        <View style={{ backgroundColor: theme.cardBackground, borderRadius: 14, paddingHorizontal: 16, overflow: 'hidden' }}>
+        <View style={{
+            backgroundColor: theme.glassBackground,
+            borderRadius: 20,
+            paddingHorizontal: 16,
+            borderWidth: 0.5,
+            borderColor: theme.glassBorder,
+            overflow: 'hidden',
+        }}>
             {children}
         </View>
     );
@@ -59,7 +66,7 @@ function SettingsRow({ iconName, iconColor, label, value, onPress, onLongPress, 
                 )}
                 {showChevron && <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />}
             </View>
-            {!isLast && <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.border, marginLeft: 44 }} />}
+            {!isLast && <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.glassBorder, marginLeft: 44 }} />}
         </View>
     );
 
@@ -110,20 +117,23 @@ export default function SettingsScreen() {
         <ThemedView style={{ flex: 1 }}>
             <SafeAreaView style={{ flex: 1, flexDirection: 'row', justifyContent: 'center' }}>
                 <View style={{ flex: 1, maxWidth: MaxContentWidth }}>
+
+                    {/* Title bar */}
+                    <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 }}>
+                        <ThemedText style={{ fontSize: 28, fontWeight: '700', fontFamily: Fonts?.rounded, letterSpacing: -0.5, lineHeight: 36 }}>
+                            {i18n.t('settings_title')}
+                        </ThemedText>
+                    </View>
+
                     <ScrollView
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={{
                             paddingHorizontal: 20,
-                            paddingTop: 8,
+                            paddingTop: 12,
                             paddingBottom: BottomTabInset + Spacing.three,
                             gap: 20,
                         }}
                     >
-                        {/* Page title */}
-                        <ThemedText style={{ fontSize: 28, fontWeight: '700', fontFamily: Fonts?.rounded, letterSpacing: -0.5, lineHeight: 36 }}>
-                            {i18n.t('settings_title')}
-                        </ThemedText>
-
                         {/* System Status */}
                         <View>
                             <SectionLabel text={i18n.t('system_info')} />
@@ -132,26 +142,12 @@ export default function SettingsScreen() {
                             </Card>
                         </View>
 
-                        {/* Tools */}
-                        <View>
-                            <SectionLabel text={i18n.t('section_tools')} />
-                            <Card>
-                                <SettingsRow
-                                    iconName="document-text-outline"
-                                    iconColor="#FF9500"
-                                    label={i18n.t('open_logs')}
-                                    onPress={() => router.push('/config/logs')}
-                                />
-                                <SettingsRow
-                                    iconName="code-slash-outline"
-                                    iconColor="#AF52DE"
-                                    label={i18n.t('view_config')}
-                                    onPress={() => router.push('/config/view-config')}
-                                    isLast
-                                />
-                            </Card>
-                        </View>
 
+                        {/* Traffic Stats */}
+                        <View>
+                            <SectionLabel text={i18n.t('traffic_stats')} />
+                            <TrafficCard traffic={traffic} />
+                        </View>
                         {/* About */}
                         <View>
                             <Pressable onPress={handleAboutTap} hitSlop={8}>
@@ -160,13 +156,13 @@ export default function SettingsScreen() {
                             <Card>
                                 <SettingsRow
                                     iconName="globe-outline"
-                                    iconColor="#34C759"
+                                    iconColor="#32ADE6"
                                     label={i18n.t('official_website')}
                                     onPress={() => Linking.openURL('https://sing-box.net')}
                                 />
                                 <SettingsRow
-                                    iconName="document-lock-outline"
-                                    iconColor="#FF3B30"
+                                    iconName="shield-checkmark-outline"
+                                    iconColor="#5856D6"
                                     label={i18n.t('privacy_policy')}
                                     onPress={() => Linking.openURL('https://sing-box.net/privacy')}
                                 />
@@ -180,19 +176,33 @@ export default function SettingsScreen() {
                                 />
                                 <SettingsRow
                                     iconName="extension-puzzle-outline"
-                                    iconColor="#6b7280"
+                                    iconColor="#3A82F7"
                                     label={i18n.t('libbox_version')}
                                     value={coreVersion}
                                     isLast
                                 />
                             </Card>
                         </View>
-
-                        {/* Traffic Stats — at the bottom, owns its own backgroundElement card */}
+                        {/* Tools */}
                         <View>
-                            <SectionLabel text={i18n.t('traffic_stats')} />
-                            <TrafficCard traffic={traffic} />
+                            <SectionLabel text={i18n.t('section_tools')} />
+                            <Card>
+                                <SettingsRow
+                                    iconName="document-text-outline"
+                                    iconColor="#5856D6"
+                                    label={i18n.t('open_logs')}
+                                    onPress={() => router.push('/config/logs')}
+                                />
+                                <SettingsRow
+                                    iconName="code-slash-outline"
+                                    iconColor="#007AFF"
+                                    label={i18n.t('view_config')}
+                                    onPress={() => router.push('/config/view-config')}
+                                    isLast
+                                />
+                            </Card>
                         </View>
+
                     </ScrollView>
                 </View>
             </SafeAreaView>

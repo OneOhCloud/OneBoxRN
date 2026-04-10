@@ -34,7 +34,7 @@ function InfoRow({
                 <ThemedText style={{ flex: 1, fontSize: 15 }}>{label}</ThemedText>
                 {children}
             </View>
-            {!isLast && <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.border, marginLeft: 44 }} />}
+            {!isLast && <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.glassBorder, marginLeft: 44 }} />}
         </View>
     );
 }
@@ -64,13 +64,13 @@ export function InfoCard({ connected }: { connected: boolean }) {
                 </View>
             </InfoRow>
 
-            <InfoRow iconName="globe-outline" iconColor="#30B0C7" label={i18n.t('dns_server')}>
+            <InfoRow iconName="globe-outline" iconColor="#32ADE6" label={i18n.t('dns_server')}>
                 <ThemedText style={{ fontSize: 14, fontFamily: MONO_FONT }} themeColor="textSecondary">
                     {bestDns}
                 </ThemedText>
             </InfoRow>
 
-            <InfoRow iconName="finger-print-outline" iconColor="#FF9500" label={i18n.t('user_agent')} isLast>
+            <InfoRow iconName="finger-print-outline" iconColor="#5856D6" label={i18n.t('user_agent')} isLast>
                 <View style={{ flexDirection: 'row', flex: 1, gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
                     <ScrollView
                         horizontal

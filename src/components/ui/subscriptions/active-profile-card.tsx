@@ -6,7 +6,6 @@ import { urlHostname } from '@/utils';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Card } from './card';
 import { TrafficBar } from './traffic-bar';
 
 export function ActiveProfileCard({
@@ -39,12 +38,17 @@ export function ActiveProfileCard({
 
     if (hasData) {
         return (
-            <Card style={{ paddingVertical: 20 }}>
+            <View className='px-2'>
                 {/* Header: Name + Refresh button */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text, flex: 1 }}>
-                        {sub.name || i18n.t('remote_config')}
-                    </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <View style={{ width: 20, alignItems: 'center' }}>
+                            <Ionicons name="document-text-outline" size={16} color={theme.text} />
+                        </View>
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text, flex: 1 }}>
+                            {sub.name || i18n.t('remote_config')}
+                        </Text>
+                    </View>
                     <Pressable
                         disabled={refreshing}
                         onPress={() => { if (!refreshing) { mediumImpact(); onRefresh(); } }}
@@ -70,44 +74,50 @@ export function ActiveProfileCard({
 
                 {/* Info rows */}
                 <View style={{ gap: 16 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <Ionicons name="link-outline" size={14} color="#007AFF" />
-                        <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: theme.text }}>{urlHostname(sub.url, sub.url)}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View style={{ width: 20, alignItems: 'center' }}>
+                            <Ionicons name="link-outline" size={16} color={theme.textSecondary} />
+                        </View>
+                        <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: theme.textSecondary }}>{urlHostname(sub.url, sub.url)}</Text>
                     </View>
 
                     <TrafficBar used={sub.usedTraffic} total={sub.totalTraffic} />
 
                     {expireDate ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <Ionicons name="calendar-outline" size={14} color={daysLeftColor} />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <View style={{ width: 20, alignItems: 'center' }}>
+                                <Ionicons name="calendar-outline" size={16} color={daysLeftColor} />
+                            </View>
                             <Text style={{ fontSize: 13, color: daysLeftColor }}>
                                 {expireDate}
                                 {daysLeft !== null && ` ${i18n.t('days_remaining', { days: daysLeft })}`}
                             </Text>
                         </View>
                     ) : (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <Ionicons name="calendar-outline" size={14} color={theme.textSecondary} />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <View style={{ width: 20, alignItems: 'center' }}>
+                                <Ionicons name="calendar-outline" size={16} color={theme.textSecondary} />
+                            </View>
                             <Text style={{ fontSize: 13, color: theme.textSecondary }}>
                                 {i18n.t('config_no_expire')}
                             </Text>
                         </View>
                     )}
                 </View>
-            </Card>
+            </View>
         );
     }
 
-    // No data: compact card with title, URL, and full-height refresh button
+    // No data: compact layout with title, URL, and refresh button
     return (
-        <Card style={{ paddingVertical: 24, paddingHorizontal: 0, flexDirection: 'row', overflow: 'visible' }}>
-            <View style={{ flex: 1, paddingHorizontal: 16, justifyContent: 'center', gap: 24 }}>
+        <View style={{ flexDirection: 'row' }}>
+            <View style={{ flex: 1, justifyContent: 'center', gap: 12 }}>
                 <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text }}>
                     {i18n.t('remote_config')}
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="link-outline" size={14} color="#007AFF" />
-                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: theme.text }}>
+                    <Ionicons name="link-outline" size={14} color={theme.textSecondary} />
+                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: theme.textSecondary }}>
                         {urlHostname(sub.url, sub.url)}
                     </Text>
                 </View>
@@ -129,6 +139,6 @@ export function ActiveProfileCard({
                     color={refreshing ? theme.textSecondary : '#007AFF'}
                 />
             </Pressable>
-        </Card>
+        </View>
     );
 }
