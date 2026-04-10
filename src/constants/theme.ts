@@ -21,6 +21,10 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+
+    // Frosted glass card
+    glassBackground: 'rgba(255, 255, 255, 0.78)',
+    glassBorder: 'rgba(0, 0, 0, 0.06)',
   },
   dark: {
     border: '#38383A',
@@ -30,6 +34,10 @@ export const Colors = {
     backgroundElement: '#2C2C2E',
     backgroundSelected: '#3A3A3C',
     textSecondary: '#B0B4BA',
+
+    // Frosted glass card — dark uses faint bright edge, no shadow
+    glassBackground: 'rgba(44, 44, 46, 0.78)',
+    glassBorder: 'rgba(255, 255, 255, 0.08)',
   },
 } as const;
 

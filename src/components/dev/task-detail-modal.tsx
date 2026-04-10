@@ -17,7 +17,6 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
 
     if (!record) return null;
 
-    const details = record.details;
     const statusColor = record.status === 'success' ? '#34C759' : record.status === 'failed' ? '#FF3B30' : '#FF9500';
 
     const copyToClipboard = async (text: string, label: string) => {
@@ -65,48 +64,36 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
                         paddingVertical: Spacing.three,
                     }}
                 >
-                    {/* Status Section */}
-                    <DetailSection title="">
-                        <DetailRow label={i18n.t('task_status')} value={record.status.toUpperCase()} valueColor={statusColor} />
-                        <DetailRow label={i18n.t('task_time')} value={formatTime(record.time)} isLast />
-                    </DetailSection>
-
-                    {/* Duration & Method */}
+                    {/* Status & Timing */}
                     <DetailSection>
+                        <DetailRow label={i18n.t('task_status')} value={record.status.toUpperCase()} valueColor={statusColor} />
+                        <DetailRow label={i18n.t('task_time')} value={formatTime(record.time)} />
                         <DetailRow label={i18n.t('task_duration')} value={formatDuration(record.duration)} />
-                        {details?.method ? (
-                            <DetailRow
-                                label={i18n.t('task_method')}
-                                value={getMethodLabel(details.method)}
-                                valueColor={getMethodColor(details.method)}
-                            />
-                        ) : (
-                            <DetailRow
-                                label={i18n.t('task_method')}
-                                value={details?.usedAccelerate ? i18n.t('task_method_accelerated') : i18n.t('task_method_primary')}
-                                valueColor={details?.usedAccelerate ? '#FF9500' : '#34C759'}
-                            />
-                        )}
+                        <DetailRow
+                            label={i18n.t('task_method')}
+                            value={getMethodLabel(record.method)}
+                            valueColor={getMethodColor(record.method)}
+                        />
                         <DetailRow label={i18n.t('task_config_updated')} value={record.contentChanged ? i18n.t('task_yes') : i18n.t('task_no')} isLast />
                     </DetailSection>
 
-                    {/* URLs Section */}
-                    {details?.urls && (details.urls.primary || details.urls.accelerated) && (
+                    {/* URLs */}
+                    {(record.primaryUrl || record.acceleratedUrl) && (
                         <DetailSection title={i18n.t('task_request_urls')}>
-                            {details.urls.primary && (
+                            {record.primaryUrl && (
                                 <URLRow
                                     label={i18n.t('task_primary_url')}
-                                    url={details.urls.primary}
-                                    onCopy={() => copyToClipboard(details.urls!.primary!, i18n.t('task_primary_url'))}
-                                    isLast={!details.urls.accelerated}
+                                    url={record.primaryUrl}
+                                    onCopy={() => copyToClipboard(record.primaryUrl!, i18n.t('task_primary_url'))}
+                                    isLast={!record.acceleratedUrl}
                                     color="#34C759"
                                 />
                             )}
-                            {details.urls.accelerated && (
+                            {record.acceleratedUrl && (
                                 <URLRow
                                     label={i18n.t('task_accelerated_url')}
-                                    url={details.urls.accelerated}
-                                    onCopy={() => copyToClipboard(details.urls!.accelerated!, i18n.t('task_accelerated_url'))}
+                                    url={record.acceleratedUrl}
+                                    onCopy={() => copyToClipboard(record.acceleratedUrl!, i18n.t('task_accelerated_url'))}
                                     isLast
                                     color="#FF9500"
                                 />
@@ -114,96 +101,56 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
                         </DetailSection>
                     )}
 
-                    {/* Subscription Info Section */}
-                    {details?.subscriptionInfo && (
+                    {/* Subscription Info — raw header + traffic */}
+                    {record.status === 'success' && (record.subscriptionUserinfoHeader || record.total > 0) && (
                         <DetailSection title={i18n.t('task_subscription_info')}>
-                            {details.subscriptionInfo.rawHeader && (
-                                <>
-                                    <TouchableOpacity
-                                        onPress={() => copyToClipboard(details.subscriptionInfo!.rawHeader!, i18n.t('task_raw_header'))}
-                                        style={{
-                                            paddingVertical: Spacing.two,
-                                            marginBottom: Spacing.three,
-                                        }}
-                                    >
-                                        <Text style={{
-                                            fontSize: 11,
-                                            color: theme.textSecondary,
-                                            fontWeight: '600',
-                                            marginBottom: Spacing.one,
-                                        }}>
-                                            {i18n.t('task_raw_header')} ({i18n.t('task_tap_to_copy')})
-                                        </Text>
-                                        <View style={{
-                                            backgroundColor: theme.backgroundElement,
-                                            padding: Spacing.two,
-                                            borderRadius: 6,
-                                        }}>
-                                            <Text style={{
-                                                fontSize: 10,
-                                                color: theme.text,
-                                                fontFamily: Fonts?.mono,
-                                                lineHeight: 14,
-                                            }}>
-                                                {details.subscriptionInfo.rawHeader}
-                                            </Text>
-                                        </View>
-                                    </TouchableOpacity>
-                                </>
-                            )}
-
-                            {details.subscriptionInfo.parsed && (
-                                <>
+                            {record.subscriptionUserinfoHeader && (
+                                <TouchableOpacity
+                                    onPress={() => copyToClipboard(record.subscriptionUserinfoHeader!, i18n.t('task_raw_header'))}
+                                    style={{
+                                        paddingHorizontal: Spacing.three,
+                                        paddingVertical: Spacing.two,
+                                        borderBottomWidth: 1,
+                                        borderBottomColor: theme.border,
+                                    }}
+                                >
                                     <Text style={{
                                         fontSize: 11,
                                         color: theme.textSecondary,
                                         fontWeight: '600',
                                         marginBottom: Spacing.one,
-                                        marginTop: Spacing.three,
                                     }}>
-                                        {i18n.t('task_parsed_data')}
+                                        {i18n.t('task_raw_header')} ({i18n.t('task_tap_to_copy')})
                                     </Text>
-                                    <DetailRow
-                                        label={i18n.t('task_upload')}
-                                        value={formatBytes(details.subscriptionInfo.parsed.upload)}
-                                    />
-                                    <DetailRow
-                                        label={i18n.t('task_download')}
-                                        value={formatBytes(details.subscriptionInfo.parsed.download)}
-                                    />
-                                    <DetailRow
-                                        label={i18n.t('task_total')}
-                                        value={formatBytes(details.subscriptionInfo.parsed.total)}
-                                    />
-                                    <DetailRow
-                                        label={i18n.t('task_expire')}
-                                        value={formatExpire(details.subscriptionInfo.parsed.expire)}
-                                        isLast
-                                    />
-                                </>
+                                    <View style={{
+                                        backgroundColor: theme.backgroundElement,
+                                        padding: Spacing.two,
+                                        borderRadius: 6,
+                                    }}>
+                                        <Text style={{
+                                            fontSize: 10,
+                                            color: theme.text,
+                                            fontFamily: Fonts?.mono,
+                                            lineHeight: 14,
+                                        }}>
+                                            {record.subscriptionUserinfoHeader}
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
                             )}
+                            <DetailRow label={i18n.t('task_upload')} value={formatBytes(record.upload)} />
+                            <DetailRow label={i18n.t('task_download')} value={formatBytes(record.download)} />
+                            <DetailRow label={i18n.t('task_total')} value={formatBytes(record.total)} />
+                            <DetailRow label={i18n.t('task_expire')} value={formatExpire(record.expire)} isLast />
                         </DetailSection>
                     )}
-
-                    {/* Traffic Info */}
-                    {details?.traffic && record.status === 'success' && (
-                        <DetailSection title={i18n.t('task_traffic_stats')}>
-                            <DetailRow label={i18n.t('task_upload')} value={formatBytes(details.traffic.upload)} />
-                            <DetailRow label={i18n.t('task_download')} value={formatBytes(details.traffic.download)} />
-                            <DetailRow label={i18n.t('task_total')} value={formatBytes(details.traffic.total)} />
-                            <DetailRow label={i18n.t('task_expire')} value={formatExpire(details.traffic.expire)} isLast />
-                        </DetailSection>
-                    )}
-
 
                     {/* Error Info */}
-                    {details?.error && record.status === 'failed' && (
+                    {record.error && record.status === 'failed' && (
                         <DetailSection title={i18n.t('task_error_info')}>
                             <TouchableOpacity
-                                onPress={() => copyToClipboard(details.error!, i18n.t('task_error_info'))}
-                                style={{
-                                    paddingVertical: Spacing.two,
-                                }}
+                                onPress={() => copyToClipboard(record.error!, i18n.t('task_error_info'))}
+                                style={{ paddingVertical: Spacing.two }}
                             >
                                 <View style={{
                                     backgroundColor: theme.backgroundElement,
@@ -218,7 +165,7 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
                                         fontFamily: Fonts?.mono,
                                         lineHeight: 14,
                                     }}>
-                                        {details.error}
+                                        {record.error}
                                     </Text>
                                 </View>
                                 <Text style={{
@@ -239,18 +186,13 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
     );
 }
 
-// Helper Components
+// ─── Helper Components ───────────────────────────────────────────────────────
 
-interface DetailSectionProps {
-    title?: string;
-    children: React.ReactNode;
-}
-
-function DetailSection({ title, children }: DetailSectionProps) {
+function DetailSection({ title, children }: { title?: string; children: React.ReactNode }) {
     const theme = useTheme();
     return (
         <View style={{ marginBottom: Spacing.four }}>
-            {title && (
+            {title ? (
                 <Text style={{
                     fontSize: 11,
                     fontWeight: '600',
@@ -261,7 +203,7 @@ function DetailSection({ title, children }: DetailSectionProps) {
                 }}>
                     {title}
                 </Text>
-            )}
+            ) : null}
             <View style={{
                 backgroundColor: theme.background,
                 borderRadius: 8,
@@ -274,14 +216,12 @@ function DetailSection({ title, children }: DetailSectionProps) {
     );
 }
 
-interface DetailRowProps {
+function DetailRow({ label, value, valueColor, isLast }: {
     label: string;
     value: string;
     valueColor?: string;
     isLast?: boolean;
-}
-
-function DetailRow({ label, value, valueColor, isLast }: DetailRowProps) {
+}) {
     const theme = useTheme();
     return (
         <View
@@ -295,32 +235,26 @@ function DetailRow({ label, value, valueColor, isLast }: DetailRowProps) {
                 borderBottomColor: theme.border,
             }}
         >
-            <Text style={{ fontSize: 13, color: theme.text }}>
-                {label}
-            </Text>
-            <Text
-                style={{
-                    fontSize: 13,
-                    color: valueColor || theme.text,
-                    fontWeight: '500',
-                    fontFamily: Fonts?.mono,
-                }}
-            >
+            <Text style={{ fontSize: 13, color: theme.text }}>{label}</Text>
+            <Text style={{
+                fontSize: 13,
+                color: valueColor || theme.text,
+                fontWeight: '500',
+                fontFamily: Fonts?.mono,
+            }}>
                 {value}
             </Text>
         </View>
     );
 }
 
-interface URLRowProps {
+function URLRow({ label, url, onCopy, color, isLast }: {
     label: string;
     url: string;
     onCopy: () => void;
     color: string;
     isLast?: boolean;
-}
-
-function URLRow({ label, url, onCopy, color, isLast }: URLRowProps) {
+}) {
     const theme = useTheme();
     return (
         <TouchableOpacity
@@ -335,16 +269,11 @@ function URLRow({ label, url, onCopy, color, isLast }: URLRowProps) {
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.one }}>
                 <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: color, marginRight: Spacing.one }} />
                 <Text style={{ fontSize: 11, color: theme.textSecondary, fontWeight: '600' }}>
-                    {label} (tap to copy)
+                    {label} ({i18n.t('task_tap_to_copy')})
                 </Text>
             </View>
             <Text
-                style={{
-                    fontSize: 11,
-                    color: theme.text,
-                    fontFamily: Fonts?.mono,
-                    lineHeight: 14,
-                }}
+                style={{ fontSize: 11, color: theme.text, fontFamily: Fonts?.mono, lineHeight: 14 }}
                 numberOfLines={3}
             >
                 {url}
@@ -353,12 +282,11 @@ function URLRow({ label, url, onCopy, color, isLast }: URLRowProps) {
     );
 }
 
-// Utilities
+// ─── Utilities ───────────────────────────────────────────────────────────────
 
 function formatTime(timestamp: string): string {
     try {
-        const date = new Date(timestamp);
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     } catch {
         return '—';
     }
@@ -380,8 +308,7 @@ function formatBytes(bytes: number): string {
 function formatExpire(timestamp: number): string {
     if (!timestamp || timestamp === 0) return '—';
     try {
-        const date = new Date(timestamp * 1000);
-        return date.toLocaleDateString();
+        return new Date(timestamp * 1000).toLocaleDateString();
     } catch {
         return '—';
     }

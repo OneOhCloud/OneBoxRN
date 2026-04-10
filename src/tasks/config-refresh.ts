@@ -105,7 +105,7 @@ export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null
     // Always pass both primary and accelerate URLs to native
     // Native layer will: primary → fail → verify domain → accelerate
     const result = await ExpoOneBox.executeConfigRefreshNow(url, getSingBoxUserAgent(), ACCELERATE_URL || null, testMode);
-    applyResultToSBConfig(result, url, 'manual-direct', { primary: url, accelerated: ACCELERATE_URL || undefined });
+    applyResultToSBConfig(result, url, 'manual-direct');
     return result;
 }
 
@@ -122,7 +122,7 @@ export function syncNativeResultToJS(): void {
         if (!result) return;
         const url = SBConfig.getConfigLink();
         if (url) {
-            applyResultToSBConfig(result, url, 'auto', { primary: url, accelerated: ACCELERATE_URL || undefined });
+            applyResultToSBConfig(result, url, 'auto');
         }
     } catch (e) {
         console.warn('[ConfigRefresh] syncNativeResultToJS error:', e);
@@ -135,7 +135,6 @@ function applyResultToSBConfig(
     result: ConfigRefreshResult,
     url: string,
     trigger: 'auto' | 'manual-direct',
-    urls?: { primary?: string; accelerated?: string },
 ): void {
     let contentChanged = false;
     if (result.status === 'success') {
@@ -148,43 +147,22 @@ function applyResultToSBConfig(
         }
     }
 
-    // Parse subscription info from raw header if available
-    const parseSubUserInfo = (header?: string) => {
-        if (!header) return undefined;
-        const extract = (key: string) => {
-            const match = new RegExp(`${key}=(\\d+)`).exec(header);
-            return match ? parseInt(match[1]) : 0;
-        };
-        return {
-            upload: extract('upload'),
-            download: extract('download'),
-            total: extract('total'),
-            expire: extract('expire'),
-        };
-    };
-
-    // Record traffic data from subscription header
-    const trafficData = result.subscriptionUserinfoHeader
-        ? parseSubUserInfo(result.subscriptionUserinfoHeader)
-        : undefined;
-
     TaskLog.append(url, {
         time: result.timestamp,
         status: result.status as 'success' | 'failed' | 'skipped',
         trigger,
         duration: result.durationMs,
+        method: result.method ?? 'primary',
         contentChanged,
-        detail: result.error,
-        details: {
-            method: result.method,
-            urls,
-            traffic: trafficData,
-            subscriptionInfo: result.subscriptionUserinfoHeader ? {
-                rawHeader: result.subscriptionUserinfoHeader,
-                parsed: trafficData,
-            } : undefined,
-        },
+        error: result.error,
+        primaryUrl: url,
+        acceleratedUrl: ACCELERATE_URL || undefined,
+        upload: result.subscriptionUpload,
+        download: result.subscriptionDownload,
+        total: result.subscriptionTotal,
+        expire: result.subscriptionExpire,
+        subscriptionUserinfoHeader: result.subscriptionUserinfoHeader,
     });
 
-    console.log(`[ConfigRefresh] result applied: status=${result.status}, duration=${result.durationMs}ms, method=${result.method || 'unknown'}`);
+    console.log(`[ConfigRefresh] applied: status=${result.status}, method=${result.method ?? 'primary'}, duration=${result.durationMs}ms`);
 }

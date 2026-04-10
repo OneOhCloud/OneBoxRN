@@ -40,7 +40,6 @@ export function formatDuration(ms: number): string {
 export function triggerLabel(trigger: TriggerSource | undefined): string {
     switch (trigger) {
         case 'manual-direct': return 'Direct';
-        case 'manual-worker': return 'Worker';
         case 'auto': return 'Auto';
         default: return 'Auto';
     }
@@ -49,7 +48,6 @@ export function triggerLabel(trigger: TriggerSource | undefined): string {
 export function triggerColor(trigger: TriggerSource | undefined): string {
     switch (trigger) {
         case 'manual-direct': return '#007AFF';
-        case 'manual-worker': return '#AF52DE';
         default: return '#8E8E93';
     }
 }

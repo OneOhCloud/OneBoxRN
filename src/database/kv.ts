@@ -390,46 +390,30 @@ export const SBConfig = {
 // ─── Task Execution Log ──────────────────────────────────────────────────────
 
 export type TaskStatus = 'success' | 'failed' | 'skipped';
-export type TriggerSource = 'auto' | 'manual-direct' | 'manual-worker';
+export type TriggerSource = 'auto' | 'manual-direct';
 
 export interface TaskRecord {
-    /** ISO timestamp */
+    // ── Execution info ───────────────────────────────────────────────────────
     time: string;
     status: TaskStatus;
-    /** How this execution was triggered */
     trigger: TriggerSource;
-    /** Duration in ms */
     duration: number;
-    /** Whether the config content was updated in this run */
-    contentChanged?: boolean;
-    /** Optional detail, e.g. error message */
-    detail?: string;
-    /** Detailed info: method used (primary/accelerated/fallback), etc. */
-    details?: {
-        method?: 'primary' | 'accelerated' | 'fallback' | 'test_mode';
-        usedAccelerate?: boolean;
-        error?: string;
-        fallbackReason?: string;
-        traffic?: {
-            upload: number;
-            download: number;
-            total: number;
-            expire: number;
-        };
-        urls?: {
-            primary?: string;
-            accelerated?: string;
-        };
-        subscriptionInfo?: {
-            rawHeader?: string;  // 原始 subscription-userinfo 响应头
-            parsed?: {
-                upload: number;
-                download: number;
-                total: number;
-                expire: number;
-            };
-        };
-    };
+    method: string;             // 'primary' | 'fallback'
+    contentChanged: boolean;
+    error?: string;
+
+    // ── URLs used ────────────────────────────────────────────────────────────
+    primaryUrl?: string;
+    acceleratedUrl?: string;
+
+    // ── Traffic (directly from native — no JS re-parsing) ────────────────────
+    upload: number;
+    download: number;
+    total: number;
+    expire: number;
+
+    // ── Raw header for debugging ─────────────────────────────────────────────
+    subscriptionUserinfoHeader?: string;
 }
 
 export interface TaskLogEntry {

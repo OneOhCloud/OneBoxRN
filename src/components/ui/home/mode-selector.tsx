@@ -3,7 +3,7 @@ import { selectionChanged } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
 import { useVpn } from '@/contexts/vpn-context';
 import { useTheme } from '@/hooks/use-theme';
-import { Pressable, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 const OPTIONS = [
     { labelKey: 'mode_rules', value: 'tun-rules' as const },
@@ -14,7 +14,6 @@ const OPTIONS = [
 export function ModeSelector({ hideSectionLabel }: { hideSectionLabel?: boolean } = {}) {
     const theme = useTheme();
     const { mode, setMode: onChange } = useVpn();
-
     return (
         <View>
             {!hideSectionLabel && (
@@ -32,7 +31,9 @@ export function ModeSelector({ hideSectionLabel }: { hideSectionLabel?: boolean 
                     borderRadius: 16,
                     padding: 4,
                     gap: 2,
-                    backgroundColor: theme.backgroundElement,
+                    backgroundColor: theme.glassBackground,
+                    borderWidth: 0.5,
+                    borderColor: theme.glassBorder,
                 }}
             >
                 {OPTIONS.map((opt) => {
@@ -46,14 +47,18 @@ export function ModeSelector({ hideSectionLabel }: { hideSectionLabel?: boolean 
                                 alignItems: 'center',
                                 paddingVertical: 10,
                                 borderRadius: 12,
-                                backgroundColor: active ? theme.background : undefined,
+                                backgroundColor: active ? '#007AFF' : undefined,
                             }}
                         >
-                            <ThemedText style={{
-                                fontSize: 14, fontWeight: active ? '600' : '400',
-                            }}>
-                                {i18n.t(opt.labelKey)}
-                            </ThemedText>
+                            {active ? (
+                                <Text style={{ fontSize: 14, fontWeight: '600', color: '#ffffff' }}>
+                                    {i18n.t(opt.labelKey)}
+                                </Text>
+                            ) : (
+                                <ThemedText style={{ fontSize: 14, fontWeight: '400' }}>
+                                    {i18n.t(opt.labelKey)}
+                                </ThemedText>
+                            )}
                         </Pressable>
                     );
                 })}

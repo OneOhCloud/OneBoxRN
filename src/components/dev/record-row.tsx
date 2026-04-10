@@ -47,9 +47,9 @@ export function RecordRow({ record, isLast, onPress }: RecordRowProps) {
                     {formatDuration(record.duration)}
                 </Text>
             </View>
-            {record.detail ? (
+            {record.error ? (
                 <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2, marginLeft: 12 }} numberOfLines={1}>
-                    {record.detail}
+                    {record.error}
                 </Text>
             ) : null}
         </TouchableOpacity>
