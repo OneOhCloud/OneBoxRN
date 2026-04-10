@@ -106,8 +106,10 @@ src/
 
 ### Styling
 
-- Use **NativeWind** (Tailwind for RN) `className` props
-- Theme colors via `useTheme()` hook — never hardcode color values
+- Follow the official Expo Tailwind guide: https://docs.expo.dev/guides/tailwind/
+- Use **NativeWind v5** + **Tailwind CSS v4** (`@tailwindcss/postcss`) for cross-platform `className` props
+- CSS-based configuration via `src/global.css` (Tailwind v4 — no `tailwind.config.js`)
+- Theme colors via CSS variables and `useTheme()` hook — never hardcode color values
 - Do not introduce new styling libraries
 
 ### Data Fetching

@@ -4,7 +4,12 @@
   "version": "1.0.0",
   "expo": {
     "autolinking": {
-      "nativeModulesDir": "./src/modules"
+      "nativeModulesDir": "./src/modules",
+      "exclude": [
+        "expo-dev-client",
+        "expo-dev-launcher",
+        "expo-dev-menu"
+      ]
     }
   },
   "scripts": {
@@ -28,7 +33,6 @@
     "expo-camera": "~55.0.15",
     "expo-clipboard": "~55.0.13",
     "expo-constants": "~55.0.12",
-    "expo-dev-client": "~55.0.24",
     "expo-device": "~55.0.14",
     "expo-font": "~55.0.6",
     "expo-glass-effect": "~55.0.10",
@@ -45,7 +49,7 @@
     "expo-system-ui": "~55.0.15",
     "expo-web-browser": "~55.0.14",
     "i18n-js": "^4.5.2",
-    "nativewind": "^5.0.0-preview.2",
+    "nativewind": "^5.0.0-preview.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-native": "0.83.4",
@@ -64,6 +68,7 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "expo-dev-client": "~55.0.25",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/react": "~19.2.14",
     "eslint": "^9.0.1",
