@@ -44,6 +44,7 @@ GRADLE_SIGN_ARGS := \
         ios ios-archive \
         open-android open-ios \
         clean clean-android clean-ios \
+        wipe-android-emulator \
         update-tun-db \
         _check-android-env _check-ios-env \
         _sync-version-android _sync-version-ios _update-tun-db \
@@ -78,6 +79,8 @@ help:
 	@echo "  clean               清理全部构建产物"
 	@echo "  clean-android       清理 Android（.cxx / build / gradle clean）"
 	@echo "  clean-ios           清理 iOS（Pods / build / DerivedData / Archive）"
+	@echo ""
+	@echo "  wipe-android-emulator  清除 Android 模拟器数据（图标缓存等）"
 	@echo ""
 
 # ════════════════════════════════════════════════════════════
@@ -180,6 +183,24 @@ clean-ios:
 	rm -rf ios/Pods
 	rm -rf ios/build
 	rm -rf $(IOS_DERIVED_DATA)
+
+# ════════════════════════════════════════════════════════════
+#  Android 模拟器
+# ════════════════════════════════════════════════════════════
+
+# 恢复出厂设置并冷启动 Android 模拟器，彻底清除所有缓存
+wipe-android-emulator:
+	@AVD=$$(emulator -list-avds | head -n 1); \
+	if [ -z "$$AVD" ]; then \
+		echo "❌ 未找到 AVD，请先在 Android Studio 中创建模拟器"; \
+		exit 1; \
+	fi; \
+	echo "▶ 关闭模拟器..."; \
+	adb emu kill 2>/dev/null || true; \
+	sleep 2; \
+	echo "▶ Wipe Data + Cold Boot: $$AVD"; \
+	emulator -avd "$$AVD" -wipe-data -no-snapshot-load &\
+	echo "✅ 模拟器已重置，等待启动后执行: make run-android"
 
 # ════════════════════════════════════════════════════════════
 #  内部目标（Internal Targets）

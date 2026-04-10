@@ -42,6 +42,10 @@ export default ({ config: _config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     versionCode: 19,
+    adaptiveIcon: {
+      foregroundImage: './assets/images/adaptive.png',
+      backgroundColor: '#0091FF',
+    },
     package: 'cloud.oneoh.networktools',
     permissions: [
       'VPN_PERMISSION_REQUIRED',
@@ -101,11 +105,11 @@ export default ({ config: _config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        image: './assets/images/splash-icon.png',
+        image: './assets/images/adaptive.png',
         imageWidth: 200,
         imageHeight: 200,
         resizeMode: 'contain',
-        backgroundColor: '#ffffff',
+        backgroundColor: '#0091FF',
         dark: {
           backgroundColor: '#000000',
         },

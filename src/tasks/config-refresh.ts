@@ -156,7 +156,7 @@ function applyResultToSBConfig(
         contentChanged,
         error: result.error,
         primaryUrl: url,
-        acceleratedUrl: ACCELERATE_URL || undefined,
+        acceleratedUrl: result.actualUrl,
         upload: result.subscriptionUpload,
         download: result.subscriptionDownload,
         total: result.subscriptionTotal,
