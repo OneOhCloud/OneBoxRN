@@ -46,6 +46,7 @@ GRADLE_SIGN_ARGS := \
         clean clean-android clean-ios \
         wipe-android-emulator \
         update-tun-db \
+        sync-s3 \
         _check-android-env _check-ios-env \
         _sync-version-android _sync-version-ios _update-tun-db \
 	_ensure-pods _ensure-android-codegen _inject-ios-team \
@@ -75,6 +76,8 @@ help:
 	@echo ""
 	@echo "  open-android        用 Android Studio 打开项目"
 	@echo "  open-ios            用 Xcode 打开 Workspace"
+	@echo ""
+	@echo "  sync-s3             同步 target/s3/ 下的 APK 到 S3"
 	@echo ""
 	@echo "  clean               清理全部构建产物"
 	@echo "  clean-android       清理 Android（.cxx / build / gradle clean）"
@@ -155,6 +158,13 @@ ios-archive: _check-ios-env _update-tun-db _sync-version-ios _ensure-pods _injec
 		"$(XCODE_ARCHIVES)/$(ARCHIVE_DATE)/$(ARCHIVE_NAME).xcarchive"
 	@echo "✅ Archive → $(TARGET_DIR)/$(APP_NAME).xcarchive"
 	@echo "✅ 已同步 → $(XCODE_ARCHIVES)/$(ARCHIVE_DATE)/"
+
+# ════════════════════════════════════════════════════════════
+#  S3 同步
+# ════════════════════════════════════════════════════════════
+
+sync-s3:
+	@bash scripts/sync-s3.sh
 
 # ════════════════════════════════════════════════════════════
 #  IDE
