@@ -31,10 +31,10 @@ function resolveQRData(raw: string): { data: string; apply?: string } | null {
 
 type CameraQRProps = {
     onHandleClose: () => void;
-    onScanSuccess?: () => void;
+    onBeforeNavigate?: () => void;
 };
 
-export default function CameraQR({ onHandleClose, onScanSuccess }: CameraQRProps) {
+export default function CameraQR({ onHandleClose, onBeforeNavigate }: CameraQRProps) {
     const [facing] = useState<CameraType>('back');
     const [permission, requestPermission] = useCameraPermissions();
     const [requestedOnce, setRequestedOnce] = useState(false);
@@ -117,7 +117,8 @@ export default function CameraQR({ onHandleClose, onScanSuccess }: CameraQRProps
 
         const resolved = resolveQRData(result.data);
         if (resolved) {
-            onScanSuccess?.();
+            onBeforeNavigate?.();
+            onHandleClose();
             const applyParam = resolved.apply ? `&apply=${resolved.apply}` : '';
             router.push(`/config?data=${encodeURIComponent(resolved.data)}${applyParam}`);
         } else {

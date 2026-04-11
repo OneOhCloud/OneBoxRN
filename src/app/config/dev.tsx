@@ -9,11 +9,14 @@ import { DebugActionsCard } from '@/components/dev/debug-actions-card';
 import { DevHeader } from '@/components/dev/dev-header';
 import { ExecutionHistoryCard } from '@/components/dev/execution-history-card';
 import { PrimaryUrlTestCard } from '@/components/dev/primary-url-test-card';
+import TrafficCard, { SectionLabel } from '@/components/ui/home/traffic-card';
+import i18n from '@/constants/language';
 import { Spacing } from '@/constants/theme';
 import type { TaskLogEntry } from '@/database/kv';
 import { SBConfig, TaskLog } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox from '@/modules/expo-onebox';
+import { useVpn } from '@/contexts/vpn-context';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,6 +36,7 @@ interface ConfigState {
 export default function DevScreen() {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
+    const { traffic } = useVpn();
 
     const [taskInfo, setTaskInfo] = useState<TaskInfo | null>(null);
     const [config, setConfig] = useState<ConfigState | null>(null);
@@ -83,6 +87,11 @@ export default function DevScreen() {
                 </View>
             ) : (
                 <ScrollView contentContainerStyle={{ paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
+                    {/* Traffic Stats */}
+                    <View style={{ marginBottom: 12 }}>
+                        <SectionLabel text={i18n.t('traffic_stats')} />
+                        <TrafficCard traffic={traffic} />
+                    </View>
                     <AccelerateUrlSettingCard onSettingChanged={load} />
                     <PrimaryUrlTestCard onSettingChanged={load} />
                     {taskInfo && <BackgroundTaskCard isRegistered={taskInfo.isRegistered} />}

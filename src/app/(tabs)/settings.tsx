@@ -5,7 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { lightImpact } from '@/components/ui/haptics';
 import { InfoCard } from '@/components/ui/home/info-card';
-import TrafficCard, { SectionLabel } from '@/components/ui/home/traffic-card';
+import { SectionLabel } from '@/components/ui/home/traffic-card';
 import i18n from '@/constants/language';
 import { BottomTabInset, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
@@ -87,7 +87,7 @@ function SettingsRow({ iconName, iconColor, label, value, onPress, onLongPress, 
 
 export default function SettingsScreen() {
     const theme = useTheme();
-    const { connected, traffic } = useVpn();
+    const { connected } = useVpn();
 
     const [showBuild, setShowBuild] = React.useState(false);
     const aboutTapCount = useRef(0);
@@ -143,11 +143,6 @@ export default function SettingsScreen() {
                         </View>
 
 
-                        {/* Traffic Stats */}
-                        <View>
-                            <SectionLabel text={i18n.t('traffic_stats')} />
-                            <TrafficCard traffic={traffic} />
-                        </View>
                         {/* About */}
                         <View>
                             <Pressable onPress={handleAboutTap} hitSlop={8}>

@@ -44,7 +44,7 @@ export function ProfileRow({
                 borderTopRightRadius,
                 borderBottomLeftRadius,
                 borderBottomRightRadius,
-                backgroundColor: isActive ? '#007AFF' : 'transparent',
+                backgroundColor: isActive ? 'rgba(174, 174, 178, 0.28)' : 'transparent',
                 borderBottomWidth: isLast || isActive ? 0 : StyleSheet.hairlineWidth,
                 borderBottomColor: theme.glassBorder,
             })}
@@ -52,17 +52,17 @@ export function ProfileRow({
             <View style={{
                 width: 20, height: 20, borderRadius: 10,
                 borderWidth: isActive ? 0 : 2,
-                borderColor: isActive ? 'rgba(255,255,255,0.5)' : theme.border,
-                backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : 'transparent',
+                borderColor: isActive ? theme.text : theme.border,
+                backgroundColor: isActive ? theme.text : 'transparent',
                 alignItems: 'center', justifyContent: 'center',
             }}>
-                {isActive && <Ionicons name="checkmark" size={12} color="#fff" />}
+                {isActive && <Ionicons name="checkmark" size={12} color={theme.background} />}
             </View>
 
             <Text numberOfLines={1} style={{
                 flex: 1,
                 fontSize: 15,
-                color: isActive ? '#FFFFFF' : theme.text,
+                color: theme.text,
                 fontWeight: isActive ? '600' : '400',
                 fontFamily: Fonts?.sans,
             }}>
@@ -75,7 +75,7 @@ export function ProfileRow({
                     hitSlop={8}
                     style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1, padding: 4 })}
                 >
-                    <Ionicons name="trash-outline" size={18} color={isActive ? 'rgba(255,255,255,0.6)' : theme.textSecondary} />
+                    <Ionicons name="trash-outline" size={18} color={theme.textSecondary} />
                 </Pressable>
             )}
         </Pressable>

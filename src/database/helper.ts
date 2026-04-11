@@ -73,7 +73,7 @@ async function rewriteConfig(newConfig: Dict): Promise<void> {
 export function getDefaultConfigTemplate(mode: configType, version: string): string {
     if (version.startsWith('v1.12') || version.startsWith('v1.13')) {
         switch (mode) {
-            case 'tun-rules':  return JSON.stringify(TunRulesConfig);
+            case 'tun-rules': return JSON.stringify(TunRulesConfig);
             case 'tun-global': return JSON.stringify(TunGlobalConfig);
             default: throw new Error(`Unsupported config type: ${mode}`);
         }
@@ -83,9 +83,12 @@ export function getDefaultConfigTemplate(mode: configType, version: string): str
 
 // ─── Remote template URLs ─────────────────────────────────────────────────────
 
+//             return `${remoteUrl}/raw/refs/heads/${stageVersion}/conf/${ver}/zh-cn/tun-rules.jsonc`;
+
 const REMOTE_TEMPLATE_URLS: Record<configType, string> = {
-    'tun-rules':  'https://raw.githubusercontent.com/OneOhCloud/conf-template/refs/heads/main/conf/1.13/zh-cn/tun-rules.jsonc',
-    'tun-global': 'https://raw.githubusercontent.com/OneOhCloud/conf-template/refs/heads/main/conf/1.13/zh-cn/tun-global.jsonc',
+
+    'tun-rules': 'https://onebox-updater.oneoh.cloud/conf-template/raw/refs/heads/main/conf/1.13/zh-cn/tun-rules.jsonc',
+    'tun-global': 'https://onebox-updater.oneoh.cloud/conf-template/raw/refs/heads/main/conf/1.13/zh-cn/tun-global.jsonc',
 };
 
 const REMOTE_FETCH_TIMEOUT_MS = 5000;
@@ -107,6 +110,7 @@ async function fetchRemoteTemplate(mode: configType): Promise<string | null> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REMOTE_FETCH_TIMEOUT_MS);
     try {
+        console.log(`[Template] Fetching remote template for "${mode}" from: ${url}`);
         const resp = await fetch(url, { signal: controller.signal });
         clearTimeout(timer);
         if (!resp.ok) {
@@ -220,7 +224,7 @@ export async function getTunConfig(config: string): Promise<string> {
     console.log('[Config] Building tun-rules config');
 
     const directRuleSet = await getCustomRuleSet('direct');
-    const proxyRuleSet  = await getCustomRuleSet('proxy');
+    const proxyRuleSet = await getCustomRuleSet('proxy');
 
     for (const rule of newConfig.route.rules) {
         if (!rule.domain || !Array.isArray(rule.domain)) continue;
@@ -258,7 +262,7 @@ export async function getProcessedConfig(): Promise<string> {
     if (!configContent) throw new Error('No config content found');
 
     switch (mode) {
-        case 'tun-rules':  return getTunConfig(configContent);
+        case 'tun-rules': return getTunConfig(configContent);
         case 'tun-global': return getGlobalTunConfig(configContent);
         default: throw new Error(`Unsupported config type: ${mode}`);
     }
