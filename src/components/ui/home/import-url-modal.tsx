@@ -40,6 +40,10 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
                         onHandleClose={() => {
                             setCameraVisible(false);
                         }}
+                        onScanSuccess={() => {
+                            setCameraVisible(false);
+                            onClose();
+                        }}
                     />
                 </View>
             </Modal>

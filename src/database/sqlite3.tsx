@@ -1,10 +1,4 @@
 import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
-import { Platform, UIManager } from 'react-native';
-
-// 启用 LayoutAnimation (Android)
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 const DATABASE_VERSION = 2;
 

@@ -25,7 +25,7 @@ export default function AppTabs() {
           <TabTrigger name="index" href="/" asChild>
             <TabButton>连接</TabButton>
           </TabTrigger>
-          <TabTrigger name="subscriptions" href="/subscriptions" asChild>
+          <TabTrigger name="profile" href="/profile" asChild>
             <TabButton>配置</TabButton>
           </TabTrigger>
           <TabTrigger name="settings" href="/settings" asChild>

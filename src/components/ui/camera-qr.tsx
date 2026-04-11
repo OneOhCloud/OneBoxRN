@@ -31,9 +31,10 @@ function resolveQRData(raw: string): { data: string; apply?: string } | null {
 
 type CameraQRProps = {
     onHandleClose: () => void;
+    onScanSuccess?: () => void;
 };
 
-export default function CameraQR({ onHandleClose }: CameraQRProps) {
+export default function CameraQR({ onHandleClose, onScanSuccess }: CameraQRProps) {
     const [facing] = useState<CameraType>('back');
     const [permission, requestPermission] = useCameraPermissions();
     const [requestedOnce, setRequestedOnce] = useState(false);
@@ -116,7 +117,7 @@ export default function CameraQR({ onHandleClose }: CameraQRProps) {
 
         const resolved = resolveQRData(result.data);
         if (resolved) {
-            onHandleClose();
+            onScanSuccess?.();
             const applyParam = resolved.apply ? `&apply=${resolved.apply}` : '';
             router.push(`/config?data=${encodeURIComponent(resolved.data)}${applyParam}`);
         } else {
