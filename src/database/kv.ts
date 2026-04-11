@@ -195,10 +195,10 @@ export function migrateMMKVToSQLite(): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Subscription — multi-subscription data model
+// Profile — multi-profile data model
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface Subscription {
+export interface Profile {
     id: string;
     name: string;
     url: string;
@@ -209,49 +209,49 @@ export interface Subscription {
     addedAt: number;
 }
 
-function generateSubId(): string {
+function generateProfileId(): string {
     return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
-const SUB_IDS_KEY    = 'sub_ids';
-const ACTIVE_SUB_KEY = 'active_sub_id';
+const PROFILE_IDS_KEY    = 'sub_ids';
+const ACTIVE_PROFILE_KEY = 'active_sub_id';
 
-function subKey(id: string): string { return `sub_${id}`; }
+function profileKey(id: string): string { return `sub_${id}`; }
 
-export const SubscriptionStore = {
+export const ProfileStore = {
     getIds(): string[] {
-        const raw = kvGet(SUB_IDS_KEY);
+        const raw = kvGet(PROFILE_IDS_KEY);
         if (!raw) return [];
         try { return JSON.parse(raw) as string[]; } catch { return []; }
     },
 
-    getAll(): Subscription[] {
+    getAll(): Profile[] {
         return this.getIds()
             .map(id => this.getById(id))
-            .filter((s): s is Subscription => s !== null);
+            .filter((s): s is Profile => s !== null);
     },
 
-    getById(id: string): Subscription | null {
-        const raw = kvGet(subKey(id));
+    getById(id: string): Profile | null {
+        const raw = kvGet(profileKey(id));
         if (!raw) return null;
-        try { return JSON.parse(raw) as Subscription; } catch { return null; }
+        try { return JSON.parse(raw) as Profile; } catch { return null; }
     },
 
     getActiveId(): string | null {
-        return kvGet(ACTIVE_SUB_KEY);
+        return kvGet(ACTIVE_PROFILE_KEY);
     },
 
     setActiveId(id: string): void {
-        kvSet(ACTIVE_SUB_KEY, id);
+        kvSet(ACTIVE_PROFILE_KEY, id);
     },
 
-    getActive(): Subscription | null {
+    getActive(): Profile | null {
         const id = this.getActiveId();
         if (!id) {
-            // Auto-promote first subscription if no active is set
+            // Auto-promote first profile if no active is set
             const ids = this.getIds();
             if (ids.length > 0) {
-                kvSet(ACTIVE_SUB_KEY, ids[0]);
+                kvSet(ACTIVE_PROFILE_KEY, ids[0]);
                 return this.getById(ids[0]);
             }
             return null;
@@ -259,69 +259,69 @@ export const SubscriptionStore = {
         return this.getById(id);
     },
 
-    add(data: Omit<Subscription, 'id' | 'addedAt'>): Subscription {
-        const id = generateSubId();
-        const sub: Subscription = { ...data, id, addedAt: Date.now() };
+    add(data: Omit<Profile, 'id' | 'addedAt'>): Profile {
+        const id = generateProfileId();
+        const profile: Profile = { ...data, id, addedAt: Date.now() };
         const ids = this.getIds();
         ids.push(id);
-        kvSet(SUB_IDS_KEY, JSON.stringify(ids));
-        kvSet(subKey(id), JSON.stringify(sub));
-        return sub;
+        kvSet(PROFILE_IDS_KEY, JSON.stringify(ids));
+        kvSet(profileKey(id), JSON.stringify(profile));
+        return profile;
     },
 
-    update(id: string, patch: Partial<Omit<Subscription, 'id' | 'addedAt'>>): void {
+    update(id: string, patch: Partial<Omit<Profile, 'id' | 'addedAt'>>): void {
         const existing = this.getById(id);
         if (!existing) return;
-        kvSet(subKey(id), JSON.stringify({ ...existing, ...patch }));
+        kvSet(profileKey(id), JSON.stringify({ ...existing, ...patch }));
     },
 
     delete(id: string): void {
         const ids = this.getIds().filter(i => i !== id);
-        kvSet(SUB_IDS_KEY, JSON.stringify(ids));
-        kvDelete(subKey(id));
+        kvSet(PROFILE_IDS_KEY, JSON.stringify(ids));
+        kvDelete(profileKey(id));
         if (this.getActiveId() === id) {
-            if (ids.length > 0) kvSet(ACTIVE_SUB_KEY, ids[0]);
-            else kvDelete(ACTIVE_SUB_KEY);
+            if (ids.length > 0) kvSet(ACTIVE_PROFILE_KEY, ids[0]);
+            else kvDelete(ACTIVE_PROFILE_KEY);
         }
     },
 
-    findByUrl(url: string): Subscription | null {
+    findByUrl(url: string): Profile | null {
         return this.getAll().find(s => s.url === url) ?? null;
     },
 
-    /** Update existing subscription by URL, or add a new one. Sets it as active. */
-    upsertByUrl(data: Omit<Subscription, 'id' | 'addedAt'>): Subscription {
+    /** Update existing profile by URL, or add a new one. Sets it as active. */
+    upsertByUrl(data: Omit<Profile, 'id' | 'addedAt'>): Profile {
         const existing = this.findByUrl(data.url);
         if (existing) {
             this.update(existing.id, data);
             this.setActiveId(existing.id);
             return { ...existing, ...data };
         }
-        const sub = this.add(data);
-        this.setActiveId(sub.id);
-        return sub;
+        const profile = this.add(data);
+        this.setActiveId(profile.id);
+        return profile;
     },
 };
 
-// ─── V1 single-subscription → multi-subscription migration ───────────────────
+// ─── V1 single-profile → multi-profile migration ────────────────────────────
 
-const SUB_MIGRATION_V1_FLAG = 'sub_migration_v1';
+const PROFILE_MIGRATION_V1_FLAG = 'sub_migration_v1';
 
 /**
- * One-time migration from single-subscription kv keys to SubscriptionStore format.
+ * One-time migration from single-profile kv keys to ProfileStore format.
  * Must be called after migrateMMKVToSQLite().
  */
-export function migrateV1SubscriptionToMulti(): void {
-    if (kvGet(SUB_MIGRATION_V1_FLAG) === '1') return;
+export function migrateV1ProfileToMulti(): void {
+    if (kvGet(PROFILE_MIGRATION_V1_FLAG) === '1') return;
 
     const url = kvGet('configLink');
     if (url) {
-        console.log('[KV] Migrating v1 single-subscription to multi-subscription format...');
+        console.log('[KV] Migrating v1 single-profile to multi-profile format...');
         let name = kvGet('configName') ?? '';
         if (!name || name === 'default') {
-            name = urlHostname(url, 'Subscription');
+            name = urlHostname(url, 'Profile');
         }
-        const sub = SubscriptionStore.add({
+        const profile = ProfileStore.add({
             name,
             url,
             usedTraffic: Number(kvGet('usedTraffic') ?? '0'),
@@ -329,58 +329,58 @@ export function migrateV1SubscriptionToMulti(): void {
             expireTime: Number(kvGet('expireTime') ?? '0'),
             configContent: kvGet('configContent') ?? '',
         });
-        kvSet(ACTIVE_SUB_KEY, sub.id);
+        kvSet(ACTIVE_PROFILE_KEY, profile.id);
         kvDelete('configLink');
         kvDelete('configName');
         kvDelete('usedTraffic');
         kvDelete('totalTraffic');
         kvDelete('expireTime');
         kvDelete('configContent');
-        console.log('[KV] V1 subscription migrated, id:', sub.id);
+        console.log('[KV] V1 profile migrated, id:', profile.id);
     }
 
-    kvSet(SUB_MIGRATION_V1_FLAG, '1');
+    kvSet(PROFILE_MIGRATION_V1_FLAG, '1');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SBConfig — compat shim over the active subscription
+// SBConfig — compat shim over the active profile
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const SBConfig = {
-    getConfigLink: (): string | null => SubscriptionStore.getActive()?.url ?? null,
+    getConfigLink: (): string | null => ProfileStore.getActive()?.url ?? null,
     setConfigLink: (url: string) => {
-        const a = SubscriptionStore.getActive();
-        if (a) SubscriptionStore.update(a.id, { url });
+        const a = ProfileStore.getActive();
+        if (a) ProfileStore.update(a.id, { url });
     },
 
-    getConfigName: (): string => SubscriptionStore.getActive()?.name ?? 'default',
+    getConfigName: (): string => ProfileStore.getActive()?.name ?? 'default',
     setConfigName: (name: string) => {
-        const a = SubscriptionStore.getActive();
-        if (a) SubscriptionStore.update(a.id, { name });
+        const a = ProfileStore.getActive();
+        if (a) ProfileStore.update(a.id, { name });
     },
 
-    getUsedTraffic: (): number => SubscriptionStore.getActive()?.usedTraffic ?? 0,
+    getUsedTraffic: (): number => ProfileStore.getActive()?.usedTraffic ?? 0,
     setUsedTraffic: (n: number) => {
-        const a = SubscriptionStore.getActive();
-        if (a) SubscriptionStore.update(a.id, { usedTraffic: n });
+        const a = ProfileStore.getActive();
+        if (a) ProfileStore.update(a.id, { usedTraffic: n });
     },
 
-    getTotalTraffic: (): number => SubscriptionStore.getActive()?.totalTraffic ?? 1,
+    getTotalTraffic: (): number => ProfileStore.getActive()?.totalTraffic ?? 1,
     setTotalTraffic: (n: number) => {
-        const a = SubscriptionStore.getActive();
-        if (a) SubscriptionStore.update(a.id, { totalTraffic: n });
+        const a = ProfileStore.getActive();
+        if (a) ProfileStore.update(a.id, { totalTraffic: n });
     },
 
-    getExpireTime: (): number => SubscriptionStore.getActive()?.expireTime ?? 0,
+    getExpireTime: (): number => ProfileStore.getActive()?.expireTime ?? 0,
     setExpireTime: (t: number) => {
-        const a = SubscriptionStore.getActive();
-        if (a) SubscriptionStore.update(a.id, { expireTime: t });
+        const a = ProfileStore.getActive();
+        if (a) ProfileStore.update(a.id, { expireTime: t });
     },
 
-    getConfigContent: (): string => SubscriptionStore.getActive()?.configContent ?? '',
+    getConfigContent: (): string => ProfileStore.getActive()?.configContent ?? '',
     setConfigContent: (content: string) => {
-        const a = SubscriptionStore.getActive();
-        if (a) SubscriptionStore.update(a.id, { configContent: content });
+        const a = ProfileStore.getActive();
+        if (a) ProfileStore.update(a.id, { configContent: content });
     },
 
     setMode: (mode: configType) => kvSet('mode', mode),
@@ -413,7 +413,7 @@ export interface TaskRecord {
     expire: number;
 
     // ── Raw header for debugging ─────────────────────────────────────────────
-    subscriptionUserinfoHeader?: string;
+    userinfoHeader?: string;
 }
 
 export interface TaskLogEntry {

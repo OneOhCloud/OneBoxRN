@@ -1,15 +1,15 @@
 /**
- * Shared subscription header parser.
+ * Shared profile userinfo header parser.
  * Used by both the manual import screen and the background refresh task.
  */
-export interface SubscriptionInfo {
+export interface ProfileTrafficInfo {
     upload: number;
     download: number;
     total: number;
     expire: number;
 }
 
-export function parseSubscriptionUserinfo(header: string | null): SubscriptionInfo {
+export function parseProfileUserinfo(header: string | null): ProfileTrafficInfo {
     return {
         upload: parseInt(header?.match(/upload=(\d+)/)?.[1] ?? '0', 10),
         download: parseInt(header?.match(/download=(\d+)/)?.[1] ?? '0', 10),

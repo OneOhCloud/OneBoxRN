@@ -101,12 +101,12 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
                         </DetailSection>
                     )}
 
-                    {/* Subscription Info — raw header + traffic */}
-                    {record.status === 'success' && (record.subscriptionUserinfoHeader || record.total > 0) && (
+                    {/* Profile Info — raw header + traffic */}
+                    {record.status === 'success' && (record.userinfoHeader || record.total > 0) && (
                         <DetailSection title={i18n.t('task_subscription_info')}>
-                            {record.subscriptionUserinfoHeader && (
+                            {record.userinfoHeader && (
                                 <TouchableOpacity
-                                    onPress={() => copyToClipboard(record.subscriptionUserinfoHeader!, i18n.t('task_raw_header'))}
+                                    onPress={() => copyToClipboard(record.userinfoHeader!, i18n.t('task_raw_header'))}
                                     style={{
                                         paddingHorizontal: Spacing.three,
                                         paddingVertical: Spacing.two,
@@ -133,7 +133,7 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
                                             fontFamily: Fonts?.mono,
                                             lineHeight: 14,
                                         }}>
-                                            {record.subscriptionUserinfoHeader}
+                                            {record.userinfoHeader}
                                         </Text>
                                     </View>
                                 </TouchableOpacity>

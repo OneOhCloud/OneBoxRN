@@ -1,6 +1,6 @@
 /**
  * Developer Tools — hidden page, accessible by tapping "About" section 3 times.
- * Shows background task status, subscription config state, and task execution history.
+ * Shows background task status, profile config state, and task execution history.
  */
 import { AccelerateUrlSettingCard } from '@/components/dev/accelerate-url-setting-card';
 import { BackgroundTaskCard } from '@/components/dev/background-task-card';

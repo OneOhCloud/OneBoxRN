@@ -1,4 +1,4 @@
-import { fmtBytes } from '@/components/ui/home/subscription-info-card';
+import { fmtBytes } from '@/components/ui/home/profile-info-card';
 import i18n from '@/constants/language';
 import { useTheme } from '@/hooks/use-theme';
 import { Ionicons } from '@expo/vector-icons';

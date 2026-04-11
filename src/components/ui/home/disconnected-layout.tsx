@@ -1,6 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { ConnectButton } from '@/components/ui/home/connect-button';
-import { SubInfo, SubscriptionInfoCard } from '@/components/ui/home/subscription-info-card';
+import { SubInfo, ProfileInfoCard } from '@/components/ui/home/profile-info-card';
 import i18n from '@/constants/language';
 import { View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
@@ -31,7 +31,7 @@ export function DisconnectedLayout({ loading, subInfo, onPress }: DisconnectedLa
                         {i18n.t('connect_hint')}
                     </ThemedText>
                     <View className='mt-8'>
-                        <SubscriptionInfoCard info={subInfo} />
+                        <ProfileInfoCard info={subInfo} />
                     </View>
                 </Animated.View>
             )}

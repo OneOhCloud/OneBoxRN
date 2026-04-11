@@ -1,6 +1,6 @@
 /**
  * Home Screen — VPN control hub.
- * Primary user tasks: connect/disconnect, select proxy node, import subscription.
+ * Primary user tasks: connect/disconnect, select proxy node, import profile.
  */
 import { ThemedView } from '@/components/themed-view';
 import { ConnectedLayout } from '@/components/ui/home/connected-layout';

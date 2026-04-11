@@ -161,7 +161,7 @@ function applyResultToSBConfig(
         download: result.subscriptionDownload,
         total: result.subscriptionTotal,
         expire: result.subscriptionExpire,
-        subscriptionUserinfoHeader: result.subscriptionUserinfoHeader,
+        userinfoHeader: result.subscriptionUserinfoHeader,
     });
 
     console.log(`[ConfigRefresh] applied: status=${result.status}, method=${result.method ?? 'primary'}, duration=${result.durationMs}ms`);

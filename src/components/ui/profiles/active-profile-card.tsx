@@ -1,6 +1,6 @@
 import { mediumImpact } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
-import { Subscription } from '@/database/kv';
+import { Profile } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import { urlHostname } from '@/utils';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +13,7 @@ export function ActiveProfileCard({
     refreshing,
     onRefresh,
 }: {
-    sub: Subscription;
+    sub: Profile;
     refreshing: boolean;
     onRefresh: () => void;
 }) {

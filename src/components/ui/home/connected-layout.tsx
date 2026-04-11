@@ -1,7 +1,7 @@
 import { ConnectButton } from '@/components/ui/home/connect-button';
 import { FAB_CLEARANCE } from '@/components/ui/home/import-fab';
 import { NodeList } from '@/components/ui/home/node-list';
-import { SubInfo, SubscriptionInfoCard } from '@/components/ui/home/subscription-info-card';
+import { SubInfo, ProfileInfoCard } from '@/components/ui/home/profile-info-card';
 import { useTheme } from '@/hooks/use-theme';
 import { useEffect } from 'react';
 import { View } from 'react-native';
@@ -66,7 +66,7 @@ export function ConnectedLayout({ loading, subInfo, onPress }: ConnectedLayoutPr
                 className="mt-4"
                 entering={FadeInDown.duration(320).delay(140)}
             >
-                <SubscriptionInfoCard info={subInfo} />
+                <ProfileInfoCard info={subInfo} />
             </Animated.View>
 
         </Animated.View>

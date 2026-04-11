@@ -141,7 +141,7 @@
     "task_request_urls": "请求地址",
     "task_primary_url": "主地址",
     "task_accelerated_url": "加速地址",
-    "task_subscription_info": "订阅信息",
+    "task_subscription_info": "配置信息",
     "task_raw_header": "原始响应头",
     "task_parsed_data": "解析数据",
     "task_upload": "上传",

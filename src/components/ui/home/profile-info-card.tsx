@@ -16,7 +16,7 @@ export interface SubInfo {
     expire: number;
 }
 
-export function SubscriptionInfoCard({ info }: { info: SubInfo }) {
+export function ProfileInfoCard({ info }: { info: SubInfo }) {
     const theme = useTheme();
     if (info.expire === 0 && info.total <= 1) return null;
 

@@ -1,8 +1,8 @@
 /**
- * Subscription remote-config loader with intelligent fallback.
+ * Profile remote-config loader with intelligent fallback.
  *
  * Priority:
- *   1. Primary URL (original subscription address)
+ *   1. Primary URL (original config address)
  *   2. Accelerated URL (only on TCP-level failures, if accelerator is available)
  *
  * Every load path emits a structured log line starting with [CONFIG_LOAD].
@@ -62,7 +62,7 @@ function isNetworkFault(err: unknown): boolean {
 }
 
 /**
- * Build the accelerated variant of an original subscription URL.
+ * Build the accelerated variant of an original config URL.
  *
  *   <ACCELERATE_URL>/<domainSha256><originalPath+Query>
  *
@@ -80,9 +80,9 @@ function buildAcceleratedUrl(originalUrl: string, domainSha256: string): string 
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Verify a subscription hostname against:
+ * Verify a config hostname against:
  *   A) a hardcoded known-good SHA256, or
- *   B) the official verified-subscriptions list from sing-box.net.
+ *   B) the official verified list from sing-box.net.
  * Either condition passing is sufficient.
  */
 async function verifyDomain(hostname: string, domainSha256: string): Promise<boolean> {
@@ -112,16 +112,16 @@ async function verifyDomain(hostname: string, domainSha256: string): Promise<boo
 // Main export
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface SubscriptionFetchResult {
+export interface ConfigFetchResult {
     content: string;
     headers: Headers;
 }
 
 /**
- * Fetch a remote subscription config with automatic accelerator fallback.
+ * Fetch a remote config with automatic accelerator fallback.
  *
  * Flow:
- *   1. SHA256-verify the subscription domain (local hash + remote whitelist).
+ *   1. SHA256-verify the config domain (local hash + remote whitelist).
  *   2. Try the primary (original) URL with a 10 s timeout.
  *   3. On TCP-level failure only (timeout / reset / DNS error):
  *        a. Check accelerator reachability (cached after first call).
@@ -133,10 +133,10 @@ export interface SubscriptionFetchResult {
  *   - HTTP non-2xx from primary (no fallback for HTTP errors)
  *   - all network paths exhausted
  */
-export async function fetchSubscriptionWithFallback(
+export async function fetchConfigWithFallback(
     originalUrl: string,
     userAgent: string,
-): Promise<SubscriptionFetchResult> {
+): Promise<ConfigFetchResult> {
     // ── Step 1: domain verification ──────────────────────────────────────────
     const hostname = new URL(originalUrl).hostname;
     const domainSha256 = await sha256Hex(hostname);
@@ -158,7 +158,7 @@ export async function fetchSubscriptionWithFallback(
 
         if (!resp.ok) {
             // HTTP error — do not fall back; surface immediately
-            throw new Error(`获取订阅失败，HTTP状态码: ${resp.status}`);
+            throw new Error(`获取配置失败，HTTP状态码: ${resp.status}`);
         }
 
         const content = await resp.text();
@@ -177,7 +177,7 @@ export async function fetchSubscriptionWithFallback(
         console.warn(
             `[CONFIG_LOAD] 方式=ACCELERATOR_SKIPPED, 原因=域名未验证, 主地址原因=${primaryErrorLabel}`,
         );
-        throw new Error(`订阅加载失败: 主地址不可达(${primaryErrorLabel}), 域名未验证禁止使用加速`);
+        throw new Error(`配置加载失败: 主地址不可达(${primaryErrorLabel}), 域名未验证禁止使用加速`);
     }
 
     if (acceleratorAvailable === null) {
@@ -188,7 +188,7 @@ export async function fetchSubscriptionWithFallback(
         console.warn(
             `[CONFIG_LOAD] 方式=ACCELERATOR_UNAVAILABLE, 原因=不可达:443, 回退中止`,
         );
-        throw new Error(`订阅加载失败: 主地址不可达(${primaryErrorLabel}), 加速地址不可用`);
+        throw new Error(`配置加载失败: 主地址不可达(${primaryErrorLabel}), 加速地址不可用`);
     }
 
     const acceleratedUrl = buildAcceleratedUrl(originalUrl, domainSha256);
@@ -206,7 +206,7 @@ export async function fetchSubscriptionWithFallback(
                 `[CONFIG_LOAD] 方式=BOTH_FAILED, 主地址原因=${primaryErrorLabel}, 加速地址原因=${acceleratorErrorLabel}`,
             );
             throw new Error(
-                `订阅加载失败: 主地址(${primaryErrorLabel}) 加速地址(${acceleratorErrorLabel})`,
+                `配置加载失败: 主地址(${primaryErrorLabel}) 加速地址(${acceleratorErrorLabel})`,
             );
         }
 
@@ -216,7 +216,7 @@ export async function fetchSubscriptionWithFallback(
         );
         return { content, headers: resp.headers };
     } catch (err) {
-        if ((err as Error).message?.startsWith('订阅加载失败')) {
+        if ((err as Error).message?.startsWith('配置加载失败')) {
             throw err; // already labelled above
         }
         const acceleratorErrorLabel = isNetworkFault(err) ? (err as Error).name : 'UNKNOWN';
@@ -224,7 +224,7 @@ export async function fetchSubscriptionWithFallback(
             `[CONFIG_LOAD] 方式=BOTH_FAILED, 主地址原因=${primaryErrorLabel}, 加速地址原因=${acceleratorErrorLabel}`,
         );
         throw new Error(
-            `订阅加载失败: 主地址(${primaryErrorLabel}) 加速地址(${acceleratorErrorLabel})`,
+            `配置加载失败: 主地址(${primaryErrorLabel}) 加速地址(${acceleratorErrorLabel})`,
         );
     }
 }

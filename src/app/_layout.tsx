@@ -5,7 +5,7 @@
 
 import { VpnProvider } from '@/contexts/vpn-context';
 import { DatabaseProvider } from '@/database/sqlite3';
-import { AppLaunchFlags, migrateMMKVToSQLite, migrateV1SubscriptionToMulti } from '@/database/kv';
+import { AppLaunchFlags, migrateMMKVToSQLite, migrateV1ProfileToMulti } from '@/database/kv';
 import * as Task from '@/tasks/config-refresh';
 import { fetchWithTimeout } from '@/utils';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
@@ -79,7 +79,7 @@ export default function RootLayout() {
         // MMKV → SQLite 数据迁移（同步执行，幂等，迁移完成后删除 MMKV 数据）
         migrateMMKVToSQLite();
         // 单订阅 → 多订阅格式迁移（依赖 MMKV 迁移完成后执行）
-        migrateV1SubscriptionToMulti();
+        migrateV1ProfileToMulti();
 
         // Initialize domain verification data (fetch and cache) before registering background task
         Task.initializeConfigRefresh()

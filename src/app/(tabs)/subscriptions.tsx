@@ -8,13 +8,13 @@ import { mediumImpact, notifyError, notifySuccess } from '@/components/ui/haptic
 import { EmptyState } from '@/components/ui/home/empty-state';
 import { ImportUrlModal } from '@/components/ui/home/import-url-modal';
 import { ModeSelector } from '@/components/ui/home/mode-selector';
-import { ActiveProfileCard } from '@/components/ui/subscriptions/active-profile-card';
-import { SubscriptionRow } from '@/components/ui/subscriptions/subscription-row';
+import { ActiveProfileCard } from '@/components/ui/profiles/active-profile-card';
+import { ProfileRow } from '@/components/ui/profiles/profile-row';
 import i18n from '@/constants/language';
 import { BottomTabInset, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { getProcessedConfig } from '@/database/helper';
-import { SubscriptionStore } from '@/database/kv';
+import { ProfileStore } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox, { VPN_STATUS } from '@/modules/expo-onebox';
 import { executeConfigRefresh } from '@/tasks/config-refresh';
@@ -24,25 +24,25 @@ import React, { useCallback, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function SubscriptionsScreen() {
+export default function ProfilesScreen() {
     const theme = useTheme();
     const { connected } = useVpn();
 
-    const [subs, setSubs] = useState<ReturnType<typeof SubscriptionStore.getAll>>([]);
+    const [subs, setSubs] = useState<ReturnType<typeof ProfileStore.getAll>>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const refreshingRef = useRef(false);
     const [importUrlVisible, setImportUrlVisible] = useState(false);
 
     const loadData = useCallback(() => {
-        setSubs(SubscriptionStore.getAll());
-        setActiveId(SubscriptionStore.getActiveId());
+        setSubs(ProfileStore.getAll());
+        setActiveId(ProfileStore.getActiveId());
     }, []);
 
     useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
     const handleActivate = useCallback((id: string) => {
-        SubscriptionStore.setActiveId(id);
+        ProfileStore.setActiveId(id);
         setActiveId(id);
 
         // If VPN is running, restart with the new profile's config
@@ -73,7 +73,7 @@ export default function SubscriptionsScreen() {
     const handleDelete = useCallback((sub: { id: string; name: string }) => {
         Alert.alert(i18n.t('sub_delete'), i18n.t('sub_delete_confirm'), [
             { text: i18n.t('cancel'), style: 'cancel' },
-            { text: i18n.t('sub_delete'), style: 'destructive', onPress: () => { SubscriptionStore.delete(sub.id); loadData(); } },
+            { text: i18n.t('sub_delete'), style: 'destructive', onPress: () => { ProfileStore.delete(sub.id); loadData(); } },
         ]);
     }, [loadData]);
 
@@ -187,7 +187,7 @@ export default function SubscriptionsScreen() {
                                     borderColor: theme.glassBorder,
                                 }}>
                                     {subs.map((sub, idx) => (
-                                        <SubscriptionRow
+                                        <ProfileRow
                                             key={sub.id}
                                             sub={sub}
                                             isActive={sub.id === activeId}

@@ -22,7 +22,7 @@ export function ConfigStateCard({
         : 'N/A';
 
     return (
-        <Card title="Subscription Config">
+        <Card title="Profile Config">
             <Row
                 label="Config URL"
                 value={link ?? 'None'}

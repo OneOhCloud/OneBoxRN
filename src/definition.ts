@@ -10,7 +10,7 @@ export type configType = 'tun-rules' | 'tun-global';
 
 export const GITHUB_URL = 'https://github.com/OneOhCloud/OneBox'
 export const OFFICIAL_WEBSITE = 'https://sing-box.net'
-export const SSI_STORE_KEY = 'selected_subscription_identifier'
+export const SSI_STORE_KEY = 'selected_profile_identifier'
 export const DEVELOPER_TOGGLE_STORE_KEY = 'developer_toggle_key'
 export const STAGE_VERSION_STORE_KEY = 'stage_version_key'
 export const TUN_STACK_STORE_KEY = 'tun_stack_key'
@@ -30,19 +30,19 @@ export const RULE_MODE_STORE_KEY = 'rule_mode_key'
 
 
 
-export type Subscription = {
+export type ProfileEntry = {
     id: number
     identifier: string
     name: string
     used_traffic: number
     total_traffic: number
-    subscription_url: string
+    config_url: string
     official_website: string
     expire_time: number
     last_update_time: number
 }
 
-export type SubscriptionConfig = {
+export type ProfileConfig = {
     id: number
     identifier: string
     config_content: string

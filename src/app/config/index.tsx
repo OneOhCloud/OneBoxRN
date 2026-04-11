@@ -1,17 +1,17 @@
 /**
- * Config Import Screen — downloads and displays subscription configuration.
+ * Config Import Screen — downloads and displays profile configuration.
  * Reached via deep link or QR scan with base64-encoded URL in search params.
  */
 import { mediumImpact, notifyError, notifySuccess } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
 import { Fonts } from '@/constants/theme';
-import { fmtBytes } from '@/components/ui/home/subscription-info-card';
+import { fmtBytes } from '@/components/ui/home/profile-info-card';
 import { getProcessedConfig } from '@/database/helper';
-import { SubscriptionStore } from '@/database/kv';
+import { ProfileStore } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox, { VPN_STATUS } from '@/modules/expo-onebox';
 import { fetchWithTimeout, getRemoteNameByContentDisposition, getSingBoxUserAgent, urlHostname } from '@/utils';
-import { parseSubscriptionUserinfo } from '@/utils/subscription';
+import { parseProfileUserinfo } from '@/utils/profile-info';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -55,16 +55,16 @@ function useDownloadConfig(url: string | undefined) {
                     if (signal.aborted) return;
                     setData(content);
 
-                    const { upload, download, total, expire } = parseSubscriptionUserinfo(
+                    const { upload, download, total, expire } = parseProfileUserinfo(
                         response.headers.get('subscription-userinfo')
                     );
 
                     const name =
                         getRemoteNameByContentDisposition(response.headers.get('content-disposition') ?? '')
-                        ?? SubscriptionStore.findByUrl(url)?.name
-                        ?? urlHostname(url, 'Subscription');
+                        ?? ProfileStore.findByUrl(url)?.name
+                        ?? urlHostname(url, 'Profile');
 
-                    SubscriptionStore.upsertByUrl({
+                    ProfileStore.upsertByUrl({
                         name,
                         url,
                         usedTraffic: upload + download,

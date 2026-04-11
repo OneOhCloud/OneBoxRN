@@ -9,7 +9,7 @@ type Item = { tag: string; type: string };
 type Dict = any;
 type SBJSONConfig = Map<any, any> & { outbounds: any };
 
-export const GET_SUBSCRIPTIONS_LIST_SWR_KEY = 'get-subscriptions-list';
+export const GET_PROFILES_LIST_SWR_KEY = 'get-profiles-list';
 
 export interface TerminatedPayload { code: number | null; signal: number | null }
 export type StatusChangedPayload = void | TerminatedPayload;

@@ -1,5 +1,5 @@
 /**
- * Camera QR Scanner — full-screen camera for scanning subscription QR codes.
+ * Camera QR Scanner — full-screen camera for scanning config QR codes.
  * Handles permission flow: auto-request → manual settings → scan.
  * All styles via NativeWind className, zero StyleSheet.
  */

@@ -1,12 +1,12 @@
 import { Fonts } from '@/constants/theme';
-import { Subscription } from '@/database/kv';
+import { Profile } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import { mediumImpact } from '@/components/ui/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-export function SubscriptionRow({
+export function ProfileRow({
     sub,
     isActive,
     isFirst,
@@ -14,7 +14,7 @@ export function SubscriptionRow({
     onActivate,
     onDelete,
 }: {
-    sub: Subscription;
+    sub: Profile;
     isActive: boolean;
     isFirst: boolean;
     isLast: boolean;

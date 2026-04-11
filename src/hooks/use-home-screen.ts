@@ -1,4 +1,4 @@
-import { SubInfo } from '@/components/ui/home/subscription-info-card';
+import { SubInfo } from '@/components/ui/home/profile-info-card';
 import i18n from '@/constants/language';
 import { useVpn } from '@/contexts/vpn-context';
 import { getProcessedConfig } from '@/database/helper';
