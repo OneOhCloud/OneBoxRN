@@ -4,9 +4,9 @@
  * JS layer manages the cache, native layer uses the data for validation during fallback.
  */
 
+import { DOMAIN_VERIFICATION_KEYS } from '@/constants/cache-keys';
 import { kvGet, kvSet } from '@/database/kv';
 import { fetchWithTimeout } from '@/utils';
-import { DOMAIN_VERIFICATION_KEYS } from '@/constants/cache-keys';
 
 // Remote verification list URL
 const VERIFIED_LIST_URL = 'https://www.sing-box.net/verified_subscriptions_sha256.txt';
@@ -15,7 +15,7 @@ const VERIFIED_LIST_URL = 'https://www.sing-box.net/verified_subscriptions_sha25
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 // Compile-time defaults
-const DEFAULT_KNOWN_DOMAIN_SHA256 = '183a5526e76751b07cd57236bc8f253d5424e02a3fc7da7c30f80919e975125a';
+const DEFAULT_KNOWN_DOMAIN_SHA256 = '59fe86216c23236fb4c6ab50cd8d1e261b7cad754e3e7cab33058df5b32d12e1';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
