@@ -36,6 +36,12 @@ let _db: SQLite.SQLiteDatabase | null = null;
 const _cache: Record<string, string> = {};
 let _cacheLoaded = false;
 
+// Web: expo-sqlite web falls back to in-memory MemoryVFS without cross-origin
+// isolation headers (COOP/COEP), so SQLite does not persist across reloads.
+// Route the KV layer through localStorage on web to get real persistence.
+const WEB_KV_PREFIX = 'oneoh_kv:';
+const isWeb = Platform.OS === 'web';
+
 function getDB(): SQLite.SQLiteDatabase {
     if (!_db) {
         _db = SQLite.openDatabaseSync('config.db');
@@ -52,6 +58,20 @@ function getDB(): SQLite.SQLiteDatabase {
 
 function loadCache(): void {
     if (_cacheLoaded) return;
+    if (isWeb) {
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const fullKey = localStorage.key(i);
+                if (!fullKey || !fullKey.startsWith(WEB_KV_PREFIX)) continue;
+                const v = localStorage.getItem(fullKey);
+                if (v !== null) _cache[fullKey.slice(WEB_KV_PREFIX.length)] = v;
+            }
+        } catch (e) {
+            console.warn('[KV] Failed to load cache from localStorage:', e);
+        }
+        _cacheLoaded = true;
+        return;
+    }
     try {
         const rows = getDB().getAllSync<{ key: string; value: string }>(
             'SELECT key, value FROM kv_store'
@@ -75,6 +95,14 @@ export function kvGet(key: string): string | null {
 export function kvSet(key: string, value: string): void {
     loadCache();
     _cache[key] = value;
+    if (isWeb) {
+        try {
+            localStorage.setItem(WEB_KV_PREFIX + key, value);
+        } catch (e) {
+            console.warn('[KV] localStorage write failed for key:', key, e);
+        }
+        return;
+    }
     try {
         getDB().runSync(
             'INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)',
@@ -89,6 +117,14 @@ export function kvSet(key: string, value: string): void {
 export function kvDelete(key: string): void {
     loadCache();
     delete _cache[key];
+    if (isWeb) {
+        try {
+            localStorage.removeItem(WEB_KV_PREFIX + key);
+        } catch (e) {
+            console.warn('[KV] localStorage delete failed for key:', key, e);
+        }
+        return;
+    }
     try {
         getDB().runSync('DELETE FROM kv_store WHERE key = ?', [key]);
     } catch (e) {

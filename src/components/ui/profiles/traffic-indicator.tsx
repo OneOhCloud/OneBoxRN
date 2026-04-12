@@ -33,8 +33,7 @@ export function TrafficIndicator({ percentage, color, hasData, textSecondaryColo
                         strokeDasharray={circumference}
                         strokeDashoffset={offset}
                         strokeLinecap="round"
-                        rotation="-90"
-                        origin={`${size / 2}, ${size / 2}`}
+                        transform={`rotate(-90 ${size / 2} ${size / 2})`}
                     />
                 </Svg>
                 <Text style={{ position: 'absolute', fontSize: 28, fontWeight: '600', color }}>

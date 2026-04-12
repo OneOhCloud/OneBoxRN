@@ -56,6 +56,17 @@ export async function fetchWithTimeout(
     init?: RequestInit,
     timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<Response> {
+    if (Platform.OS === 'web') {
+        const { buildMockConfigBody, buildMockUserinfoHeader } = await import('./modules/expo-onebox/src/ExpoOneBoxModule.web');
+        return new Response(buildMockConfigBody(input), {
+            status: 200,
+            headers: {
+                'content-type': 'application/json',
+                'subscription-userinfo': buildMockUserinfoHeader(),
+            },
+        });
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
