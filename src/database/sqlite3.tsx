@@ -1,10 +1,14 @@
-import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
+import React from 'react';
+import { Platform } from 'react-native';
 
 const DATABASE_VERSION = 2;
 
+// Native-only type alias for the DB handle. On web this is never touched.
+type SQLiteDatabase = any;
+
 // 数据库初始化/迁移函数 — 供 SQLiteProvider onInit 调用
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
-    const result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+    const result = await db.getFirstAsync('PRAGMA user_version') as { user_version: number } | null;
     let currentDbVersion = result?.user_version ?? 0;
 
     if (currentDbVersion >= DATABASE_VERSION) {
@@ -54,7 +58,17 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
 }
 
 // SQLiteProvider 包装组件 — 在 _layout.tsx 中使用
+//
+// Web 上跳过 expo-sqlite 完全 — wa-sqlite 在 incognito / 权限受限的浏览器
+// 里会抛 UnknownError / InvalidStateError。即使 <SQLiteProvider> 不渲染，
+// 顶层 `import` 也会把整个 web 后端（含 worker）拉进 bundle 并触发初始化，
+// 所以必须 lazy-require 而不是 import。
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
+    if (Platform.OS === 'web') {
+        return <>{children}</>;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { SQLiteProvider } = require('expo-sqlite') as typeof import('expo-sqlite');
     return (
         <SQLiteProvider databaseName="config.db" onInit={migrateDbIfNeeded}>
             {children}

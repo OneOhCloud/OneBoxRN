@@ -3,11 +3,22 @@ import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { StyleSheet, Text, View } from 'react-native';
 
+/** Format a number with 1–3 significant digits, trimming trailing zeros. Matches iOS ByteCountFormatter behavior. */
+function formatSignificant(n: number): string {
+    if (n >= 100) return Math.round(n).toString();
+    if (n >= 10) return n.toFixed(1).replace(/\.0$/, '');
+    return n.toFixed(2).replace(/\.?0+$/, '');
+}
+
 export function fmtBytes(bytes: number): string {
     if (bytes <= 0) return '0 B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
-    return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+    const KB = 1024;
+    const MB = KB * 1024;
+    const GB = MB * 1024;
+    if (bytes < KB) return `${bytes} B`;
+    if (bytes < MB) return `${formatSignificant(bytes / KB)} KB`;
+    if (bytes < GB) return `${formatSignificant(bytes / MB)} MB`;
+    return `${formatSignificant(bytes / GB)} GB`;
 }
 
 export interface SubInfo {

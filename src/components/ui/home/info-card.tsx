@@ -1,92 +1,151 @@
-import { ThemedText } from '@/components/themed-text';
+import { SettingsRow } from '@/components/ui/ios26/settings-row';
 import i18n from '@/constants/language';
+import { Fonts } from '@/constants/theme';
 import { getStoreValue } from '@/database/store';
 import { useTheme } from '@/hooks/use-theme';
-import ExpoOneBox from '@/modules/expo-onebox';
 import { getSingBoxUserAgent } from '@/utils';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, ToastAndroid, View } from 'react-native';
+import { Platform, Pressable, Text, ToastAndroid, View } from 'react-native';
 
-const MONO_FONT = Platform.OS === 'ios' ? 'ui-monospace' : 'monospace';
-
-function InfoRow({
-    iconName,
-    iconColor,
-    label,
-    children,
-    isLast,
-}: {
-    iconName: React.ComponentProps<typeof Ionicons>['name'];
-    iconColor: string;
-    label: string;
-    children: React.ReactNode;
-    isLast?: boolean;
-}) {
-    const theme = useTheme();
+// ─── Status capsule — iOS 26 tinted pill ───────────────────────────────────
+function StatusCapsule({ connected }: { connected: boolean }) {
+    const color = connected ? '#34C759' : '#8E8E93';
+    const bg = connected ? 'rgba(52,199,89,0.14)' : 'rgba(142,142,147,0.16)';
     return (
-        <View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 }}>
-                <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: iconColor, alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name={iconName} size={16} color="#fff" />
-                </View>
-                <ThemedText style={{ flex: 1, fontSize: 15 }}>{label}</ThemedText>
-                {children}
-            </View>
-            {!isLast && <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.glassBorder, marginLeft: 44 }} />}
+        <View
+            style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: bg,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 999,
+            }}
+        >
+            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: color }} />
+            <Text
+                style={{
+                    fontSize: 13,
+                    fontFamily: Fonts?.rounded,
+                    fontWeight: '700',
+                    color,
+                    letterSpacing: -0.1,
+                }}
+            >
+                {connected ? i18n.t('running') : i18n.t('not_connected')}
+            </Text>
         </View>
+    );
+}
+
+// ─── Copy-to-clipboard tint pill ───────────────────────────────────────────
+function CopyButton({ onPress, tint }: { onPress: () => void; tint: string }) {
+    return (
+        <Pressable
+            onPress={onPress}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={i18n.t('copied')}
+            style={({ pressed }) => ({
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                backgroundColor: `${tint}1E`,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.55 : 1,
+            })}
+        >
+            <Ionicons name="copy-outline" size={14} color={tint} />
+        </Pressable>
     );
 }
 
 /** System status rows — no card background; wrap in a card at the call site. */
 export function InfoCard({ connected }: { connected: boolean }) {
-    const ua = getSingBoxUserAgent();
+    const theme = useTheme();
+
+    // Lazy-init so any platform-specific throw (e.g. expo-device on web)
+    // doesn't tear down the whole route at render time.
+    const [ua] = useState<string>(() => {
+        try {
+            return getSingBoxUserAgent();
+        } catch (e) {
+            console.warn('[InfoCard] getSingBoxUserAgent failed:', e);
+            return '—';
+        }
+    });
     const [bestDns, setBestDns] = useState<string>('—');
 
     useEffect(() => {
-        getStoreValue('directDNS', '—').then(setBestDns);
+        let cancelled = false;
+        getStoreValue('directDNS', '—')
+            .then(v => { if (!cancelled) setBestDns(v); })
+            .catch(e => {
+                if (!cancelled) {
+                    console.warn('[InfoCard] getStoreValue failed:', e);
+                    setBestDns('—');
+                }
+            });
+        return () => { cancelled = true; };
     }, [connected]);
 
     const handleCopyUA = () => {
-        Clipboard.setStringAsync(ua);
-        if (Platform.OS === 'android') ToastAndroid.show(i18n.t('copied'), ToastAndroid.SHORT);
+        try {
+            Clipboard.setStringAsync(ua);
+            if (Platform.OS === 'android') ToastAndroid.show(i18n.t('copied'), ToastAndroid.SHORT);
+        } catch (e) {
+            console.warn('[InfoCard] copy failed:', e);
+        }
     };
 
     return (
         <View>
-            <InfoRow iconName="radio-outline" iconColor={connected ? '#34C759' : '#8E8E93'} label={i18n.t('run_status')}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: connected ? '#34C759' : '#8E8E93' }} />
-                    <ThemedText style={{ fontSize: 14, fontWeight: '500', color: connected ? '#34C759' : '#8E8E93' }}>
-                        {connected ? i18n.t('running') : i18n.t('not_connected')}
-                    </ThemedText>
-                </View>
-            </InfoRow>
+            {/* Run status — tinted capsule */}
+            <SettingsRow
+                iconName="radio-outline"
+                iconColor={connected ? '#34C759' : '#8E8E93'}
+                label={i18n.t('run_status')}
+                trailing={<StatusCapsule connected={connected} />}
+            />
 
-            <InfoRow iconName="globe-outline" iconColor="#32ADE6" label={i18n.t('dns_server')}>
-                <ThemedText style={{ fontSize: 14, fontFamily: MONO_FONT }} themeColor="textSecondary">
-                    {bestDns}
-                </ThemedText>
-            </InfoRow>
+            {/* DNS server — mono value */}
+            <SettingsRow
+                iconName="globe-outline"
+                iconColor="#32ADE6"
+                label={i18n.t('dns_server')}
+                value={bestDns}
+                valueMono
+            />
 
-            <InfoRow iconName="finger-print-outline" iconColor="#5856D6" label={i18n.t('user_agent')} isLast>
-                <View style={{ flexDirection: 'row', flex: 1, gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={{ flexShrink: 1 }}
-                        contentContainerStyle={{ alignItems: 'center' }}
-                    >
-                        <ThemedText style={{ fontSize: 10, fontFamily: MONO_FONT }} themeColor="textSecondary">
+            {/* User-Agent — truncated mono value with tinted copy pill */}
+            <SettingsRow
+                iconName="finger-print-outline"
+                iconColor="#5856D6"
+                label={i18n.t('user_agent')}
+                isLast
+                trailing={
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, maxWidth: 180 }}>
+                        <Text
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                            style={{
+                                flexShrink: 1,
+                                fontSize: 11,
+                                fontFamily: Fonts?.mono,
+                                color: theme.textSecondary,
+                                fontVariant: ['tabular-nums'],
+                            }}
+                        >
                             {ua}
-                        </ThemedText>
-                    </ScrollView>
-                    <Pressable onPress={handleCopyUA} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-                        <Ionicons name="copy-outline" size={14} color="#8E8E93" />
-                    </Pressable>
-                </View>
-            </InfoRow>
+                        </Text>
+                        <CopyButton onPress={handleCopyUA} tint="#5856D6" />
+                    </View>
+                }
+            />
         </View>
     );
 }

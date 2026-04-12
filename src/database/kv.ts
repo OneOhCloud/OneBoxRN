@@ -1,8 +1,19 @@
 import { configType } from '@/definition';
 import { urlHostname } from '@/utils';
-import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
 import { createMMKV } from 'react-native-mmkv';
+
+// Lazy require expo-sqlite only on native platforms. Importing the module at
+// the top level on web loads wa-sqlite + its worker, which touches IndexedDB /
+// OPFS during module init and throws UnknownError in restricted browser
+// contexts (incognito, Safari, SharedArrayBuffer-less envs). Web uses
+// localStorage instead, so we never need SQLite there.
+type ExpoSQLite = typeof import('expo-sqlite');
+let SQLite: ExpoSQLite | null = null;
+if (Platform.OS !== 'web') {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    SQLite = require('expo-sqlite') as ExpoSQLite;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // @deprecated MMKV storage — retained for migration only, do not use directly
@@ -31,7 +42,7 @@ export const MMKVStore = _mmkvStorage;
 // SQLite KV 后端
 // ─────────────────────────────────────────────────────────────────────────────
 
-let _db: SQLite.SQLiteDatabase | null = null;
+let _db: any = null; // SQLite.SQLiteDatabase | null — untyped to avoid importing the type on web
 /** 内存缓存：同步读取直接命中，写入同时更新缓存与 SQLite */
 const _cache: Record<string, string> = {};
 let _cacheLoaded = false;
@@ -42,9 +53,12 @@ let _cacheLoaded = false;
 const WEB_KV_PREFIX = 'oneoh_kv:';
 const isWeb = Platform.OS === 'web';
 
-function getDB(): SQLite.SQLiteDatabase {
+function getDB(): any {
+    if (isWeb) {
+        throw new Error('[KV] getDB() must never be called on web');
+    }
     if (!_db) {
-        _db = SQLite.openDatabaseSync('config.db');
+        _db = SQLite!.openDatabaseSync('config.db');
         // 确保 kv_store 表存在（SQLiteProvider 的 onInit 可能尚未运行）
         _db.execSync(`
             CREATE TABLE IF NOT EXISTS kv_store (
@@ -73,9 +87,9 @@ function loadCache(): void {
         return;
     }
     try {
-        const rows = getDB().getAllSync<{ key: string; value: string }>(
+        const rows = getDB().getAllSync(
             'SELECT key, value FROM kv_store'
-        );
+        ) as { key: string; value: string }[];
         for (const row of rows) {
             _cache[row.key] = row.value;
         }
