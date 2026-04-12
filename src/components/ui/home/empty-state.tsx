@@ -4,12 +4,11 @@ import i18n from '@/constants/language';
 import { useTheme } from '@/hooks/use-theme';
 import { Image, Pressable, View } from 'react-native';
 interface EmptyStateProps {
-    onScanQR: () => void;
     onImportUrl: () => void;
 }
 
 /** Shown when no profile has been imported yet */
-export function EmptyState({ onScanQR, onImportUrl }: EmptyStateProps) {
+export function EmptyState({ onImportUrl }: EmptyStateProps) {
     const theme = useTheme();
     return (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
@@ -33,18 +32,6 @@ export function EmptyState({ onScanQR, onImportUrl }: EmptyStateProps) {
 
             {/* Actions */}
             <View style={{ width: '100%', gap: 12 }}>
-                <Pressable
-                    onPress={() => { lightImpact(); onScanQR(); }}
-                    style={({ pressed }) => ({
-                        backgroundColor: '#007AFF',
-                        paddingVertical: 14,
-                        borderRadius: 16,
-                        alignItems: 'center',
-                        opacity: pressed ? 0.8 : 1,
-                    })}
-                >
-                    <ThemedText style={{ color: '#fff', fontWeight: '600' }}>{i18n.t('scan_qr')}</ThemedText>
-                </Pressable>
                 <Pressable
                     onPress={() => { lightImpact(); onImportUrl(); }}
                     style={({ pressed }) => ({

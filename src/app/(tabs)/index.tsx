@@ -38,7 +38,6 @@ export default function HomeScreen() {
                     }}
                 >
                     <EmptyState
-                        onScanQR={() => setImportUrlVisible(true)}
                         onImportUrl={() => setImportUrlVisible(true)}
                     />
                 </SafeAreaView>
