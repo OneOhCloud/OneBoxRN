@@ -70,6 +70,7 @@ help:
 	@echo ""
 	@echo "  ios                 创建 Archive（= ios-archive）"
 	@echo "  ios-archive         创建 Archive，手动上传 App Store Connect"
+	@echo "  upload-bugsnag-ios 上传 iOS dSYM 和 RN sourcemap 到 Bugsnag"
 	@echo ""
 	@echo "  update-tun-db       强制更新 tun.db（构建时自动检查）"
 	@echo ""

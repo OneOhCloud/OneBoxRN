@@ -1,4 +1,4 @@
-.PHONY: ios ios-archive \
+.PHONY: ios ios-archive upload-bugsnag-ios \
         run-ios dev-smoke-ios \
         crash-ios \
         clean-ios \
@@ -14,6 +14,7 @@ ios: ios-archive
 ios-archive: _check-ios-env _sync-templates _update-tun-db _sync-version-ios _ensure-pods _inject-ios-team
 	@echo "▶ 创建 iOS Archive..."
 	@mkdir -p $(TARGET_DIR)
+	@mkdir -p $(dir $(IOS_SOURCEMAP))
 	set -o pipefail && xcodebuild archive \
 		-workspace $(IOS_WORKSPACE) \
 		-scheme $(IOS_SCHEME) \
@@ -23,6 +24,7 @@ ios-archive: _check-ios-env _sync-templates _update-tun-db _sync-version-ios _en
 		-destination "generic/platform=iOS" \
 		DEVELOPMENT_TEAM=$(IOS_TEAM_ID) \
 		CODE_SIGN_STYLE=Automatic \
+		SOURCEMAP_FILE="$(abspath $(IOS_SOURCEMAP))" \
 		| xcpretty
 	$(eval ARCHIVE_DATE := $(shell date +%Y-%m-%d))
 	$(eval ARCHIVE_NAME := $(APP_NAME) $(shell date +"%Y-%m-%d %H.%M.%S"))
@@ -31,6 +33,37 @@ ios-archive: _check-ios-env _sync-templates _update-tun-db _sync-version-ios _en
 		"$(XCODE_ARCHIVES)/$(ARCHIVE_DATE)/$(ARCHIVE_NAME).xcarchive"
 	@echo "✅ Archive → $(TARGET_DIR)/$(APP_NAME).xcarchive"
 	@echo "✅ 已同步 → $(XCODE_ARCHIVES)/$(ARCHIVE_DATE)/"
+	@echo "ℹ️  上传 App Store 前建议执行: make upload-bugsnag-ios"
+
+upload-bugsnag-ios:
+	@test -n "$(BUGSNAG_API_KEY)" || { echo "❌ BUGSNAG_API_KEY 未设置，请在 .env 中配置"; exit 1; }
+	@if [ ! -d "$(TARGET_DIR)/$(APP_NAME).xcarchive" ]; then \
+		echo "❌ 未找到 Archive: $(TARGET_DIR)/$(APP_NAME).xcarchive"; \
+		echo "   请先运行: make ios"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(TARGET_DIR)/$(APP_NAME).xcarchive/Products/Applications/$(APP_NAME).app/main.jsbundle" ]; then \
+		echo "❌ 未找到 iOS JS bundle，请先运行: make ios"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(IOS_SOURCEMAP)" ]; then \
+		echo "❌ 未找到 iOS JS source map: $(IOS_SOURCEMAP)"; \
+		echo "   请先重新运行: make ios"; \
+		exit 1; \
+	fi
+	@echo "▶ 上传 iOS dSYM 到 Bugsnag..."
+	@npx bugsnag-cli upload dsym "$(TARGET_DIR)/$(APP_NAME).xcarchive/dSYMs" \
+		--api-key "$(BUGSNAG_API_KEY)" \
+		--plist "$(TARGET_DIR)/$(APP_NAME).xcarchive/Products/Applications/$(APP_NAME).app/Info.plist" \
+		|| echo "⚠️  iOS dSYM 上传失败，继续上传 React Native source map"
+	@echo "▶ 上传 React Native iOS source map 到 Bugsnag..."
+	npx bugsnag-cli upload react-native-ios \
+		--api-key "$(BUGSNAG_API_KEY)" \
+		--bundle "$(TARGET_DIR)/$(APP_NAME).xcarchive/Products/Applications/$(APP_NAME).app/main.jsbundle" \
+		--source-map "$(IOS_SOURCEMAP)" \
+		--plist "$(TARGET_DIR)/$(APP_NAME).xcarchive/Products/Applications/$(APP_NAME).app/Info.plist" \
+		--xcarchive-path "$(TARGET_DIR)/$(APP_NAME).xcarchive"
+	@echo "✅ Bugsnag iOS 上传完成"
 
 # ════════════════════════════════════════════════════════════
 #  开发调试
