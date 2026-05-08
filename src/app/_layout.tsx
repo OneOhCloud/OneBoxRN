@@ -91,6 +91,9 @@ function runBugsnagCrashTestIfArmed() {
 
     if (kind === 'js') {
         jsLog.warn('[BugsnagTest] Triggering intentional JS crash on startup');
+        if (bugsnagEnabled) {
+            Bugsnag.notify(new Error('Bugsnag JS crash test notify'));
+        }
         setTimeout(() => {
             throw new Error('Bugsnag JS crash test');
         }, 0);
