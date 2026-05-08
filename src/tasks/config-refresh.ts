@@ -6,7 +6,7 @@
  *   Android: WorkManager CoroutineWorker (BackgroundConfigWorker.kt)
  *
  * This module provides the JS-facing API to register/unregister the native task,
- * trigger a foreground refresh, and sync native results into SBConfig (MMKV) when
+ * trigger a foreground refresh, and sync native results into SBConfig when
  * the app foregrounds.
  */
 import type { ConfigRefreshResult } from '@/modules/expo-onebox/src/ExpoOneBox.types';
@@ -29,6 +29,7 @@ export const CONFIG_REFRESH_TASK = 'config-refresh';
  * Fetches and caches domain verification data.
  */
 export async function initializeConfigRefresh(): Promise<void> {
+    kvSet(CONFIG_REFRESH_KEYS.ACCELERATE_URL, ACCELERATE_URL ?? '');
     try {
         await initializeVerificationData();
     } catch (e) {
@@ -37,14 +38,6 @@ export async function initializeConfigRefresh(): Promise<void> {
 }
 
 // ─── Dev settings ─────────────────────────────────────────────────────────────
-
-export function getUseAccelerateUrl(): boolean {
-    return kvGet(CONFIG_REFRESH_KEYS.USE_ACCELERATE_URL) === 'true';
-}
-
-export function setUseAccelerateUrl(enabled: boolean): void {
-    kvSet(CONFIG_REFRESH_KEYS.USE_ACCELERATE_URL, enabled ? 'true' : 'false');
-}
 
 export function getTestPrimaryUrlUnavailable(): boolean {
     return kvGet(CONFIG_REFRESH_KEYS.TEST_PRIMARY_URL_UNAVAILABLE) === 'true';
@@ -59,8 +52,10 @@ export function setTestPrimaryUrlUnavailable(enabled: boolean): void {
 /**
  * Register (or update) the native periodic background config refresh.
  * No-ops if no config URL is stored yet.
- * Always passes original URL + accelerate URL to native, so both foreground and background
- * config refresh can respect the user's priority setting via executeRefreshWith(tryAccelerateFirst).
+ * Native reads accelerate URL from kv_store (`config:accelerate-url`).
+ * Native tries primary first; on network-level error (not HTTP error), if the
+ * domain is on the SHA256 allowlist, it retries via the accelerate URL.
+ * See ios/core/BackgroundConfigRefresh.swift + android/.../BackgroundConfigWorker.kt.
  */
 export async function registerConfigRefreshTask(): Promise<void> {
     const url = SBConfig.getConfigLink();
@@ -69,12 +64,9 @@ export async function registerConfigRefreshTask(): Promise<void> {
         return;
     }
     try {
-        const accelerateUrl = ACCELERATE_URL || null;
-        const priority = getUseAccelerateUrl() ? 'accelerated' : 'default';
-        console.log(`[ConfigRefresh] registering background task (priority=${priority})`);
-        // Always pass original URL + accelerate URL, so native can construct accelerated URLs correctly
-        await ExpoOneBox.registerBackgroundConfigRefresh(url, getSingBoxUserAgent(), 1800, accelerateUrl);
-        console.log('[ConfigRefresh] background task registered with config + accelerate URL');
+        console.log('[ConfigRefresh] registering background task');
+        await ExpoOneBox.registerBackgroundConfigRefresh(url, getSingBoxUserAgent(), 1800);
+        console.log('[ConfigRefresh] background task registered');
     } catch (e) {
         console.warn('[ConfigRefresh] registration error:', e);
     }
@@ -99,12 +91,10 @@ export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null
     }
 
     const testMode = getTestPrimaryUrlUnavailable();
-    const testModeMsg = testMode ? ' [TEST MODE: primary unavailable]' : '';
+    const testModeMsg = testMode ? ' [TEST MODE: primary unavailable, native reads kv_store]' : '';
     console.log(`[ConfigRefresh] executing foreground refresh…${testModeMsg}`);
 
-    // Always pass both primary and accelerate URLs to native
-    // Native layer will: primary → fail → verify domain → accelerate
-    const result = await ExpoOneBox.executeConfigRefreshNow(url, getSingBoxUserAgent(), ACCELERATE_URL || null, testMode);
+    const result = await ExpoOneBox.executeConfigRefreshNow(url, getSingBoxUserAgent());
     applyResultToSBConfig(result, url, 'manual-direct');
     return result;
 }

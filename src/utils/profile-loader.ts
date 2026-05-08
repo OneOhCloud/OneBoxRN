@@ -9,16 +9,19 @@
  */
 
 import { fetchWithTimeout } from '@/utils';
+import {
+    getKnownDomainSha256List,
+    getVerifiedDomainsList,
+    updateVerificationData,
+} from '@/utils/domain-verification';
+import { hostnameMatchesAnyAllowlist, sha256Hex } from '@/utils/domain-suffix';
+import { jsLog } from '@/utils/log-sink';
 import Constants from 'expo-constants';
 
 // ── Compile-time constant ─────────────────────────────────────────────────────
 // Populated from accelerateUrl env var via app.config.ts at build time.
 const ACCELERATE_URL: string | null =
     (Constants.expoConfig?.extra?.accelerateUrl as string | null) ?? null;
-
-// ── Domain verification constants ─────────────────────────────────────────────
-const KNOWN_DOMAIN_SHA256 = '59fe86216c23236fb4c6ab50cd8d1e261b7cad754e3e7cab33058df5b32d12e1';
-const VERIFIED_LIST_URL = 'https://www.sing-box.net/verified_subscriptions_sha256.txt';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Accelerator reachability cache (null = unchecked, true/false = result)
@@ -43,13 +46,6 @@ async function checkAcceleratorAvailability(): Promise<void> {
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function sha256Hex(input: string): Promise<string> {
-    const data = new TextEncoder().encode(input);
-    const buf = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(buf))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
-}
 
 /**
  * Classify whether an error represents a TCP-level network fault that
@@ -80,32 +76,22 @@ function buildAcceleratedUrl(originalUrl: string, domainSha256: string): string 
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Verify a config hostname against:
- *   A) a hardcoded known-good SHA256, or
- *   B) the official verified list from sing-box.net.
- * Either condition passing is sufficient.
+ * Thin wrapper around the pure `hostnameMatchesAnyAllowlist` primitive:
+ * reads both KV-backed allowlists from `domain-verification.ts` and
+ * delegates the suffix-hash check. On a miss, fires a non-blocking
+ * whitelist refresh (TTL-gated inside `updateVerificationData`) so the
+ * next verify benefits from newer data.
+ *
+ * Mirrors OneBox/Tauri `verify_hostname` semantics: zero network in the
+ * hot path, both the compile-time list and the remote-cached list
+ * considered in one suffix traversal.
  */
-async function verifyDomain(hostname: string, domainSha256: string): Promise<boolean> {
-    // Method A: local comparison
-    if (domainSha256 === KNOWN_DOMAIN_SHA256) {
-        return true;
-    }
-
-    // Method B: fetch the official whitelist
-    try {
-        const resp = await fetchWithTimeout(VERIFIED_LIST_URL, {}, 10_000);
-        if (resp.ok) {
-            const text = await resp.text();
-            const hashes = text.split('\n').map(l => l.trim()).filter(Boolean);
-            if (hashes.includes(domainSha256)) {
-                return true;
-            }
-        }
-    } catch {
-        // If the whitelist fetch fails we fall through and reject
-    }
-
-    return false;
+export async function verifyHostname(hostname: string): Promise<boolean> {
+    const known    = new Set<string>(getKnownDomainSha256List());
+    const verified = new Set<string>(getVerifiedDomainsList());
+    const ok       = await hostnameMatchesAnyAllowlist(hostname, known, verified);
+    if (!ok) void updateVerificationData(false);
+    return ok;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -115,6 +101,10 @@ async function verifyDomain(hostname: string, domainSha256: string): Promise<boo
 export interface ConfigFetchResult {
     content: string;
     headers: Headers;
+}
+
+export interface FetchConfigWithFallbackOptions {
+    signal?: AbortSignal;
 }
 
 /**
@@ -136,14 +126,15 @@ export interface ConfigFetchResult {
 export async function fetchConfigWithFallback(
     originalUrl: string,
     userAgent: string,
+    options?: FetchConfigWithFallbackOptions,
 ): Promise<ConfigFetchResult> {
     // ── Step 1: domain verification ──────────────────────────────────────────
     const hostname = new URL(originalUrl).hostname;
     const domainSha256 = await sha256Hex(hostname);
-    const verified = await verifyDomain(hostname, domainSha256);
+    const verified = await verifyHostname(hostname);
 
     if (!verified) {
-        console.warn(
+        jsLog.warn(
             `[CONFIG_LOAD] 方式=DOMAIN_UNVERIFIED, 域名SHA256=${domainSha256}, 加速备用已禁用`,
         );
     }
@@ -154,7 +145,11 @@ export async function fetchConfigWithFallback(
     let primaryErrorLabel: string | null = null;
 
     try {
-        const resp = await fetchWithTimeout(originalUrl, { method: 'GET', headers: requestHeaders }, 10_000);
+        const resp = await fetchWithTimeout(
+            originalUrl,
+            { method: 'GET', headers: requestHeaders, signal: options?.signal },
+            10_000,
+        );
 
         if (!resp.ok) {
             // HTTP error — do not fall back; surface immediately
@@ -162,9 +157,12 @@ export async function fetchConfigWithFallback(
         }
 
         const content = await resp.text();
-        console.log(`[CONFIG_LOAD] 方式=PRIMARY, URL=${originalUrl}`);
+        jsLog.info(`[CONFIG_LOAD] 方式=PRIMARY, URL=${originalUrl}`);
         return { content, headers: resp.headers };
     } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+            throw err;
+        }
         if (!isNetworkFault(err)) {
             // HTTP errors, malformed responses, etc. — propagate directly
             throw err;
@@ -174,7 +172,7 @@ export async function fetchConfigWithFallback(
 
     // ── Step 3: accelerator fallback (verified domains only) ─────────────────
     if (!verified) {
-        console.warn(
+        jsLog.warn(
             `[CONFIG_LOAD] 方式=ACCELERATOR_SKIPPED, 原因=域名未验证, 主地址原因=${primaryErrorLabel}`,
         );
         throw new Error(`配置加载失败: 主地址不可达(${primaryErrorLabel}), 域名未验证禁止使用加速`);
@@ -185,7 +183,7 @@ export async function fetchConfigWithFallback(
     }
 
     if (!acceleratorAvailable) {
-        console.warn(
+        jsLog.warn(
             `[CONFIG_LOAD] 方式=ACCELERATOR_UNAVAILABLE, 原因=不可达:443, 回退中止`,
         );
         throw new Error(`配置加载失败: 主地址不可达(${primaryErrorLabel}), 加速地址不可用`);
@@ -196,13 +194,13 @@ export async function fetchConfigWithFallback(
     try {
         const resp = await fetchWithTimeout(
             acceleratedUrl,
-            { method: 'GET', headers: requestHeaders },
+            { method: 'GET', headers: requestHeaders, signal: options?.signal },
             10_000,
         );
 
         if (!resp.ok) {
             const acceleratorErrorLabel = `HTTP_${resp.status}`;
-            console.error(
+            jsLog.error(
                 `[CONFIG_LOAD] 方式=BOTH_FAILED, 主地址原因=${primaryErrorLabel}, 加速地址原因=${acceleratorErrorLabel}`,
             );
             throw new Error(
@@ -211,7 +209,7 @@ export async function fetchConfigWithFallback(
         }
 
         const content = await resp.text();
-        console.log(
+        jsLog.info(
             `[CONFIG_LOAD] 方式=FALLBACK_ACCELERATOR, 原因=${primaryErrorLabel}, 加速URL=${acceleratedUrl}`,
         );
         return { content, headers: resp.headers };
@@ -220,7 +218,7 @@ export async function fetchConfigWithFallback(
             throw err; // already labelled above
         }
         const acceleratorErrorLabel = isNetworkFault(err) ? (err as Error).name : 'UNKNOWN';
-        console.error(
+        jsLog.error(
             `[CONFIG_LOAD] 方式=BOTH_FAILED, 主地址原因=${primaryErrorLabel}, 加速地址原因=${acceleratorErrorLabel}`,
         );
         throw new Error(

@@ -1,10 +1,49 @@
 import i18n from '@/constants/language';
-import { getProcessedConfig } from '@/database/helper';
-import { SBConfig } from '@/database/kv';
+import { SBConfig, type SingBoxLogLevel } from '@/database/kv';
+import { refreshDirectDns } from '@/database/helper';
+import { getStoreValue } from '@/database/store';
 import { configType } from '@/definition';
+import { emitLog, jsLog, type LogLevel } from '@/utils/log-sink';
+import { requestVpnRestart } from '@/utils/vpn-restart';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, AppStateStatus } from 'react-native';
 import ExpoOneBox, { TrafficUpdateEventPayload, VPN_STATUS } from '../modules/expo-onebox';
+
+// ─── sing-box core log-level parsing ────────────────────────
+//
+// Filtering by user's preferred level is done on the native side
+// (`ExpoOneBox.setCoreLogLevel(...)` → Kotlin/Swift filter at the
+// CommandClient handler, before entries cross into JS). Background:
+// sing-box's `log.level` config only gates stdout and the observable
+// sink — the platform writer feeding our CommandServer stream is
+// unconditional (see `sing-box/log/observable.go:112-143` and
+// `daemon/instance.go:109` in the vendored tree). Client-side
+// filtering is the documented path.
+//
+// Here we keep only a small prefix parser so the Logs viewer can
+// colour rows by level (error red, warn amber). The format is fixed
+// by sing-box's `log/format.go:24`: `strings.ToUpper(FormatLevel(
+// level))`, i.e. `TRACE[0000] …`, `INFO[0000] …`, etc. ANSI colour
+// codes may wrap the level token because sing-box's platform
+// formatter has `DisableColors: false`, so we strip them first.
+
+const ANSI_STRIP_RE = /\x1b\[[0-9;]*m/g;
+const LEVEL_PREFIX_RE = /^(TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|PANIC)\b/i;
+
+function parseCoreLineLevel(message: string): SingBoxLogLevel | null {
+    const stripped = message.replace(ANSI_STRIP_RE, '').trimStart();
+    const m = stripped.match(LEVEL_PREFIX_RE);
+    if (!m) return null;
+    const token = m[1].toLowerCase();
+    if (token === 'warning') return 'warn';
+    return token as SingBoxLogLevel;
+}
+
+function sbLevelToEntryLevel(lv: SingBoxLogLevel): LogLevel {
+    if (lv === 'error' || lv === 'fatal' || lv === 'panic') return 'error';
+    if (lv === 'warn') return 'warn';
+    return 'info';
+}
 
 // ---- Types ----
 
@@ -12,64 +51,72 @@ export interface VpnState {
     connected: boolean;
     status: number;
     traffic: TrafficUpdateEventPayload | null;
-    logs: string[];
     mode: configType;
     setMode: (m: configType) => void;
-    clearLogs: () => void;
+    directDns: string;
+    getStartConfig: () => string;
+    refreshDirectDns: (fallback?: string) => Promise<string>;
 }
 
 const VpnContext = createContext<VpnState | null>(null);
 
-const MAX_LOG_LINES = 200;
-
 // ---- Provider ----
 
+/**
+ * Logs no longer live in this context. They are owned by `log-sink.ts`
+ * (a `useSyncExternalStore`-backed ring buffer, capacity 1000). Native
+ * listeners here publish into the store via `emitLog(...)`; JS helpers
+ * publish via `jsLog.*`; the Logs viewer subscribes via `useLogs()`.
+ *
+ * Rationale: keeping logs in context state caused every consumer of
+ * `useVpn()` (home, settings, mode selector) to re-render on every
+ * inbound log line — untenable at 1000-line buffers.
+ */
 export function VpnProvider({ children }: { children: React.ReactNode }) {
     const [connected, setConnected] = useState(false);
     const [status, setStatus] = useState(0);
     const [traffic, setTraffic] = useState<TrafficUpdateEventPayload | null>(null);
-    const [logs, setLogs] = useState<string[]>([]);
     const [mode, setModeState] = useState<configType>(() => SBConfig.getMode());
+    const [directDns, setDirectDns] = useState<string>('—');
 
-    const appendLogs = useCallback((lines: string[]) => {
-        console.log('[sing-box]:', lines);
-        setLogs((prev) => {
-            const next = [...prev, ...lines];
-            return next.length > MAX_LOG_LINES ? next.slice(next.length - MAX_LOG_LINES) : next;
-        });
+    // Single-flight: if a refresh is already in progress, all callers
+    // share the same promise instead of racing to call getBestDns + KV-write.
+    const directDnsInflightRef = useRef<Promise<string> | null>(null);
+
+    const refreshDirectDnsAction = useCallback((fallback?: string): Promise<string> => {
+        if (directDnsInflightRef.current) return directDnsInflightRef.current;
+        const p = refreshDirectDns(fallback)
+            .then((v) => {
+                setDirectDns(v);
+                return v;
+            })
+            .catch((e) => {
+                jsLog.warn('[VpnContext] refreshDirectDns failed:', e);
+                throw e;
+            })
+            .finally(() => {
+                directDnsInflightRef.current = null;
+            });
+        directDnsInflightRef.current = p;
+        return p;
     }, []);
 
-    const clearLogs = useCallback(() => setLogs([]), []);
+    const getStartConfig = useCallback(() => ExpoOneBox.getStartConfig(), []);
+
+    // Hydrate directDns from KV on mount so the first paint shows a cached
+    // value rather than '—'. The useFocusEffect in InfoCard will follow up
+    // with a live probe.
+    useEffect(() => {
+        getStoreValue('directDNS', '—')
+            .then((v: string) => setDirectDns(v))
+            .catch((e: unknown) => jsLog.warn('[VpnContext] KV hydration for directDNS failed:', e));
+    }, []);
 
     const setMode = useCallback((m: configType) => {
         setModeState(m);
         SBConfig.setMode(m);
-
-        // If the VPN is running, restart immediately with the new mode config.
-        // stop() resolves when the command is sent, not when the tunnel is fully down,
-        // so we wait for the STOPPED status event before re-starting.
-        const currentStatus = ExpoOneBox.getStatus();
-        if (currentStatus !== VPN_STATUS.STARTED && currentStatus !== VPN_STATUS.STARTING) return;
-
-        const STOP_TIMEOUT_MS = 10_000;
-        let done = false;
-        const proceed = () => {
-            if (done) return;
-            done = true;
-            clearTimeout(timer);
-            sub.remove();
-            getProcessedConfig()
-                .then(config => ExpoOneBox.start(config))
-                .catch(e => console.warn('[VPN] Mode switch restart failed:', e));
-        };
-        const sub = ExpoOneBox.addListener('onStatusChange', (e) => {
-            if (e.status === VPN_STATUS.STOPPED) proceed();
-        });
-        const timer = setTimeout(() => {
-            console.warn('[VPN] Mode switch: stop timeout, restarting anyway');
-            proceed();
-        }, STOP_TIMEOUT_MS);
-        ExpoOneBox.stop().catch(() => setTimeout(proceed, 300));
+        // Debounced + in-flight-guarded restart. See src/utils/vpn-restart.ts.
+        requestVpnRestart();
     }, []);
 
     const syncStatus = useCallback(() => {
@@ -81,7 +128,14 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         ExpoOneBox.setCoreLogEnabled(true);
+        // Push the user's log level preference into the native filter so
+        // it takes effect on the next CommandServer log entry — without
+        // needing to restart the tunnel. See `setCoreLogLevel` in the
+        // Kotlin / Swift modules and the parser comment in this file.
+        ExpoOneBox.setCoreLogLevel(SBConfig.getLogLevel());
         syncStatus();
+
+        jsLog.info(`[App] VpnProvider ready, status=${ExpoOneBox.getStatus()}, mode=${SBConfig.getMode()}, logLevel=${SBConfig.getLogLevel()}`);
 
         // isStartingUp: JS 侧独立的启动标记。
         // 不依赖 prevStatus，因为 NEVPNStatus 可能走 connecting→disconnecting→disconnected，
@@ -90,17 +144,16 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         const startFailAlertShown = { current: false };
         let startFailTimer: ReturnType<typeof setTimeout> | null = null;
 
-        // 显示启动失败弹窗的统一方法（带去重）
         const showStartFailAlert = (errMsg: string) => {
             if (startFailAlertShown.current) return;
             startFailAlertShown.current = true;
-            console.warn('[VPN] Start failed:', errMsg);
-            appendLogs([`[StartFailed] ${errMsg}`]);
+            jsLog.warn('[VPN] Start failed:', errMsg);
+            emitLog({ source: 'native', level: 'error', message: `[StartFailed] ${errMsg}` });
             Alert.alert(i18n.t('vpn_start_failed'), errMsg, [{ text: i18n.t('confirm') }]);
         };
 
         const statusSub = ExpoOneBox.addListener('onStatusChange', (event: { status: number; statusName: string; message: string }) => {
-            console.log(`[VPN] Status changed: ${event.statusName}(${event.status}), isStartingUp=${isStartingUp.current}`);
+            jsLog.info(`[VPN] Status changed: ${event.statusName}(${event.status}), isStartingUp=${isStartingUp.current}`);
 
             setStatus(event.status);
             setConnected(event.status === VPN_STATUS.STARTED || event.status === VPN_STATUS.STARTING);
@@ -119,37 +172,78 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
                 setTraffic(null);
                 const wasStarting = isStartingUp.current;
                 isStartingUp.current = false;
-                console.log(`[VPN] STOPPED received, wasStarting=${wasStarting}`);
-                // 后备机制：JS 侧检测启动中→停止，延迟读文件兜底
+                jsLog.info(`[VPN] STOPPED received, wasStarting=${wasStarting}`);
                 if (wasStarting) {
-                    console.log('[VPN] Detected startup failure, scheduling error file read...');
+                    jsLog.info('[VPN] Detected startup failure, scheduling error file read...');
                     startFailTimer = setTimeout(() => {
                         startFailTimer = null;
-                        if (startFailAlertShown.current) return; // 原生事件已经弹过了
+                        if (startFailAlertShown.current) return;
                         const errMsg = ExpoOneBox.getStartError();
-                        console.log('[VPN] JS fallback: GetStartError() =', errMsg);
+                        jsLog.info('[VPN] JS fallback: GetStartError() =', errMsg);
                         if (errMsg) {
                             showStartFailAlert(errMsg);
                         } else {
                             showStartFailAlert(i18n.t('startup_abnormal_exit'));
                         }
-                    }, 800); // 给原生侧 500ms 先尝试推送，再等 300ms 兜底
+                    }, 800);
                 }
             }
         });
 
         const errorSub = ExpoOneBox.addListener('onError', (event: { type: string; message: string; status?: number }) => {
-            appendLogs([`[${event.type}] ${event.message}`]);
-            // 原生层检测到启动失败后会推送 StartServiceFailed 错误事件
+            emitLog({
+                source: 'native',
+                level: 'error',
+                message: `[${event.type}] ${event.message}`,
+            });
             if (event.type === 'StartServiceFailed') {
-                console.log('[VPN] Received StartServiceFailed from native:', event.message);
+                jsLog.info('[VPN] Received StartServiceFailed from native:', event.message);
                 if (startFailTimer) { clearTimeout(startFailTimer); startFailTimer = null; }
                 showStartFailAlert(event.message);
             }
         });
 
         const logSub = ExpoOneBox.addListener('onLog', (event: { message: string }) => {
-            appendLogs([event.message]);
+            // Level filtering is done natively before this fires —
+            // we only parse the prefix here to colour the row.
+            const parsed = parseCoreLineLevel(event.message);
+            emitLog({
+                source: 'sing-box',
+                level: parsed ? sbLevelToEntryLevel(parsed) : 'info',
+                message: event.message,
+            });
+        });
+
+        // Native layer log pipe — Kotlin / Swift emit lifecycle & operation
+        // events through here. See `sendNativeLog` in the native module.
+        const nativeLogSub = ExpoOneBox.addListener('onNativeLog', (event: { level: 'info' | 'warn' | 'error'; tag: string; message: string }) => {
+            emitLog({
+                source: 'native',
+                level: event.level,
+                message: `[${event.tag}] ${event.message}`,
+            });
+        });
+
+        // Group updates fire from libbox's group stream via the native
+        // CommandClient handler — surface them as native-origin lines so
+        // the user can see node selection activity during normal run.
+        const groupSub = ExpoOneBox.addListener('onGroupUpdate', (event: { all: { tag: string; delay: number }[]; now: string; autoNow?: string }) => {
+            emitLog({
+                source: 'native',
+                level: 'info',
+                message: `[Groups] now=${event.now}, autoNow=${event.autoNow ?? ''}, count=${event.all.length}`,
+            });
+        });
+
+        // Background config refresh results — fire from the native task
+        // (BGTaskScheduler / WorkManager). Log errors as error-level so
+        // the red pill is visible on the row.
+        const refreshSub = ExpoOneBox.addListener('onConfigRefreshResult', (event: { status: 'success' | 'failed' | 'skipped'; error?: string; durationMs: number; method?: string }) => {
+            emitLog({
+                source: 'native',
+                level: event.status === 'failed' ? 'error' : 'info',
+                message: `[ConfigRefresh] status=${event.status}${event.method ? `, method=${event.method}` : ''}, ${event.durationMs}ms${event.error ? `, error=${event.error}` : ''}`,
+            });
         });
 
         const trafficSub = ExpoOneBox.addListener('onTrafficUpdate', (event: TrafficUpdateEventPayload) => {
@@ -161,9 +255,12 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             statusSub.remove();
             errorSub.remove();
             logSub.remove();
+            nativeLogSub.remove();
+            groupSub.remove();
+            refreshSub.remove();
             trafficSub.remove();
         };
-    }, [syncStatus, appendLogs]);
+    }, [syncStatus]);
 
     const appStateRef = useRef<AppStateStatus>(AppState.currentState);
     useEffect(() => {
@@ -177,7 +274,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     }, [syncStatus]);
 
     return (
-        <VpnContext.Provider value={{ connected, status, traffic, logs, mode, setMode, clearLogs }}>
+        <VpnContext.Provider value={{ connected, status, traffic, mode, setMode, directDns, getStartConfig, refreshDirectDns: refreshDirectDnsAction }}>
             {children}
         </VpnContext.Provider>
     );

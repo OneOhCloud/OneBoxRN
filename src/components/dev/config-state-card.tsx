@@ -8,6 +8,7 @@ interface ConfigStateCardProps {
     usedTraffic: number;
     totalTraffic: number;
     expireTime: number;
+    index?: number;
 }
 
 export function ConfigStateCard({
@@ -16,33 +17,46 @@ export function ConfigStateCard({
     usedTraffic,
     totalTraffic,
     expireTime,
+    index,
 }: ConfigStateCardProps) {
     const expireDate = expireTime > 0
         ? new Date(expireTime * 1000).toLocaleString()
         : 'N/A';
 
     return (
-        <Card title="Profile Config">
+        <Card title="Profile Config" index={index}>
             <Row
+                iconName="link-outline"
+                iconColor="#5AC8FA"
                 label="Config URL"
                 value={link ?? 'None'}
                 valueColor={link ? undefined : '#FF3B30'}
+                valueMono={false}
             />
             <Row
+                iconName="document-text-outline"
+                iconColor="#AF52DE"
                 label="Content Size"
                 value={formatBytes(contentLength)}
             />
             <Row
+                iconName="arrow-up-circle-outline"
+                iconColor="#FF9500"
                 label="Used Traffic"
                 value={formatBytes(usedTraffic)}
             />
             <Row
+                iconName="server-outline"
+                iconColor="#34C759"
                 label="Total Traffic"
                 value={formatBytes(totalTraffic)}
             />
             <Row
+                iconName="hourglass-outline"
+                iconColor="#FF453A"
                 label="Expire Time"
                 value={expireDate}
+                valueMono={false}
                 isLast
             />
         </Card>

@@ -1,7 +1,8 @@
-export const SING_BOX_MAJOR_VERSION = "1.13";
-export const SING_BOX_MINOR_VERSION = "0";
-// 当前版本的 sing-box 版本号，主要用于构建配置模板的缓存键，确保在 sing-box 版本更新后能够正确更新配置模板缓存
-export const SING_BOX_VERSION = `v${SING_BOX_MAJOR_VERSION}.${SING_BOX_MINOR_VERSION}`;
+// The runtime sing-box version is NOT hand-maintained here — it comes
+// from the linked Libbox binary. SING_BOX_TAG in
+// modules/expo-onebox/helper/Makefile is the single build-time source.
+// Runtime callers must use `getSingBox{Version,MajorVersion,PatchVersion}()`
+// from '@/utils/sing-box-version'.
 
 export type StageVersionType = "stable" | "beta" | "dev";
 

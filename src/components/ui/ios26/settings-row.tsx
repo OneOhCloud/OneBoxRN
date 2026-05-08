@@ -1,16 +1,11 @@
-/**
- * iOS 26 grouped-list row — colored icon tile, SF Rounded label, trailing
- * value / chevron / custom trailing. Matches the rest of the iOS 26 design
- * system used on the Profile tab (see ProfileRow for the selection variant).
- */
 import { lightImpact } from '@/components/ui/haptics';
-import { Fonts } from '@/constants/theme';
+import { useHairlineColor } from '@/constants/ios26-palette';
+import { Fonts, TabularNums } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-// Shared row metrics
 export const SETTINGS_ROW = {
     paddingVertical: 13,
     paddingHorizontal: 16,
@@ -18,14 +13,8 @@ export const SETTINGS_ROW = {
     iconRadius: 7,
     iconGlyph: 16,
     gap: 12,
-    /** Distance from row left edge to the start of the hairline. */
-    hairlineIndent: 16 + 29 + 12, // paddingHorizontal + iconSize + gap = 57
+    hairlineIndent: 16 + 29 + 12,
 } as const;
-
-function useHairlineColor() {
-    const isDark = useColorScheme() === 'dark';
-    return isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(11, 13, 18, 0.09)';
-}
 
 export function RowHairline({ isLast }: { isLast?: boolean }) {
     const color = useHairlineColor();
@@ -75,7 +64,7 @@ export function SettingsRow({
     const showChevron = !!(onPress && !onLongPress && trailing === undefined && value === undefined);
 
     const body = (
-        <View>
+        <>
             <View
                 style={{
                     flexDirection: 'row',
@@ -85,7 +74,6 @@ export function SettingsRow({
                     gap: SETTINGS_ROW.gap,
                 }}
             >
-                {/* Colored icon tile — iOS 26 29×29 concentric rounded square */}
                 <View
                     style={{
                         width: SETTINGS_ROW.iconSize,
@@ -99,7 +87,6 @@ export function SettingsRow({
                     <Ionicons name={iconName} size={SETTINGS_ROW.iconGlyph} color="#ffffff" />
                 </View>
 
-                {/* Label — SF Rounded 17pt, primary text */}
                 <Text
                     numberOfLines={1}
                     style={{
@@ -114,7 +101,6 @@ export function SettingsRow({
                     {label}
                 </Text>
 
-                {/* Trailing — explicit slot, or value text, or chevron */}
                 {trailing !== undefined ? (
                     trailing
                 ) : value !== undefined ? (
@@ -126,7 +112,7 @@ export function SettingsRow({
                             color: theme.textSecondary,
                             maxWidth: 200,
                             letterSpacing: -0.1,
-                            fontVariant: valueMono ? ['tabular-nums'] : undefined,
+                            fontVariant: valueMono ? TabularNums : undefined,
                         }}
                     >
                         {value}
@@ -138,7 +124,7 @@ export function SettingsRow({
                 )}
             </View>
             <RowHairline isLast={isLast} />
-        </View>
+        </>
     );
 
     if (!onPress && !onLongPress) return body;

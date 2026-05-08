@@ -36,12 +36,8 @@ if [ ! -d "$SOURCE_DIR" ]; then
   exit 1
 fi
 
-# 检查是否有 APK 文件
-APK_COUNT=$(find "$SOURCE_DIR" -name '*.apk' -maxdepth 1 | wc -l | tr -d ' ')
-if [ "$APK_COUNT" -eq 0 ]; then
-  echo "⚠️  target/s3/ 中没有 APK 文件，跳过同步"
-  exit 0
-fi
+# 统计本地 APK 文件（0 也继续执行，以便删除远端孤立对象）
+APK_COUNT=$(find "$SOURCE_DIR" -maxdepth 1 -name '*.apk' | wc -l | tr -d ' ')
 
 # ── 构建 aws 公共参数 ───────────────────────────────────────
 AWS_OPTS=()
@@ -68,7 +64,9 @@ echo ""
 
 UPLOADED=0
 SKIPPED=0
+DELETED=0
 
+shopt -s nullglob
 for apk in "$SOURCE_DIR"/*.apk; do
   filename="$(basename "$apk")"
   object_key="${PREFIX:+$PREFIX/}$filename"
@@ -97,5 +95,38 @@ for apk in "$SOURCE_DIR"/*.apk; do
   fi
 done
 
+# ── 删除远端孤立对象（本地已不存在的 .apk） ────────────────
 echo ""
-echo "✅ 同步完成 — 上传 $UPLOADED 个，跳过 $SKIPPED 个（hash 一致）"
+echo "▶ 检查远端孤立 APK..."
+remote_keys="$(aws s3api list-objects-v2 \
+  --bucket "$BUCKET" \
+  ${PREFIX:+--prefix "$PREFIX/"} \
+  ${AWS_OPTS[@]+"${AWS_OPTS[@]}"} \
+  --output text --query 'Contents[].Key' 2>/dev/null || echo "")"
+
+if [ -n "$remote_keys" ] && [ "$remote_keys" != "None" ]; then
+  for key in $remote_keys; do
+    # 仅处理 .apk
+    case "$key" in
+      *.apk) ;;
+      *) continue ;;
+    esac
+    remote_filename="${key##*/}"
+    # 仅处理当前 prefix 下的直接子对象，避免误删子目录
+    expected_key="${PREFIX:+$PREFIX/}$remote_filename"
+    if [ "$key" != "$expected_key" ]; then
+      continue
+    fi
+    if [ ! -f "$SOURCE_DIR/$remote_filename" ]; then
+      echo "  🗑  $remote_filename — 本地已删除，移除远端对象"
+      aws s3api delete-object \
+        --bucket "$BUCKET" \
+        --key "$key" \
+        ${AWS_OPTS[@]+"${AWS_OPTS[@]}"} >/dev/null
+      DELETED=$((DELETED + 1))
+    fi
+  done
+fi
+
+echo ""
+echo "✅ 同步完成 — 上传 $UPLOADED 个，跳过 $SKIPPED 个（hash 一致），删除 $DELETED 个"

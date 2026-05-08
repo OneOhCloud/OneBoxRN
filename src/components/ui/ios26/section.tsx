@@ -1,22 +1,15 @@
 /**
- * iOS 26 shared section primitives.
- *
- * - `SectionHeader` — grouped-inset list header, optional trailing action.
- * - `SectionAction` — iOS 26 rounded tint pill used inside section headers.
- *
- * These are lifted out of profile.tsx so any tab screen can import them
- * without duplicating markup or diverging on typography/spacing. Keep changes
- * here synchronized — every tab should render headers with identical metrics
- * so cross-tab transitions don't shift vertical layout.
+ * iOS 26 shared section primitives. Every tab renders headers with identical
+ * metrics so cross-tab transitions don't shift vertical layout — keep changes
+ * here synchronized.
  */
 import { mediumImpact } from '@/components/ui/haptics';
-import { ACCENT, ACCENT_LIGHT } from '@/components/ui/profiles/active-profile-card';
+import { useAccentBlue, useQuietChrome } from '@/constants/ios26-palette';
 import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import React from 'react';
-import { Pressable, StyleProp, Text, View, ViewStyle, useColorScheme } from 'react-native';
+import { Pressable, StyleProp, Text, View, ViewStyle } from 'react-native';
 
-// ─── Section header ────────────────────────────────────────────────────────
 export function SectionHeader({
     label,
     trailing,
@@ -52,7 +45,6 @@ export function SectionHeader({
     );
 }
 
-// ─── Tint pill action (used inside SectionHeader.trailing) ─────────────────
 export function SectionAction({
     label,
     active,
@@ -64,16 +56,12 @@ export function SectionAction({
     onPress: () => void;
     accessibilityLabel?: string;
 }) {
-    const isDark = useColorScheme() === 'dark';
-    const accentBlue = isDark ? ACCENT : ACCENT_LIGHT;
+    const accentBlue = useAccentBlue();
+    const quietBg = useQuietChrome();
 
     const bg: StyleProp<ViewStyle> = active
         ? { backgroundColor: accentBlue }
-        : {
-              backgroundColor: isDark
-                  ? 'rgba(255, 255, 255, 0.10)'
-                  : 'rgba(11, 13, 18, 0.06)',
-          };
+        : { backgroundColor: quietBg };
 
     return (
         <Pressable

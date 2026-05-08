@@ -138,6 +138,7 @@ export default ({ config: _config }: ConfigContext): ExpoConfig => ({
     'expo-image',
     'expo-web-browser',
     'expo-font',
+    'expo-secure-store',
   ],
   experiments: {
     autolinkingModuleResolution: true,
@@ -147,6 +148,9 @@ export default ({ config: _config }: ConfigContext): ExpoConfig => ({
     router: {},
     eas: {
       projectId: 'a705f7ba-e090-4f16-a842-31f0cd5c0e89',
+    },
+    bugsnag: {
+      apiKey: process.env.BUGSNAG_API_KEY || null,
     },
     // Loaded from .env at build time; null → acceleration disabled.
     accelerateUrl: process.env.accelerateUrl || null,

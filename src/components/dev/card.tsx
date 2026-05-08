@@ -1,30 +1,79 @@
+import { useHairlineColor } from '@/constants/ios26-palette';
+import { Fonts, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { StyleSheet, Text, View } from 'react-native';
 
 interface CardProps {
-    title: string;
+    title?: string;
+    subtitle?: string;
     children: React.ReactNode;
+    /** Kept for caller compatibility; dev cards no longer animate on entry. */
+    index?: number;
 }
 
-export function Card({ title, children }: CardProps) {
+/**
+ * Frosted-glass card matching the iOS 26 design used in the tab screens.
+ * Light/dark background comes from `theme.glassBackground`, hairline border
+ * from `theme.glassBorder`.
+ */
+export function Card({ title, subtitle, children, index: _index = 0 }: CardProps) {
     const theme = useTheme();
+    const hairline = useHairlineColor();
 
-    return (
-        <View style={{ marginBottom: 24 }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginLeft: 4 }}>
-                {title}
-            </Text>
+    const content = (
+        <View style={{ marginBottom: Spacing.four }}>
+            {title ? (
+                <View
+                    style={{
+                        flexDirection: 'row',
+                        alignItems: 'baseline',
+                        marginHorizontal: 20,
+                        marginBottom: 8,
+                        minHeight: 20,
+                    }}
+                >
+                    <Text
+                        style={{
+                            flex: 1,
+                            fontSize: 13,
+                            fontFamily: Fonts?.sans,
+                            fontWeight: '500',
+                            color: theme.textSecondary,
+                            letterSpacing: -0.08,
+                            textTransform: 'uppercase',
+                        }}
+                    >
+                        {title}
+                    </Text>
+                    {subtitle ? (
+                        <Text
+                            style={{
+                                fontSize: 11,
+                                fontFamily: Fonts?.mono,
+                                color: theme.textSecondary,
+                                letterSpacing: -0.1,
+                            }}
+                        >
+                            {subtitle}
+                        </Text>
+                    ) : null}
+                </View>
+            ) : null}
             <View
                 style={{
-                    backgroundColor: theme.cardBackground,
-                    borderRadius: 14,
-                    paddingHorizontal: 16,
+                    backgroundColor: theme.glassBackground,
+                    borderRadius: 20,
                     borderWidth: StyleSheet.hairlineWidth,
-                    borderColor: theme.border,
+                    borderColor: theme.glassBorder,
+                    overflow: 'hidden',
                 }}
             >
                 {children}
             </View>
+            {/* decorative shadow hairline hidden when no title — kept for layout parity */}
+            {!title && <View style={{ height: 0, backgroundColor: hairline }} />}
         </View>
     );
+
+    return content;
 }

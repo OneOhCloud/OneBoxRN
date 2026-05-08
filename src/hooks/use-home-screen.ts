@@ -1,12 +1,31 @@
-import { SubInfo } from '@/components/ui/home/profile-info-card';
+import type { SubInfo } from '@/utils';
 import i18n from '@/constants/language';
 import { useVpn } from '@/contexts/vpn-context';
 import { getProcessedConfig } from '@/database/helper';
-import { SBConfig } from '@/database/kv';
+import { ProfileStore } from '@/database/kv';
 import ExpoOneBox, { VPN_STATUS } from '@/modules/expo-onebox';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
+
+interface ActiveProfileSnapshot {
+    hasConfig: boolean;
+    subInfo: SubInfo;
+    name: string | null;
+}
+
+function readActiveProfile(): ActiveProfileSnapshot {
+    const active = ProfileStore.getActive();
+    return {
+        hasConfig: !!active?.configContent,
+        subInfo: {
+            used: active?.usedTraffic ?? 0,
+            total: active?.totalTraffic ?? 1,
+            expire: active?.expireTime ?? 0,
+        },
+        name: active?.name ?? null,
+    };
+}
 
 export function useHomeScreen() {
     const { connected, status } = useVpn();
@@ -15,24 +34,14 @@ export function useHomeScreen() {
     const loading =
         localLoading || status === VPN_STATUS.STARTING || status === VPN_STATUS.STOPPING;
 
-    const [hasConfig, setHasConfig] = useState<boolean>(() => !!SBConfig.getConfigContent());
-    const [subInfo, setSubInfo] = useState<SubInfo>(() => ({
-        used: SBConfig.getUsedTraffic(),
-        total: SBConfig.getTotalTraffic(),
-        expire: SBConfig.getExpireTime(),
-    }));
+    const [snapshot, setSnapshot] = useState<ActiveProfileSnapshot>(readActiveProfile);
     const [importUrlVisible, setImportUrlVisible] = useState(false);
 
     const isMounted = useRef(false);
     useFocusEffect(
         useCallback(() => {
             if (isMounted.current) {
-                setHasConfig(!!SBConfig.getConfigContent());
-                setSubInfo({
-                    used: SBConfig.getUsedTraffic(),
-                    total: SBConfig.getTotalTraffic(),
-                    expire: SBConfig.getExpireTime(),
-                });
+                setSnapshot(readActiveProfile());
             } else {
                 isMounted.current = true;
             }
@@ -74,14 +83,15 @@ export function useHomeScreen() {
 
     const handleImportUrlClose = useCallback(() => {
         setImportUrlVisible(false);
-        setHasConfig(!!SBConfig.getConfigContent());
+        setSnapshot(readActiveProfile());
     }, []);
 
     return {
         connected,
         loading,
-        hasConfig,
-        subInfo,
+        hasConfig: snapshot.hasConfig,
+        subInfo: snapshot.subInfo,
+        profileName: snapshot.name,
         importUrlVisible,
         setImportUrlVisible,
         handleToggleConnect,

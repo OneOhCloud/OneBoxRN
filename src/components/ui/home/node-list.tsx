@@ -1,27 +1,48 @@
-import { ThemedText } from '@/components/themed-text';
 import { selectionChanged } from '@/components/ui/haptics';
-import { DelayBadge } from '@/components/ui/home/delay-badge';
 import { NodePickerSheet } from '@/components/ui/home/node-picker-sheet';
+import { NodeSignal } from '@/components/ui/home/node-signal';
+import { useAccentBlue } from '@/constants/ios26-palette';
 import i18n from '@/constants/language';
+import { Fonts } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
+import { ProfileStore } from '@/database/kv';
 import { useProxyNodes } from '@/hooks/use-proxy-nodes';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox from '@/modules/expo-onebox';
-import { Ionicons } from '@expo/vector-icons';
-import { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { useCallback, useRef } from 'react';
-import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export type { NodeItem } from '@/hooks/use-proxy-nodes';
 
-interface NodeListProps {
-    bottomPadding?: number;
-}
+// How long (ms) to keep showing the last node name after disconnection
+const NODE_LABEL_LINGER_MS = 1000;
 
-export function NodeList({ bottomPadding = 0 }: NodeListProps) {
+export function NodeList() {
     const theme = useTheme();
+    const accent = useAccentBlue();
     const { connected } = useVpn();
-    const { nodes, currentNode, isLoading, error, setCurrentNode, setPickerOpen } = useProxyNodes(connected);
+
+    // Delay clearing the node label so it doesn't snap to "—" the instant VPN stops
+    const [displayConnected, setDisplayConnected] = useState(connected);
+    useEffect(() => {
+        if (connected) {
+            setDisplayConnected(true);
+            return;
+        }
+        const timer = setTimeout(() => setDisplayConnected(false), NODE_LABEL_LINGER_MS);
+        return () => clearTimeout(timer);
+    }, [connected]);
+
+    const [activeProfileId, setActiveProfileId] = useState<string | null>(() => ProfileStore.getActiveId());
+    useFocusEffect(
+        useCallback(() => {
+            setActiveProfileId(ProfileStore.getActiveId());
+        }, [])
+    );
+
+    const { nodes, currentNode, autoResolvedNode, isLoading, error, setCurrentNode, setPickerOpen } = useProxyNodes(connected, activeProfileId);
     const sheetRef = useRef<BottomSheetModal>(null);
 
     const handleSelect = useCallback(async (tag: string) => {
@@ -42,84 +63,143 @@ export function NodeList({ bottomPadding = 0 }: NodeListProps) {
         sheetRef.current?.present();
     }, [connected, nodes.length, setPickerOpen]);
 
-    const closePicker = useCallback(() => {
-        setPickerOpen(false);
-    }, [setPickerOpen]);
-
     const currentItem = nodes.find(n => n.tag === currentNode);
-    const triggerLabel = () => {
-        if (error) return 'error';
-        if (!connected) return '';
-        if (isLoading || !currentItem) return 'loading...';
-        if (nodes.length === 0) return i18n.t("no_nodes");
-        if (currentItem.tag === 'auto') return i18n.t("auto")
-        return currentItem.tag;
 
+    // Compute the live name only when we have real data
+    const liveName = (() => {
+        if (error) return null;
+        if (isLoading || !currentItem) return null;
+        if (nodes.length === 0) return null;
+        if (currentItem.tag === 'auto') return i18n.t('auto');
+        return currentItem.tag;
+    })();
+
+    // Freeze the last known name so it lingers after disconnection
+    const lastNameRef = useRef<string | null>(null);
+    if (connected && liveName !== null) {
+        lastNameRef.current = liveName;
     }
 
+    const displayName = (() => {
+        if (error) return i18n.t('request_failed');
+        if (!displayConnected) return i18n.t('no_expire_info');
+        // During linger period: show frozen name if live data is gone
+        if (liveName !== null) return liveName;
+        if (lastNameRef.current !== null) return lastNameRef.current;
+        if (isLoading) return i18n.t('loading');
+        return i18n.t('no_nodes');
+    })();
+
+    const interactive = connected && nodes.length > 0 && !isLoading;
+    // Show caret during linger period even though interaction is disabled
+    const showCaret = interactive || (displayConnected && lastNameRef.current !== null);
+
     return (
-        <View >
-
-            <View className=' mb-4 px-1'>
-                <ThemedText type="small" themeColor="textSecondary">
-                    {i18n.t('node_label_connected')}
-                </ThemedText>
-            </View>
-
-            {/* Trigger row */}
+        <View>
             <Pressable
                 onPress={openPicker}
-                disabled={!connected || nodes.length === 0}
-                style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingHorizontal: 16,
-                    paddingVertical: 14,
-                    borderRadius: 16,
-                    backgroundColor: pressed
-                        ? `${theme.backgroundElement}CC`
-                        : `${theme.backgroundElement}80`,
-                })}
+                disabled={!interactive}
+                style={({ pressed }) => [
+                    styles.trigger,
+                    { opacity: pressed ? 0.6 : 1 },
+                ]}
             >
-                {isLoading && connected
-                    ? <ActivityIndicator
-                        size="small"
-                        color={theme.textSecondary}
-                        style={{ marginRight: 10 }}
-                    />
-                    : <Ionicons
-                        name="radio-button-on"
-                        size={18}
-                        color={connected && currentItem ? '#4A8FCC' : theme.textSecondary}
-                        style={{ marginRight: 10 }}
-                    />
-                }
-                <ThemedText
-                    style={{ flex: 1, fontWeight: currentItem ? '500' : '400' }}
-                    themeColor={currentItem ? 'text' : 'textSecondary'}
-                    numberOfLines={1}
-                >
-                    {triggerLabel()}
-                </ThemedText>
-                {currentItem && <DelayBadge delay={currentItem.delay} testing={currentItem.testing} />}
-                {connected && nodes.length > 0 && (
-                    <Ionicons
-                        name="chevron-forward"
-                        size={14}
-                        color={theme.textSecondary}
-                        style={{ marginLeft: 6 }}
-                    />
+                <View style={styles.left}>
+                    <Text
+                        style={[
+                            styles.eyebrow,
+                            { color: theme.textSecondary, fontFamily: Fonts?.sans },
+                        ]}
+                    >
+                        {i18n.t('node_label_connected').toUpperCase()}
+                    </Text>
+                    <View style={styles.nameRow}>
+                        {isLoading && connected && (
+                            <ActivityIndicator
+                                size="small"
+                                color={theme.textSecondary}
+                                style={styles.nameSpinner}
+                            />
+                        )}
+                        <Text
+                            numberOfLines={1}
+                            style={[
+                                styles.name,
+                                {
+                                    color: currentItem ? theme.text : theme.textSecondary,
+                                    fontFamily: Fonts?.rounded,
+                                },
+                            ]}
+                        >
+                            {displayName}
+                        </Text>
+                        {showCaret && (
+                            <Text
+                                style={[
+                                    styles.caret,
+                                    { color: accent, fontFamily: Fonts?.rounded },
+                                ]}
+                            >
+                                {'›'}
+                            </Text>
+                        )}
+                    </View>
+                </View>
+
+                {currentItem && (
+                    <NodeSignal delay={currentItem.delay} testing={currentItem.testing} />
                 )}
             </Pressable>
 
-            {/* Bottom sheet picker */}
             <NodePickerSheet
                 ref={sheetRef}
                 nodes={nodes}
                 currentNode={currentNode}
+                autoResolvedNode={autoResolvedNode}
                 onSelect={handleSelect}
-                onDismiss={closePicker}
+                onDismiss={() => setPickerOpen(false)}
             />
         </View>
     );
 }
+
+const styles = StyleSheet.create({
+    trigger: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 4,
+        paddingVertical: 4,
+        gap: 12,
+    },
+    left: {
+        flex: 1,
+        gap: 4,
+    },
+    eyebrow: {
+        fontSize: 9,
+        fontWeight: '700',
+        letterSpacing: 1.3,
+        opacity: 0.7,
+    },
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    nameSpinner: {
+        marginRight: 2,
+    },
+    name: {
+        flexShrink: 1,
+        fontSize: 19,
+        fontWeight: '600',
+        letterSpacing: -0.4,
+    },
+    caret: {
+        fontSize: 22,
+        fontWeight: '400',
+        lineHeight: 22,
+        opacity: 0.8,
+        marginLeft: 2,
+    },
+});

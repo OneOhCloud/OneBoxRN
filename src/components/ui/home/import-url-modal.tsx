@@ -6,26 +6,29 @@ import { useTheme } from '@/hooks/use-theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ImportUrlModalProps {
     visible: boolean;
     onClose: () => void;
 }
 
-/** Page-sheet modal for importing a profile URL or scanning QR */
+/** Full-screen modal for importing a profile URL or scanning QR */
 export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
     const theme = useTheme();
+    const insets = useSafeAreaInsets();
     const [url, setUrl] = useState('');
+    const [urlError, setUrlError] = useState('');
     const [cameraVisible, setCameraVisible] = useState(false);
 
     function handleImport() {
         const trimmed = url.trim();
         if (!trimmed.startsWith('https://')) {
-            Alert.alert(i18n.t('invalid_link'), i18n.t('invalid_link_hint'));
+            setUrlError(i18n.t('invalid_link_hint'));
             return;
         }
+        setUrlError('');
         mediumImpact();
         onClose();
         setUrl('');
@@ -34,7 +37,7 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
 
     if (cameraVisible) {
         return (
-            <Modal visible={visible} onRequestClose={onClose} animationType="slide" presentationStyle="pageSheet">
+            <Modal visible={visible} onRequestClose={onClose} animationType="slide" presentationStyle="fullScreen">
                 <View style={{ flex: 1, backgroundColor: '#000' }}>
                     <CameraQR
                         onHandleClose={() => {
@@ -54,15 +57,12 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
         <Modal
             visible={visible}
             onRequestClose={onClose}
+            onDismiss={() => { setUrl(''); setUrlError(''); }}
             animationType="slide"
-            presentationStyle="pageSheet"
+            presentationStyle="fullScreen"
+            backdropColor={theme.background}
         >
-            <KeyboardAvoidingView
-                style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-            >
-            <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+            <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: theme.background }}>
                 {/* Header */}
                 <View
                     style={{
@@ -81,92 +81,114 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
                     </View>
                 </View>
 
-                {/* Content */}
-                <View style={{ flex: 1, padding: 20, gap: 16 }}>
-                    {/* URL Input */}
-                    <TextInput
-                        placeholder={i18n.t('url_placeholder')}
-                        value={url}
-                        onChangeText={setUrl}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        keyboardType="url"
-                        returnKeyType="go"
-                        autoFocus
-                        onSubmitEditing={handleImport}
-                        placeholderTextColor="#8E8E93"
-                        style={{
-                            fontSize: 16,
-                            backgroundColor: theme.backgroundElement,
-                            color: theme.text,
-                            borderRadius: 16,
-                            paddingHorizontal: 16,
-                            paddingVertical: 14,
-                        }}
-                    />
+                <ScrollView
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{
+                        flexGrow: 1,
+                        paddingHorizontal: 20,
+                        paddingTop: 20,
+                        paddingBottom: Math.max(16, insets.bottom),
+                    }}
+                    contentInsetAdjustmentBehavior="never"
+                    keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+                    keyboardShouldPersistTaps="handled"
+                    automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {/* Content */}
+                    <View style={{ gap: 16 }}>
+                        {/* URL Input */}
+                        <TextInput
+                            placeholder={i18n.t('url_placeholder')}
+                            value={url}
+                            onChangeText={(text) => { setUrl(text); if (urlError) setUrlError(''); }}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            keyboardType="url"
+                            returnKeyType="go"
+                            autoFocus
+                            onSubmitEditing={handleImport}
+                            placeholderTextColor="#8E8E93"
+                            style={{
+                                fontSize: 16,
+                                backgroundColor: theme.backgroundElement,
+                                color: theme.text,
+                                borderRadius: 16,
+                                paddingHorizontal: 16,
+                                paddingVertical: 14,
+                            }}
+                        />
 
-                    {/* Import Button */}
-                    <Pressable
-                        onPress={handleImport}
-                        style={({ pressed }) => ({
-                            backgroundColor: '#007AFF',
-                            paddingVertical: 14,
-                            borderRadius: 16,
-                            alignItems: 'center',
-                            opacity: pressed ? 0.8 : 1,
-                        })}
-                    >
-                        <ThemedText style={{ color: '#fff', fontWeight: '600' }}>{i18n.t('import')}</ThemedText>
-                    </Pressable>
+                        {urlError ? (
+                            <Text style={{ fontSize: 13, color: '#FF3B30', marginTop: -8, paddingHorizontal: 4 }}>
+                                {urlError}
+                            </Text>
+                        ) : null}
 
-                    {/* Divider */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 8 }}>
-                        <View style={{ flex: 1, height: 1, backgroundColor: theme.backgroundElement }} />
-                        <ThemedText themeColor="textSecondary" style={{ fontSize: 13 }}>
-                            {i18n.t('or')}
-                        </ThemedText>
-                        <View style={{ flex: 1, height: 1, backgroundColor: theme.backgroundElement }} />
+                        {/* Import Button */}
+                        <Pressable
+                            onPress={handleImport}
+                            style={({ pressed }) => ({
+                                backgroundColor: '#007AFF',
+                                paddingVertical: 14,
+                                borderRadius: 16,
+                                alignItems: 'center',
+                                opacity: pressed ? 0.8 : 1,
+                            })}
+                        >
+                            <ThemedText style={{ color: '#fff', fontWeight: '600' }}>{i18n.t('import')}</ThemedText>
+                        </Pressable>
+
+                        {/* Divider */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 8 }}>
+                            <View style={{ flex: 1, height: 1, backgroundColor: theme.backgroundElement }} />
+                            <ThemedText themeColor="textSecondary" style={{ fontSize: 13 }}>
+                                {i18n.t('or')}
+                            </ThemedText>
+                            <View style={{ flex: 1, height: 1, backgroundColor: theme.backgroundElement }} />
+                        </View>
+
+                        {/* Scan QR Button */}
+                        <Pressable
+                            onPress={() => {
+                                mediumImpact();
+                                setCameraVisible(true);
+                            }}
+                            style={({ pressed }) => ({
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 8,
+                                backgroundColor: theme.backgroundElement,
+                                paddingVertical: 14,
+                                borderRadius: 16,
+                                opacity: pressed ? 0.6 : 1,
+                            })}
+                        >
+                            <Ionicons name="qr-code" size={20} color={theme.text} />
+                            <ThemedText style={{ fontWeight: '600' }}>{i18n.t('scan_qr')}</ThemedText>
+                        </Pressable>
                     </View>
 
-                    {/* Scan QR Button */}
-                    <Pressable
-                        onPress={() => {
-                            mediumImpact();
-                            setCameraVisible(true);
-                        }}
-                        style={({ pressed }) => ({
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 8,
-                            backgroundColor: theme.backgroundElement,
-                            paddingVertical: 14,
-                            borderRadius: 16,
-                            opacity: pressed ? 0.6 : 1,
-                        })}
-                    >
-                        <Ionicons name="qr-code" size={20} color={theme.text} />
-                        <ThemedText style={{ fontWeight: '600' }}>{i18n.t('scan_qr')}</ThemedText>
-                    </Pressable>
-                </View>
+                    <View style={{ flex: 1 }} />
 
-                {/* Bottom cancel button */}
-                <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-                    <Pressable
-                        onPress={onClose}
-                        style={({ pressed }) => ({
-                            alignItems: 'center',
-                            paddingVertical: 16,
-                            borderRadius: 16,
-                            backgroundColor: theme.backgroundElement,
-                            opacity: pressed ? 0.6 : 1,
-                        })}
-                    >
-                        <ThemedText style={{ fontSize: 17, fontWeight: '500' }}>{i18n.t('cancel')}</ThemedText>
-                    </Pressable>
-                </View>
+                    {/* Bottom cancel button */}
+                    <View style={{ marginTop: 20 }}>
+                        <Pressable
+                            onPress={onClose}
+                            style={({ pressed }) => ({
+                                alignItems: 'center',
+                                paddingVertical: 16,
+                                borderRadius: 16,
+                                backgroundColor: theme.backgroundElement,
+                                opacity: pressed ? 0.6 : 1,
+                            })}
+                        >
+                            <ThemedText style={{ fontSize: 17, fontWeight: '500' }}>{i18n.t('cancel')}</ThemedText>
+                        </Pressable>
+                    </View>
+                </ScrollView>
             </SafeAreaView>
-            </KeyboardAvoidingView>
         </Modal>
     );
 }

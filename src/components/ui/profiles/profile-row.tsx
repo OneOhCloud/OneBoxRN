@@ -1,24 +1,14 @@
 import i18n from '@/constants/language';
-import { Fonts } from '@/constants/theme';
+import { Fonts, TabularNums } from '@/constants/theme';
 import { Profile } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import { mediumImpact } from '@/components/ui/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
-import { fmtBytes } from '@/components/ui/home/profile-info-card';
-import { ACCENT, ACCENT_LIGHT, ALERT, SILVER_DARK, SILVER_LIGHT } from './active-profile-card';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { fmtBytes } from '@/utils';
+import { ALERT, useAccentBlue, useHairlineColor, useSilver } from '@/constants/ios26-palette';
 
-// ─── Hairline separator token ──────────────────────────────────────────────
-function useHairline() {
-    const isDark = useColorScheme() === 'dark';
-    return isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(11, 13, 18, 0.09)';
-}
-
-// ─── Profile row (iOS 26 grouped-inset style with filled-blue check) ────────
-// Layout:  [ leading indicator 28pt ] [ name · meta ] [ trailing trash/chevron ]
-// Active  → filled blue checkmark pill + concentric radius
-// Inactive → silver hollow circle (quiet chrome)
 export function ProfileRow({
     sub,
     isActive,
@@ -31,16 +21,13 @@ export function ProfileRow({
     isActive: boolean;
     isLast?: boolean;
     editMode?: boolean;
-    /** @deprecated retained for backward compat */
-    isFirst?: boolean;
     onActivate: () => void;
     onDelete: () => void;
 }) {
     const theme = useTheme();
-    const isDark = useColorScheme() === 'dark';
-    const hairline = useHairline();
-    const accentBlue = isDark ? ACCENT : ACCENT_LIGHT;
-    const silver = isDark ? SILVER_DARK : SILVER_LIGHT;
+    const hairline = useHairlineColor();
+    const accentBlue = useAccentBlue();
+    const silver = useSilver();
 
     const hasTraffic = sub.totalTraffic > 0;
     const pct = hasTraffic
@@ -53,11 +40,8 @@ export function ProfileRow({
 
     const handlePress = () => {
         mediumImpact();
-        if (editMode) {
-            onDelete();
-        } else {
-            onActivate();
-        }
+        if (editMode) onDelete();
+        else onActivate();
     };
 
     return (
@@ -72,15 +56,7 @@ export function ProfileRow({
                 gap: 14,
             })}
         >
-            {/* Leading indicator — always same footprint (28pt gutter) */}
-            <View
-                style={{
-                    width: 28,
-                    height: 28,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}
-            >
+            <View style={{ width: 28, alignItems: 'center', justifyContent: 'center' }}>
                 {editMode ? (
                     <View
                         style={{
@@ -110,10 +86,15 @@ export function ProfileRow({
                             backgroundColor: accentBlue,
                             alignItems: 'center',
                             justifyContent: 'center',
-                            shadowColor: accentBlue,
-                            shadowOffset: { width: 0, height: 4 },
-                            shadowOpacity: 0.35,
-                            shadowRadius: 8,
+                            ...Platform.select({
+                                ios: {
+                                    shadowColor: accentBlue,
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.35,
+                                    shadowRadius: 8,
+                                },
+                                default: null,
+                            }),
                         }}
                     >
                         <Ionicons name="checkmark" size={15} color="#ffffff" />
@@ -131,7 +112,6 @@ export function ProfileRow({
                 )}
             </View>
 
-            {/* Content column with hairline separator at bottom */}
             <View
                 style={{
                     flex: 1,
@@ -161,7 +141,7 @@ export function ProfileRow({
                         fontSize: 12,
                         fontFamily: Fonts?.sans,
                         color: theme.textSecondary,
-                        fontVariant: ['tabular-nums'],
+                        fontVariant: TabularNums,
                         marginTop: 2,
                     }}
                 >
@@ -172,7 +152,6 @@ export function ProfileRow({
     );
 }
 
-// ─── Import row — iOS 26 "Add" pattern with tinted blue symbol ──────────────
 export function ImportRow({
     onPress,
     isLast,
@@ -180,9 +159,8 @@ export function ImportRow({
     onPress: () => void;
     isLast?: boolean;
 }) {
-    const isDark = useColorScheme() === 'dark';
-    const hairline = useHairline();
-    const accentBlue = isDark ? ACCENT : ACCENT_LIGHT;
+    const hairline = useHairlineColor();
+    const accentBlue = useAccentBlue();
 
     return (
         <Pressable
@@ -196,23 +174,13 @@ export function ImportRow({
                 gap: 14,
             })}
         >
-            {/* Leading — tinted blue plus pill, same footprint as check */}
-            <View
-                style={{
-                    width: 28,
-                    height: 28,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}
-            >
+            <View style={{ width: 28, alignItems: 'center', justifyContent: 'center' }}>
                 <View
                     style={{
                         width: 24,
                         height: 24,
                         borderRadius: 12,
-                        backgroundColor: isDark
-                            ? `${accentBlue}26`
-                            : `${accentBlue}1C`,
+                        backgroundColor: `${accentBlue}1E`,
                         alignItems: 'center',
                         justifyContent: 'center',
                     }}

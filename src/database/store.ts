@@ -3,13 +3,12 @@ import {
     configType,
     ENABLE_BYPASS_ROUTER_STORE_KEY,
     ENABLE_TUN_STORE_KEY,
-    SING_BOX_MAJOR_VERSION,
-    SING_BOX_VERSION,
     STAGE_VERSION_STORE_KEY,
     StageVersionType,
     USE_DHCP_STORE_KEY,
     USER_AGENT_STORE_KEY,
 } from '@/definition';
+import { getSingBoxMajorVersion } from '@/utils/sing-box-version';
 import { kvDelete, kvGet, kvSet } from './kv';
 
 export const LANGUAGE_STORE_KEY = 'language';
@@ -151,7 +150,7 @@ export async function setUserAgent(ua: string): Promise<void> {
 }
 
 export async function getConfigTemplateURLKey(mode: configType): Promise<string> {
-    return `key-sing-box-${SING_BOX_MAJOR_VERSION}-${mode}-template-path`;
+    return `key-sing-box-${getSingBoxMajorVersion()}-${mode}-template-path`;
 }
 
 export async function getConfigTemplateURL(mode: configType): Promise<string> {
@@ -168,8 +167,7 @@ export async function setConfigTemplateURL(mode: configType, url: string): Promi
 export async function getDefaultConfigTemplateURL(mode: configType): Promise<string> {
     const remoteUrl = 'https://onebox-updater.oneoh.cloud/conf-template';
     const stageVersion: StageVersionType = await getStoreValue(STAGE_VERSION_STORE_KEY);
-    const [major, minor] = SING_BOX_VERSION.replace('v', '').split('.');
-    const ver = `${major}.${minor}`;
+    const ver = getSingBoxMajorVersion();
 
     switch (mode) {
         case 'tun-rules':

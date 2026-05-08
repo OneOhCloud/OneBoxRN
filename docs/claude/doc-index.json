@@ -1,0 +1,30 @@
+{
+  "src/app/dev-smoke.tsx": ["docs/claude/dev-screens.md"],
+  "src/app/config/dev.tsx": ["docs/claude/dev-screens.md"],
+  "src/components/dev": ["docs/claude/dev-screens.md"],
+  "src/debug/smoke-imports/entries.ts": ["docs/claude/dev-screens.md"],
+  "src/debug/import-tests/cases.ts": ["docs/claude/dev-screens.md"],
+  "src/debug/import-tests/runner.ts": ["docs/claude/dev-screens.md"],
+
+  "src/contexts/vpn-context.tsx": ["docs/claude/vpn-context.md"],
+
+  "src/utils/profile-loader.ts": ["docs/claude/domain-allowlist.md"],
+  "src/utils/domain-verification.ts": ["docs/claude/domain-allowlist.md"],
+  "src/utils/domain-suffix.ts": ["docs/claude/domain-allowlist.md"],
+  "src/modules/expo-onebox/android/src/main/java/expo/modules/onebox/oneoh/cloud/helper/BackgroundConfigWorker.kt": ["docs/claude/domain-allowlist.md"],
+  "src/modules/expo-onebox/ios/core/BackgroundConfigRefresh.swift": ["docs/claude/domain-allowlist.md"],
+
+  "src/modules/expo-onebox/helper/Makefile": ["docs/claude/sing-box-upgrade.md"],
+  "src/modules/expo-onebox/ios/Libbox.xcframework": ["docs/claude/sing-box-upgrade.md"],
+  "src/modules/expo-onebox/android/libs": ["docs/claude/sing-box-upgrade.md"],
+  "scripts/withOneBoxMTunnel.js": ["docs/claude/sing-box-upgrade.md", "docs/claude/bridge-signature.md"],
+  "src/modules/expo-onebox/ios/add_onebox_tunnel.rb": ["docs/claude/sing-box-upgrade.md"],
+
+  "src/modules/expo-onebox/ios/ExpoOneBoxModule.swift": ["docs/claude/bridge-signature.md", "docs/claude/sing-box-upgrade.md"],
+  "src/modules/expo-onebox/src/ExpoOneBoxModule.ts": ["docs/claude/bridge-signature.md"],
+  "src/modules/expo-onebox/src/ExpoOneBoxModule.web.ts": ["docs/claude/bridge-signature.md"],
+  "src/modules/expo-onebox/android/src/main/java/expo/modules/onebox/oneoh/cloud/ExpoOneBoxModule.kt": ["docs/claude/bridge-signature.md"],
+
+  "src/components/ui/profiles/rotating-border.tsx": ["docs/claude/comet-animation.md"],
+  "src/components/ui/home/connect-button.tsx": ["docs/claude/comet-animation.md"]
+}

@@ -10,6 +10,6 @@ export const DOMAIN_VERIFICATION_KEYS = {
 } as const;
 
 export const CONFIG_REFRESH_KEYS = {
-    USE_ACCELERATE_URL: 'dev:use-accelerate-url',
     TEST_PRIMARY_URL_UNAVAILABLE: 'dev:test-primary-url-unavailable',
+    ACCELERATE_URL: 'config:accelerate-url',
 } as const;

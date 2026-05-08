@@ -7,6 +7,29 @@ import ExpoOneBox from './modules/expo-onebox';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
+export interface SubInfo {
+    used: number;
+    total: number;
+    expire: number;
+}
+
+function formatSignificant(n: number): string {
+    if (n >= 100) return Math.round(n).toString();
+    if (n >= 10) return n.toFixed(1).replace(/\.0$/, '');
+    return n.toFixed(2).replace(/\.?0+$/, '');
+}
+
+export function fmtBytes(bytes: number): string {
+    if (bytes <= 0) return '0 B';
+    const KB = 1024;
+    const MB = KB * 1024;
+    const GB = MB * 1024;
+    if (bytes < KB) return `${bytes} B`;
+    if (bytes < MB) return `${formatSignificant(bytes / KB)} KB`;
+    if (bytes < GB) return `${formatSignificant(bytes / MB)} MB`;
+    return `${formatSignificant(bytes / GB)} GB`;
+}
+
 const iOSTag = 'SFI';
 const AndroidTag = 'SFA';
 
@@ -34,6 +57,29 @@ export function getSingBoxUserAgent(): string {
 /** Extract the hostname from a URL string; returns fallback on parse failure. */
 export function urlHostname(url: string, fallback = ''): string {
     try { return new URL(url).hostname; } catch { return fallback; }
+}
+
+/**
+ * Extract the last path segment (filename) from a URL, URL-decoded.
+ * Used as a display-name fallback when the server does not return a
+ * Content-Disposition header — e.g. raw gist URLs like
+ * `/raw/abc/appstoreconnect.json` → `appstoreconnect.json`.
+ * Returns null if parsing fails or the path has no filename segment.
+ */
+export function urlFilename(url: string): string | null {
+    try {
+        const pathname = new URL(url).pathname;
+        const segments = pathname.split('/').filter(Boolean);
+        const last = segments[segments.length - 1];
+        if (!last) return null;
+        try {
+            return decodeURIComponent(last);
+        } catch {
+            return last;
+        }
+    } catch {
+        return null;
+    }
 }
 
 /** Parse profile name from a Content-Disposition header value. Returns null if not found. */

@@ -1,9 +1,14 @@
-import { configType, SING_BOX_MAJOR_VERSION, SING_BOX_VERSION } from '@/definition';
+import { configType } from '@/definition';
 import { ExpoOneBox } from '@/modules/expo-onebox';
+import { jsLog } from '@/utils/log-sink';
+import { parseSingBoxVersion, resolveVersionPath } from '@/utils/sing-box-template-path';
+import { getSingBoxMajorVersion, getSingBoxVersion } from '@/utils/sing-box-version';
+import { fetch } from 'expo/fetch';
+import { parse as parseJsonc } from 'jsonc-parser';
 import { SBConfig } from './kv';
 import { getCustomRuleSet, getStoreValue, setStoreValue } from './store';
-import TunGlobalConfig from './template/zh/global';
-import TunRulesConfig from './template/zh/rules';
+import { BUILT_IN_TEMPLATE_OBJECTS } from './template/generated';
+import { templateMemoryCache } from './template-cache';
 
 type Item = { tag: string; type: string };
 type Dict = any;
@@ -16,8 +21,8 @@ export type StatusChangedPayload = void | TerminatedPayload;
 
 // ─── Config template cache key ───────────────────────────────────────────────
 
-export async function getConfigTemplateCacheKey(mode: configType): Promise<string> {
-    return `key-sing-box-${SING_BOX_MAJOR_VERSION}-${mode}-template-config-cache`;
+export function getConfigTemplateCacheKey(mode: configType): string {
+    return `key-sing-box-${getSingBoxMajorVersion()}-${mode}-template-config-cache`;
 }
 
 // ─── DNS rewrite ─────────────────────────────────────────────────────────────
@@ -34,9 +39,44 @@ async function getBestDnsWithTimeout(fallback: string): Promise<string> {
             ),
         ]);
     } catch (e) {
-        console.warn('[Config] getBestDns 失败或超时，使用 fallback DNS:', fallback, e);
+        jsLog.warn('[Config] getBestDns 失败或超时，使用 fallback DNS:', fallback, e);
         return fallback;
     }
+}
+
+/**
+ * Single source of truth for the "direct" DNS server.
+ *
+ * Used by both the merge pipeline (updateDNS2Config) and the Settings
+ * InfoCard. Callers MUST route through here instead of calling
+ * ExpoOneBox.getBestDns / setStoreValue('directDNS', …) on their own, so
+ * the value in `dns.servers[tag='system'].server` of the merged config
+ * stays byte-identical to the value read from KV by the Settings UI.
+ * UI callers MUST go through VpnContext.refreshDirectDns — never import
+ * this function from a component / screen / hook.
+ *
+ * Accepted trade-off: accept possible double native probe + double KV write
+ * when the merge pipeline (updateDNS2Config) and the UI's focus refresh fire
+ * concurrently, in exchange for not plumbing the merge pipeline through
+ * VpnContext (which would invert a layering: DB → UI context → DB). The race
+ * window is bounded (both calls settle within the 2s probe timeout) and both
+ * writes converge on the same IP value detected by the same OS query, so
+ * last-writer-wins is idempotent in practice.
+ */
+export function extractSystemDns(configJson: string): string | null {
+    try {
+        const cfg = JSON.parse(configJson) as { dns?: { servers?: { tag: string; server?: string }[] } };
+        return cfg?.dns?.servers?.find(s => s.tag === 'system')?.server ?? null;
+    } catch {
+        return null;
+    }
+}
+
+export async function refreshDirectDns(fallback: string = FALLBACK_DNS): Promise<string> {
+    const raw = await getBestDnsWithTimeout(fallback);
+    const trimmed = raw.trim() || FALLBACK_DNS;
+    await setStoreValue('directDNS', trimmed);
+    return trimmed;
 }
 
 export async function updateDNS2Config(newConfig: Dict): Promise<void> {
@@ -44,11 +84,10 @@ export async function updateDNS2Config(newConfig: Dict): Promise<void> {
         const server = newConfig.dns.servers[i];
         if (server.tag === 'system') {
             const fallback = server.server?.trim() || FALLBACK_DNS;
-            const directDNS = await getBestDnsWithTimeout(fallback);
-            await setStoreValue('directDNS', directDNS);
-            console.log('[Config] 直连 DNS:', directDNS);
+            const directDNS = await refreshDirectDns(fallback);
+            jsLog.info('[Config] 直连 DNS:', directDNS);
             server.type = 'udp';
-            server.server = directDNS.trim();
+            server.server = directDNS;
             server.server_port = 53;
             return;
         }
@@ -56,117 +95,162 @@ export async function updateDNS2Config(newConfig: Dict): Promise<void> {
 }
 
 async function rewriteConfig(newConfig: Dict): Promise<void> {
-    console.log('[Config] rewriteConfig: 注入 DNS，清理未用字段');
+    jsLog.info('[Config] rewriteConfig: 注入 DNS，清理未用字段');
     try {
         await updateDNS2Config(newConfig);
     } catch (error) {
-        console.error('[Config] 更新 DNS 配置失败:', error);
+        jsLog.error('[Config] 更新 DNS 配置失败:', error);
         throw error;
     }
     if (newConfig['experimental']) {
         delete newConfig['experimental']['clash_api'];
     }
+    // Override the sing-box core log level with the user's preference
+    // (default: info). The template ships with `debug` which is noisy
+    // and hurts battery; users can bump it back up in the dev page.
+    const level = SBConfig.getLogLevel();
+    if (!newConfig.log) newConfig.log = {};
+    newConfig.log.level = level;
+    jsLog.info(`[Config] core log level → ${level}`);
 }
 
 // ─── Local bundled templates ──────────────────────────────────────────────────
 
-export function getDefaultConfigTemplate(mode: configType, version: string): string {
-    if (version.startsWith('v1.12') || version.startsWith('v1.13')) {
-        switch (mode) {
-            case 'tun-rules': return JSON.stringify(TunRulesConfig);
-            case 'tun-global': return JSON.stringify(TunGlobalConfig);
-            default: throw new Error(`Unsupported config type: ${mode}`);
-        }
+/**
+ * `majorVersion` is the `MAJOR.MINOR` form returned by
+ * `getSingBoxMajorVersion()` (e.g. `"1.13"`). Only the supported minor
+ * lines gate the lookup — the actual template body is frozen at build
+ * time by `scripts/sync-templates.ts` against `SING_BOX_TAG` in
+ * `modules/expo-onebox/helper/Makefile`.
+ */
+export function getDefaultConfigTemplate(mode: configType, majorVersion: string): string {
+    if (majorVersion === '1.12' || majorVersion === '1.13') {
+        const tpl = BUILT_IN_TEMPLATE_OBJECTS[mode];
+        if (!tpl) throw new Error(`Unsupported config type: ${mode}`);
+        return JSON.stringify(tpl);
     }
-    throw new Error(`Unsupported version: ${version}`);
+    throw new Error(`Unsupported version: ${majorVersion}`);
 }
 
 // ─── Remote template URLs ─────────────────────────────────────────────────────
 
-//             return `${remoteUrl}/raw/refs/heads/${stageVersion}/conf/${ver}/zh-cn/tun-rules.jsonc`;
+const TEMPLATE_MODES: configType[] = ['tun-rules', 'tun-global'];
 
-const REMOTE_TEMPLATE_URLS: Record<configType, string> = {
+const REMOTE_TEMPLATE_BASE = 'https://onebox-updater.oneoh.cloud/conf-template/raw/refs/heads/main/conf';
 
-    'tun-rules': 'https://onebox-updater.oneoh.cloud/conf-template/raw/refs/heads/main/conf/1.13/zh-cn/tun-rules.jsonc',
-    'tun-global': 'https://onebox-updater.oneoh.cloud/conf-template/raw/refs/heads/main/conf/1.13/zh-cn/tun-global.jsonc',
-};
-
-const REMOTE_FETCH_TIMEOUT_MS = 5000;
-
-// 剥离 JSONC 注释（单行 // 和多行块注释），使 JSON.parse 可正常解析。
-// 注意：不处理字符串内的注释字符，对标准 JSONC 配置已足够。
-function stripJsonComments(text: string): string {
-    return text
-        .replace(/\/\*[\s\S]*?\*\//g, '')   // 多行注释
-        .replace(/\/\/[^\n\r]*/g, '');       // 单行注释
+function getRemoteTemplateUrl(mode: configType): string {
+    const versionPath = resolveVersionPath(parseSingBoxVersion(getSingBoxVersion()));
+    return `${REMOTE_TEMPLATE_BASE}/${versionPath}/zh-cn/${mode}.jsonc`;
 }
 
-/**
- * 从 GitHub 拉取指定 mode 的配置模板。
- * 超时 5 s 或请求失败时返回 null。
- */
+const REMOTE_FETCH_TIMEOUT_MS = 15000;
+const TEMPLATE_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function getTemplateCacheTimestampKey(mode: configType): string {
+    return `${getConfigTemplateCacheKey(mode)}-ts`;
+}
+
+// `templateMemoryCache` is imported from ./template-cache.
+// Stored as serialized JSON so every `get` returns an independent object
+// graph — see that module's comment for the mutation-safety rationale.
+
 async function fetchRemoteTemplate(mode: configType): Promise<string | null> {
-    const url = REMOTE_TEMPLATE_URLS[mode];
+    let url: string;
+    try {
+        url = getRemoteTemplateUrl(mode);
+    } catch (e) {
+        jsLog.warn(`[Template] Could not resolve remote URL for "${mode}":`, e);
+        return null;
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REMOTE_FETCH_TIMEOUT_MS);
+    const startMs = Date.now();
     try {
-        console.log(`[Template] Fetching remote template for "${mode}" from: ${url}`);
+        jsLog.info(`[Template] Fetching remote template for "${mode}" from: ${url}`);
         const resp = await fetch(url, { signal: controller.signal });
         clearTimeout(timer);
         if (!resp.ok) {
-            console.warn(`[Template] Remote fetch failed for "${mode}": HTTP ${resp.status}`);
+            jsLog.warn(`[Template] Remote fetch failed for "${mode}": HTTP ${resp.status} (${Date.now() - startMs}ms) url=${url}`);
             return null;
         }
         const text = await resp.text();
-        console.log(`[Template] Remote template fetched for "${mode}" (${text.length} bytes)`);
+        jsLog.info(`[Template] Remote template fetched for "${mode}" (${text.length} bytes, ${Date.now() - startMs}ms)`);
         return text;
     } catch (e) {
         clearTimeout(timer);
+        const elapsed = Date.now() - startMs;
         if ((e as Error).name === 'AbortError') {
-            console.warn(`[Template] Remote fetch timed out for "${mode}"`);
+            jsLog.warn(`[Template] Remote fetch timed out for "${mode}" after ${elapsed}ms (limit=${REMOTE_FETCH_TIMEOUT_MS}ms) url=${url}`);
         } else {
-            console.warn(`[Template] Remote fetch error for "${mode}":`, e);
+            jsLog.warn(`[Template] Remote fetch error for "${mode}" after ${elapsed}ms url=${url}`, e);
         }
         return null;
     }
 }
 
-/**
- * 获取指定 mode 的配置模板，优先级：
- *  1. 远程 GitHub（成功则更新缓存）
- *  2. 本地缓存（上次成功拉取的结果）
- *  3. 本地内置模板（最终兜底）
- */
 async function getConfigTemplate(mode: configType): Promise<Dict> {
-    const cacheKey = await getConfigTemplateCacheKey(mode);
+    // All three paths return a fresh object graph — downstream
+    // `updateVPNServerConfigFromDB` mutates it (pushes server nodes into
+    // `outbounds` / selector / urltest). A shared reference would accumulate
+    // nodes across profile switches.
+    //   - templateMemoryCache.get: parses from stored JSON string each call.
+    //   - getStoreValue: store.get parses raw KV string fresh each call.
+    //   - bundled fallback: JSON.parse on each call.
 
-    // 1. 尝试从远程拉取
-    const remoteText = await fetchRemoteTemplate(mode);
-    if (remoteText) {
-        try {
-            const parsed = JSON.parse(stripJsonComments(remoteText));
-            await setStoreValue(cacheKey, JSON.stringify(parsed));
-            console.log(`[Template] Using remote template for "${mode}"`);
-            return parsed;
-        } catch (e) {
-            console.warn(`[Template] Failed to parse remote template for "${mode}":`, e);
-        }
-    }
+    // 1. In-memory (populated by prefetchConfigTemplates at startup)
+    const inMemory = templateMemoryCache.get(mode);
+    if (inMemory) return inMemory;
 
-    // 2. 尝试本地缓存（上次成功的远程结果）
+    // 2. KV cache (survives restarts, written by prefetchConfigTemplates).
+    //
+    // `getStoreValue` auto-parses the raw KV string (see store.ts), so
+    // `cached` is already the deserialised object graph — DO NOT
+    // `JSON.parse(cached)` again. The previous iteration did, which
+    // produced "[object Object]" and threw `Unexpected character: o`
+    // on every cold start with a populated cache.
+    const cacheKey = getConfigTemplateCacheKey(mode);
     const cached = await getStoreValue(cacheKey, null);
-    if (cached) {
-        try {
-            console.log(`[Template] Using cached template for "${mode}"`);
-            return JSON.parse(cached);
-        } catch (e) {
-            console.warn(`[Template] Failed to parse cached template for "${mode}":`, e);
-        }
+    if (cached && typeof cached === 'object') {
+        return cached as Dict;
     }
 
-    // 3. 兜底：使用本地内置模板
-    console.log(`[Template] Using local bundled template for "${mode}"`);
-    return JSON.parse(getDefaultConfigTemplate(mode, SING_BOX_VERSION));
+    // 3. Bundled fallback
+    jsLog.info(`[Template] Using local bundled template for "${mode}"`);
+    return JSON.parse(getDefaultConfigTemplate(mode, getSingBoxMajorVersion()));
+}
+
+/** Prefetch all config templates at app startup. Skips fetch if cache is fresh (< 1 hour old). */
+export async function prefetchConfigTemplates(): Promise<void> {
+    await Promise.all(
+        TEMPLATE_MODES.map(async (mode) => {
+            const tsKey = getTemplateCacheTimestampKey(mode);
+            const lastFetch = await getStoreValue(tsKey, null);
+            if (lastFetch && Date.now() - Number(lastFetch) < TEMPLATE_CACHE_TTL_MS) {
+                jsLog.info(`[Template] Cache fresh for "${mode}", skipping fetch`);
+                return;
+            }
+
+            const remoteText = await fetchRemoteTemplate(mode);
+            if (!remoteText) return;
+            try {
+                const parsed = parseJsonc(remoteText);
+                if (!parsed || typeof parsed !== 'object') {
+                    jsLog.warn(`[Template] parseJsonc returned non-object for "${mode}" (len=${remoteText.length}); skipping cache.`);
+                    return;
+                }
+                const cacheKey = getConfigTemplateCacheKey(mode);
+                // Pass the object directly — store.set JSON-stringifies it once;
+                // store.get JSON-parses once. Writing JSON.stringify(parsed)
+                // here would double-encode and break the reader.
+                await setStoreValue(cacheKey, parsed);
+                await setStoreValue(tsKey, String(Date.now()));
+                templateMemoryCache.set(mode, parsed);
+                jsLog.info(`[Template] Prefetched and cached template for "${mode}"`);
+            } catch (e) {
+                jsLog.warn(`[Template] Failed to parse prefetched template for "${mode}":`, e);
+            }
+        })
+    );
 }
 
 // ─── Server node injection ────────────────────────────────────────────────────
@@ -200,7 +284,7 @@ export async function updateVPNServerConfigFromDB(
     const deduplicatedServers: Item[] = [];
     for (const server of serverList) {
         if (existingTags.has(server.tag)) {
-            console.warn(`[Config] Skipping server with duplicate tag: "${server.tag}"`);
+            jsLog.warn(`[Config] Skipping server with duplicate tag: "${server.tag}"`);
             continue;
         }
         existingTags.add(server.tag);
@@ -221,7 +305,7 @@ export async function getTunConfig(config: string): Promise<string> {
     const configJson = JSON.parse(config);
     const newConfig = await getConfigTemplate('tun-rules');
 
-    console.log('[Config] Building tun-rules config');
+    jsLog.info('[Config] Building tun-rules config');
 
     const directRuleSet = await getCustomRuleSet('direct');
     const proxyRuleSet = await getCustomRuleSet('proxy');
@@ -240,7 +324,7 @@ export async function getTunConfig(config: string): Promise<string> {
         }
     }
 
-    console.log('[Config] TUN Stack:', newConfig.inbounds?.[0]?.stack);
+    jsLog.info('[Config] TUN Stack:', newConfig.inbounds?.[0]?.stack);
     await rewriteConfig(newConfig);
     return updateVPNServerConfigFromDB(configJson, newConfig);
 }
@@ -249,7 +333,7 @@ export async function getTunConfig(config: string): Promise<string> {
 export default async function getGlobalTunConfig(config: string): Promise<string> {
     const configJson = JSON.parse(config);
     const newConfig = await getConfigTemplate('tun-global');
-    console.log('[Config] Building tun-global config');
+    jsLog.info('[Config] Building tun-global config');
     await rewriteConfig(newConfig);
     return updateVPNServerConfigFromDB(configJson, newConfig);
 }

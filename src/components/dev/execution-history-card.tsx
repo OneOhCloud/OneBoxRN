@@ -8,40 +8,56 @@ import { TaskDetailModal } from './task-detail-modal';
 
 interface ExecutionHistoryCardProps {
     taskLog: TaskLogEntry | null;
+    /** Cascade index for the summary card. Detail list uses index+1. */
+    index?: number;
 }
 
-export function ExecutionHistoryCard({ taskLog }: ExecutionHistoryCardProps) {
+export function ExecutionHistoryCard({ taskLog, index = 0 }: ExecutionHistoryCardProps) {
     const records = taskLog?.records ? [...taskLog.records].reverse() : [];
     const [selectedRecord, setSelectedRecord] = useState<TaskRecord | null>(null);
 
     return (
         <>
-            <Card title="Execution History">
+            <Card title="Execution History" index={index}>
                 {taskLog ? (
                     <>
                         <Row
+                            iconName="stats-chart-outline"
+                            iconColor="#5856D6"
                             label="Total Runs"
                             value={String(taskLog.totalCount)}
                         />
                         <Row
+                            iconName="time-outline"
+                            iconColor="#5AC8FA"
                             label="Last Run"
                             value={taskLog.lastExecutedAt ? relativeTime(taskLog.lastExecutedAt) : 'Never'}
-                            valueColor={taskLog.lastExecutedAt ? undefined : undefined}
+                            valueMono={false}
                         />
                         <Row
+                            iconName="pulse-outline"
+                            iconColor={taskLog.lastStatus ? taskStatusColor(taskLog.lastStatus) : '#8E8E93'}
                             label="Last Status"
                             value={taskLog.lastStatus ?? '—'}
                             valueColor={taskLog.lastStatus ? taskStatusColor(taskLog.lastStatus) : undefined}
-                            isLast={records.length === 0}
+                            valueMono={false}
+                            isLast
                         />
                     </>
                 ) : (
-                    <Row label="Status" value="No config URL" isLast />
+                    <Row
+                        iconName="help-circle-outline"
+                        iconColor="#8E8E93"
+                        label="Status"
+                        value="No config URL"
+                        valueMono={false}
+                        isLast
+                    />
                 )}
             </Card>
 
             {records.length > 0 && (
-                <Card title={`Recent Records (${records.length})`}>
+                <Card title={`Recent Records`} subtitle={`${records.length} entries`} index={index + 1}>
                     {records.map((r, i) => (
                         <RecordRow
                             key={r.time + i}

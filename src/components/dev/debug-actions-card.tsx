@@ -1,18 +1,18 @@
-import { lightImpact } from '@/components/ui/haptics';
-import { useTheme } from '@/hooks/use-theme';
+import { mediumImpact } from '@/components/ui/haptics';
+import { BugsnagCrashTestFlags, type BugsnagCrashTestKind } from '@/database/kv';
 import { executeConfigRefresh, registerConfigRefreshTask } from '@/tasks/config-refresh';
-import { Alert, Pressable, StyleSheet, Text } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { Card } from './card';
+import { Row } from './row';
 
 interface DebugActionsCardProps {
     onExecuted: () => void;
+    index?: number;
 }
 
-export function DebugActionsCard({ onExecuted }: DebugActionsCardProps) {
-    const theme = useTheme();
-
+export function DebugActionsCard({ onExecuted, index }: DebugActionsCardProps) {
     const handleExecuteDirectly = async () => {
-        lightImpact();
+        mediumImpact();
         try {
             console.log('[Dev] executing config refresh directly...');
             const result = await executeConfigRefresh();
@@ -27,7 +27,7 @@ export function DebugActionsCard({ onExecuted }: DebugActionsCardProps) {
     };
 
     const handleReregister = async () => {
-        lightImpact();
+        mediumImpact();
         try {
             console.log('[Dev] re-registering native background task...');
             await registerConfigRefreshTask();
@@ -40,32 +40,61 @@ export function DebugActionsCard({ onExecuted }: DebugActionsCardProps) {
         }
     };
 
+    const armCrashOnNextLaunch = (kind: BugsnagCrashTestKind) => {
+        const title = kind === 'js' ? 'Arm JS Crash' : 'Arm Android Native Crash';
+        const message = kind === 'js'
+            ? 'The app will throw an uncaught JS error during the next startup.'
+            : 'The app will throw a native Android RuntimeException during the next startup.';
+
+        Alert.alert(title, `${message}\n\nRestart the app after arming this test.`, [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: 'Arm',
+                style: 'destructive',
+                onPress: () => {
+                    BugsnagCrashTestFlags.arm(kind);
+                    Alert.alert('Crash Test Armed', 'Fully close and reopen the app to trigger it once.');
+                    onExecuted();
+                },
+            },
+        ]);
+    };
+
     return (
-        <Card title="Debug Actions">
-            <Pressable
+        <Card title="Debug Actions" index={index}>
+            <Row
+                iconName="play-circle-outline"
+                iconColor="#007AFF"
+                label="Execute Directly"
+                caption="Run the refresh task synchronously and show the result."
                 onPress={handleExecuteDirectly}
-                style={({ pressed }) => ({
-                    paddingVertical: 12,
-                    borderBottomWidth: StyleSheet.hairlineWidth,
-                    borderBottomColor: theme.border,
-                    opacity: pressed ? 0.6 : 1,
-                })}
-            >
-                <Text style={{ fontSize: 14, color: '#007AFF', textAlign: 'center', fontWeight: '600' }}>
-                    Execute Directly
-                </Text>
-            </Pressable>
-            <Pressable
+            />
+            <Row
+                iconName="refresh-circle-outline"
+                iconColor="#FF9500"
+                label="Re-register Task"
+                caption="Cancel and re-schedule the periodic worker."
                 onPress={handleReregister}
-                style={({ pressed }) => ({
-                    paddingVertical: 12,
-                    opacity: pressed ? 0.6 : 1,
-                })}
-            >
-                <Text style={{ fontSize: 14, color: '#FF9500', textAlign: 'center', fontWeight: '600' }}>
-                    Re-register Task
-                </Text>
-            </Pressable>
+                isLast={false}
+            />
+            <Row
+                iconName="bug-outline"
+                iconColor="#FF3B30"
+                label="Crash JS on Next Launch"
+                caption="One-shot startup crash for Bugsnag JS error verification."
+                onPress={() => armCrashOnNextLaunch('js')}
+                isLast={Platform.OS !== 'android'}
+            />
+            {Platform.OS === 'android' ? (
+                <Row
+                    iconName="skull-outline"
+                    iconColor="#AF52DE"
+                    label="Crash Native on Next Launch"
+                    caption="One-shot Android RuntimeException for Bugsnag native crash verification."
+                    onPress={() => armCrashOnNextLaunch('native-android')}
+                    isLast
+                />
+            ) : null}
         </Card>
     );
 }

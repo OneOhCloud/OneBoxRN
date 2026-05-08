@@ -11,6 +11,9 @@ target/
 # tun.db（构建时自动下载）
 assets/data/tun.db
 
+# 构建时从 conf-template 同步生成的默认模板快照
+src/database/template/generated.ts
+
 # Expo
 .expo/
 dist/
@@ -52,3 +55,4 @@ app-example
 src/database/config.ts
 /android/build/**
 .env
+.omc

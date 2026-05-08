@@ -5,17 +5,18 @@
 import { mediumImpact, notifyError, notifySuccess } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
 import { Fonts } from '@/constants/theme';
-import { fmtBytes } from '@/components/ui/home/profile-info-card';
 import { getProcessedConfig } from '@/database/helper';
 import { ProfileStore } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox, { VPN_STATUS } from '@/modules/expo-onebox';
-import { fetchWithTimeout, getRemoteNameByContentDisposition, getSingBoxUserAgent, urlHostname } from '@/utils';
+import { fmtBytes, getRemoteNameByContentDisposition, getSingBoxUserAgent, urlFilename, urlHostname } from '@/utils';
+import { jsLog } from '@/utils/log-sink';
 import { parseProfileUserinfo } from '@/utils/profile-info';
+import { verifyHostname } from '@/utils/profile-loader';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─── Download Hook ──────────────────────────────────────────
@@ -31,67 +32,85 @@ function useDownloadConfig(url: string | undefined) {
     } | null>(null);
 
     useEffect(() => {
-        if (!url) return;
+        if (!url) {
+            jsLog.debug('[Config] useDownloadConfig: url undefined, skipping fetch');
+            return;
+        }
+        jsLog.info(`[Config] download start: host=${urlHostname(url, '(unparseable)')}`);
         setIsLoading(true);
         setError(null);
         setData(null);
 
         const controller = new AbortController();
         const { signal } = controller;
+        const startedAt = Date.now();
 
-        fetchWithTimeout(url, {
-            method: 'GET',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'User-Agent': getSingBoxUserAgent(),
-            },
-            signal,
-        })
-            .then(async (response) => {
-                if (signal.aborted) return;
-                if (response.ok) {
-                    const content = await response.text();
-                    if (signal.aborted) return;
-                    setData(content);
+        ExpoOneBox.fetchSubscription(url, getSingBoxUserAgent())
+            .then((response) => {
+                if (signal.aborted) {
+                    jsLog.debug('[Config] download .then bailed, signal aborted');
+                    return;
+                }
+                jsLog.debug(`[Config] download response: status=${response.statusCode}, elapsedMs=${Date.now() - startedAt}`);
 
-                    const { upload, download, total, expire } = parseProfileUserinfo(
-                        response.headers.get('subscription-userinfo')
-                    );
-
-                    const name =
-                        getRemoteNameByContentDisposition(response.headers.get('content-disposition') ?? '')
-                        ?? ProfileStore.findByUrl(url)?.name
-                        ?? urlHostname(url, 'Profile');
-
-                    ProfileStore.upsertByUrl({
-                        name,
-                        url,
-                        usedTraffic: upload + download,
-                        totalTraffic: total,
-                        expireTime: expire,
-                        configContent: content,
-                    });
-                    setExtraInfo({ upload, download, total, expire });
-                    notifySuccess();
-                } else {
-                    if (signal.aborted) return;
-                    const err = new Error(i18n.t('config_error_status', { code: response.status }));
+                if (response.statusCode < 200 || response.statusCode >= 300) {
+                    const err = new Error(i18n.t('config_error_status', { code: response.statusCode }));
+                    jsLog.warn(`[Config] download HTTP failure: status=${response.statusCode}`);
                     setError(err);
                     notifyError();
+                    return;
                 }
+
+                const content = response.body;
+                setData(content);
+
+                const getHeader = (name: string): string | null => {
+                    const headers = response.headers ?? {};
+                    return headers[name] ?? headers[name.toLowerCase()] ?? null;
+                };
+
+                const { upload, download, total, expire } = parseProfileUserinfo(
+                    getHeader('subscription-userinfo')
+                );
+
+                const name =
+                    getRemoteNameByContentDisposition(getHeader('content-disposition') ?? '')
+                    ?? ProfileStore.findByUrl(url)?.name
+                    ?? urlFilename(url)
+                    ?? urlHostname(url, 'Profile');
+
+                ProfileStore.upsertByUrl({
+                    name,
+                    url,
+                    usedTraffic: upload + download,
+                    totalTraffic: total,
+                    expireTime: expire,
+                    configContent: content,
+                });
+                setExtraInfo({ upload, download, total, expire });
+                notifySuccess();
+                jsLog.info(`[Config] download success: bytes=${content.length}, name=${JSON.stringify(name)}, hasTraffic=${total > 0}, hasExpire=${expire > 0}, elapsedMs=${Date.now() - startedAt}`);
             })
             .catch((fetchError: Error) => {
-                if (signal.aborted) return;
+                if (signal.aborted) {
+                    jsLog.debug(`[Config] download .catch suppressed, signal aborted (err=${fetchError.name})`);
+                    return;
+                }
+                jsLog.warn(`[Config] download network error: name=${fetchError.name}, msg=${fetchError.message}, elapsedMs=${Date.now() - startedAt}`);
                 setError(fetchError);
                 notifyError();
             })
             .finally(() => {
-                if (signal.aborted) return;
+                if (signal.aborted) {
+                    jsLog.debug('[Config] download .finally skipped isLoading=false (aborted)');
+                    return;
+                }
                 setIsLoading(false);
+                jsLog.debug('[Config] download .finally → isLoading=false');
             });
 
         return () => {
+            jsLog.debug('[Config] useDownloadConfig cleanup → controller.abort()');
             controller.abort();
         };
     }, [url]);
@@ -350,17 +369,97 @@ function DefaultView() {
 export default function ConfigScreen() {
     const theme = useTheme();
     const { data: deepLinkData, apply } = useLocalSearchParams<{ data: string; apply?: string }>();
-    const shouldApply = apply === '1';
+    const requestedApply = apply === '1';
 
     let decodedUrl: string | undefined;
+    let decodeError: string | null = null;
     if (deepLinkData) {
         try {
             decodedUrl = atob(deepLinkData);
-            if (!decodedUrl.startsWith('https://')) decodedUrl = undefined;
-        } catch {
+            if (!decodedUrl.startsWith('https://')) {
+                decodeError = `decoded but not https (prefix=${decodedUrl.slice(0, 16)})`;
+                decodedUrl = undefined;
+            }
+        } catch (e) {
+            decodeError = `atob threw: ${(e as Error).message}`;
             decodedUrl = undefined;
         }
     }
+
+    // Mount log — always emitted once per mount. Captures the exact param
+    // shape the screen was handed, which is the starting point for every
+    // stuck-import trace.
+    const mountLoggedRef = useRef(false);
+    if (!mountLoggedRef.current) {
+        mountLoggedRef.current = true;
+        jsLog.info(
+            `[Config] mount: hasData=${!!deepLinkData}, dataBytes=${deepLinkData?.length ?? 0}, apply=${apply ?? '(none)'}, requestedApply=${requestedApply}, decodedHost=${decodedUrl ? urlHostname(decodedUrl, '(none)') : '(none)'}`
+        );
+        if (decodeError) {
+            jsLog.warn(`[Config] mount: deep link payload rejected → ${decodeError}`);
+        }
+    }
+
+    // Errors that arise outside the download hook (verify, apply) are kept
+    // here so the screen can render a visible `ErrorView` instead of
+    // pinning `LoadingView` forever. A single source of truth (`applyError`)
+    // combined with the download-hook's `error` drives the `ErrorView`.
+    const [applyError, setApplyError] = useState<Error | null>(null);
+
+    // apply=1 only takes effect for hostnames on the verification allowlist;
+    // unverified hosts fall back to apply=0 behaviour (download + show
+    // success card, no auto-start). The `null` placeholder blocks the
+    // download/stop side effects until verification resolves.
+    const [shouldApply, setShouldApply] = useState<boolean | null>(null);
+    useEffect(() => {
+        if (!decodedUrl) {
+            jsLog.info('[Config] verify: no usable decodedUrl → shouldApply=false');
+            setShouldApply(false);
+            return;
+        }
+        if (!requestedApply) {
+            jsLog.info('[Config] verify: apply!=1 in params → shouldApply=false');
+            setShouldApply(false);
+            return;
+        }
+        let cancelled = false;
+        const startedAt = Date.now();
+        jsLog.info('[Config] verify: starting hostname allowlist check');
+        (async () => {
+            let hostname = '';
+            try {
+                hostname = new URL(decodedUrl).hostname;
+            } catch (e) {
+                jsLog.warn(`[Config] verify: URL parse failed for decodedUrl → ${(e as Error).message}`);
+                // unparseable URL → treat as unverified
+            }
+            jsLog.debug(`[Config] verify: hostname=${hostname || '(empty)'}`);
+            const verified = hostname ? await verifyHostname(hostname) : false;
+            if (cancelled) {
+                jsLog.debug('[Config] verify: resolved after cancel, dropping result');
+                return;
+            }
+            jsLog.info(`[Config] verify: done verified=${verified}, elapsedMs=${Date.now() - startedAt} → shouldApply=${verified}`);
+            if (!verified) {
+                jsLog.warn('[Config] apply=1 domain not on allowlist, downgrading to manual import');
+            }
+            setShouldApply(verified);
+        })().catch((err) => {
+            // Any rejection here (e.g. `crypto.subtle` missing on RN, remote
+            // allowlist fetch failing fatally) becomes a visible error —
+            // previously these sank into an unhandled promise and the screen
+            // pinned at LoadingView forever.
+            if (cancelled) return;
+            const e = err instanceof Error ? err : new Error(String(err));
+            jsLog.error(`[Config] verify failed → ${e.message}`);
+            setApplyError(new Error(i18n.t('config_verify_failed', { message: e.message })));
+        });
+        return () => {
+            jsLog.debug('[Config] verify effect cleanup');
+            cancelled = true;
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // When apply=1 and VPN is running, we must stop the VPN first before downloading.
     // `downloadUrl` is only set (triggering the fetch) once any required stop is complete.
@@ -369,25 +468,43 @@ export default function ConfigScreen() {
     const stopInitiatedRef = useRef(false);
 
     useEffect(() => {
-        if (!decodedUrl) return;
+        if (!decodedUrl) {
+            jsLog.debug('[Config] pre-download effect: no decodedUrl, skip');
+            return;
+        }
+        if (shouldApply === null) {
+            jsLog.debug('[Config] pre-download effect: shouldApply=null, waiting for verify');
+            return;
+        }
         if (!shouldApply) {
+            jsLog.info('[Config] pre-download: shouldApply=false → setDownloadUrl directly (no stop-wait)');
             setDownloadUrl(decodedUrl);
             return;
         }
         // shouldApply: stop VPN first, wait for STOPPED event, then trigger download
-        if (stopInitiatedRef.current) return;
+        if (stopInitiatedRef.current) {
+            jsLog.debug('[Config] pre-download effect: stopInitiatedRef latched, skipping re-entry');
+            return;
+        }
         stopInitiatedRef.current = true;
 
         const currentStatus = ExpoOneBox.getStatus();
+        jsLog.info(`[Config] pre-download: shouldApply=true, currentVpnStatus=${currentStatus}`);
+
         if (currentStatus === VPN_STATUS.STARTED || currentStatus === VPN_STATUS.STARTING) {
             let resolved = false;
             setIsStopping(true);
 
             const STOP_TIMEOUT_MS = 10000;
+            const stopStartedAt = Date.now();
 
-            const proceed = () => {
-                if (resolved) return;
+            const proceed = (source: string) => {
+                if (resolved) {
+                    jsLog.debug(`[Config] proceed() ignored (already resolved), source=${source}`);
+                    return;
+                }
                 resolved = true;
+                jsLog.info(`[Config] stop→download handoff: source=${source}, elapsedMs=${Date.now() - stopStartedAt}`);
                 clearTimeout(timeoutId);
                 statusListener.remove();
                 setIsStopping(false);
@@ -397,30 +514,40 @@ export default function ConfigScreen() {
             // Wait for native STOPPED status — stop() resolves when the command is sent,
             // not when the VPN tunnel is fully torn down.
             const statusListener = ExpoOneBox.addListener('onStatusChange', (event) => {
-                if (event.status === VPN_STATUS.STOPPED) proceed();
+                jsLog.debug(`[Config] onStatusChange received: status=${event.status}`);
+                if (event.status === VPN_STATUS.STOPPED) proceed('STOPPED-event');
             });
 
             const timeoutId = setTimeout(() => {
-                console.warn('[Config] VPN stop wait timeout — proceeding with download');
-                proceed();
+                jsLog.warn(`[Config] VPN stop wait timeout (${STOP_TIMEOUT_MS}ms) — proceeding with download`);
+                proceed('timeout');
             }, STOP_TIMEOUT_MS);
 
-            ExpoOneBox.stop().catch(() => {
-                // stop() rejected (e.g. already stopped) — proceed after brief delay
-                setTimeout(proceed, 300);
-            });
+            jsLog.info('[Config] invoking ExpoOneBox.stop()');
+            ExpoOneBox.stop()
+                .then(() => {
+                    jsLog.debug('[Config] ExpoOneBox.stop() resolved — awaiting STOPPED event');
+                })
+                .catch((err) => {
+                    // stop() rejected (e.g. already stopped) — proceed after brief delay
+                    jsLog.warn(`[Config] ExpoOneBox.stop() rejected: ${(err as Error)?.message ?? String(err)} — scheduling proceed(+300ms)`);
+                    setTimeout(() => proceed('stop-reject-fallback'), 300);
+                });
 
             return () => {
+                jsLog.debug('[Config] pre-download effect cleanup (stop-wait branch)');
                 resolved = true;
                 clearTimeout(timeoutId);
                 statusListener.remove();
             };
         } else {
+            jsLog.info('[Config] pre-download: VPN already stopped/idle → setDownloadUrl directly');
             setDownloadUrl(decodedUrl);
         }
-    // decodedUrl and shouldApply are derived from route params and never change
+    // decodedUrl is derived from route params and never changes; shouldApply
+    // transitions exactly once from null → bool.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [shouldApply]);
 
     const { data, error, isLoading, extraInfo } = useDownloadConfig(downloadUrl);
 
@@ -428,48 +555,130 @@ export default function ConfigScreen() {
     const appliedRef = useRef(false);
 
     useEffect(() => {
-        if (!data || !shouldApply || appliedRef.current) return;
+        if (!data || !shouldApply || appliedRef.current) {
+            if (!data) jsLog.debug('[Config] apply effect: data not ready, skip');
+            else if (!shouldApply) jsLog.debug('[Config] apply effect: shouldApply not true, skip');
+            else if (appliedRef.current) jsLog.debug('[Config] apply effect: appliedRef latched, skip');
+            return;
+        }
         appliedRef.current = true;
 
         let cancelled = false;
 
         async function startAfterImport() {
+            const startedAt = Date.now();
+            jsLog.info('[Config] apply: startAfterImport enter, setIsApplying(true)');
             setIsApplying(true);
             try {
                 if (Platform.OS === 'android') {
+                    jsLog.debug('[Config] apply: checking Android VPN permission');
                     const hasPermission = await ExpoOneBox.checkVpnPermission();
+                    jsLog.info(`[Config] apply: Android VPN permission granted=${hasPermission}`);
                     if (!hasPermission) {
+                        jsLog.info('[Config] apply: requesting Android VPN permission');
                         const granted = await ExpoOneBox.requestVpnPermission();
+                        jsLog.info(`[Config] apply: requestVpnPermission → ${granted}`);
                         if (!granted) {
-                            Alert.alert(i18n.t('insufficient_permission'), i18n.t('permission_required'));
-                            return;
+                            throw new Error(i18n.t('config_permission_denied'));
                         }
                     }
                 }
-                if (cancelled) return;
+                if (cancelled) {
+                    jsLog.debug('[Config] apply: cancelled before getProcessedConfig');
+                    return;
+                }
 
+                jsLog.debug('[Config] apply: calling getProcessedConfig()');
                 const processedConfig = await getProcessedConfig();
-                await ExpoOneBox.start(processedConfig);
+                jsLog.info(`[Config] apply: processedConfig ready, bytes=${processedConfig.length}, elapsedMs=${Date.now() - startedAt}`);
 
-                if (cancelled) return;
+                jsLog.info('[Config] apply: calling ExpoOneBox.start() — awaiting native resolve');
+                const startInvokedAt = Date.now();
+
+                // Race `ExpoOneBox.start()` against a wall-clock timeout.
+                // Native `start` can hang indefinitely if the preceding
+                // `stop()` left the tunnel in an intermediate state —
+                // surfacing that as a concrete error keeps the screen out
+                // of permanent LoadingView.
+                const START_TIMEOUT_MS = 20_000;
+                let timeoutId: ReturnType<typeof setTimeout> | null = null;
+                const timeoutPromise = new Promise<never>((_, reject) => {
+                    timeoutId = setTimeout(() => {
+                        reject(new Error(i18n.t('config_apply_timeout', { seconds: START_TIMEOUT_MS / 1000 })));
+                    }, START_TIMEOUT_MS);
+                });
+                try {
+                    await Promise.race([ExpoOneBox.start(processedConfig), timeoutPromise]);
+                } finally {
+                    if (timeoutId !== null) clearTimeout(timeoutId);
+                }
+                jsLog.info(`[Config] apply: ExpoOneBox.start() resolved, startElapsedMs=${Date.now() - startInvokedAt}`);
+
+                if (cancelled) {
+                    jsLog.debug('[Config] apply: cancelled after start, skipping dismissTo');
+                    return;
+                }
+                jsLog.info('[Config] apply: success → router.dismissTo("/")');
                 router.dismissTo('/');
             } catch (e: unknown) {
-                if (cancelled) return;
-                const msg = e instanceof Error ? e.message : i18n.t('operation_failed');
-                Alert.alert(i18n.t('error'), msg);
+                if (cancelled) {
+                    jsLog.debug(`[Config] apply: error after cancel, swallowed: ${(e as Error)?.message ?? String(e)}`);
+                    return;
+                }
+                const raw = e instanceof Error ? e.message : String(e);
+                jsLog.error(`[Config] apply: threw → ${raw}`);
+                // Surface every apply-path failure via the shared ErrorView.
+                // Going through `applyError` + ErrorView (instead of an
+                // Alert) guarantees the screen exits LoadingView — the
+                // `busy` expression below short-circuits once either error
+                // source is set.
+                notifyError();
+                setApplyError(new Error(i18n.t('config_apply_failed', { message: raw })));
             } finally {
-                if (!cancelled) setIsApplying(false);
+                if (!cancelled) {
+                    setIsApplying(false);
+                    jsLog.debug('[Config] apply: finally → setIsApplying(false)');
+                }
             }
         }
 
         startAfterImport();
 
-        return () => { cancelled = true; };
+        return () => {
+            jsLog.debug('[Config] apply effect cleanup (cancelled=true)');
+            cancelled = true;
+        };
     }, [data, shouldApply]);
 
     // When apply=1, keep showing loading until navigation fires (covers the gap
-    // between isLoading→false and isApplying→true across the effect render cycle)
-    const busy = isStopping || isLoading || isApplying || (shouldApply && !!data);
+    // between isLoading→false and isApplying→true across the effect render cycle).
+    // Also cover the brief domain-verification gap (shouldApply === null).
+    const verifying = requestedApply && shouldApply === null;
+    // A fatal error from any source short-circuits the busy gate so the
+    // screen can route to `ErrorView` — without this, the
+    // `shouldApply === true && !!data` disjunct pins LoadingView even
+    // after `startAfterImport` rejects.
+    const displayError = error ?? applyError;
+    const busy =
+        !displayError && (
+            verifying ||
+            isStopping ||
+            isLoading ||
+            isApplying ||
+            (shouldApply === true && !!data)
+        );
+
+    // Trace state of every `busy` disjunct whenever one of them changes.
+    // The stuck-at-LoadingView diagnosis reduces to "which disjunct refuses
+    // to go false", so logging them individually on transition gives the
+    // answer without manual probing.
+    const busySignatureRef = useRef<string | null>(null);
+    useEffect(() => {
+        const sig = `verifying=${verifying} isStopping=${isStopping} isLoading=${isLoading} isApplying=${isApplying} shouldApply=${shouldApply} hasData=${!!data} dlError=${!!error} applyError=${!!applyError}`;
+        if (busySignatureRef.current === sig) return;
+        busySignatureRef.current = sig;
+        jsLog.debug(`[Config] busy recompute: busy=${busy} | ${sig}`);
+    }, [verifying, isStopping, isLoading, isApplying, shouldApply, data, error, applyError, busy]);
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
@@ -509,9 +718,9 @@ export default function ConfigScreen() {
 
             {/* Content states */}
             {busy && <LoadingView />}
-            {!busy && error && <ErrorView message={error.message} />}
-            {!busy && !error && data && !shouldApply && <SuccessView extraInfo={extraInfo} />}
-            {!busy && !error && !data && <DefaultView />}
+            {!busy && displayError && <ErrorView message={displayError.message} />}
+            {!busy && !displayError && data && shouldApply !== true && <SuccessView extraInfo={extraInfo} />}
+            {!busy && !displayError && !data && <DefaultView />}
         </SafeAreaView>
     );
 }

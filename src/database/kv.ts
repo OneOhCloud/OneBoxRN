@@ -1,13 +1,14 @@
 import { configType } from '@/definition';
-import { urlHostname } from '@/utils';
+import { urlFilename, urlHostname } from '@/utils';
+import type { SQLiteDatabase } from 'expo-sqlite';
 import { Platform } from 'react-native';
-import { createMMKV } from 'react-native-mmkv';
 
-// Lazy require expo-sqlite only on native platforms. Importing the module at
-// the top level on web loads wa-sqlite + its worker, which touches IndexedDB /
-// OPFS during module init and throws UnknownError in restricted browser
-// contexts (incognito, Safari, SharedArrayBuffer-less envs). Web uses
-// localStorage instead, so we never need SQLite there.
+// Lazy require expo-sqlite only on native platforms. Top-level importing on
+// web loads wa-sqlite + its worker, which touches IndexedDB / OPFS during
+// module init and throws UnknownError in restricted browser contexts
+// (incognito, Safari, envs without SharedArrayBuffer). Web uses localStorage
+// instead, so we never need SQLite there. Type-only imports erase at build
+// time and don't pull in the runtime module.
 type ExpoSQLite = typeof import('expo-sqlite');
 let SQLite: ExpoSQLite | null = null;
 if (Platform.OS !== 'web') {
@@ -16,33 +17,10 @@ if (Platform.OS !== 'web') {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// @deprecated MMKV storage — retained for migration only, do not use directly
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** @deprecated 仅保留用于数据迁移，请勿在新代码中直接使用。 */
-let _mmkvStorage: any;
-if (Platform.OS === 'web') {
-    _mmkvStorage = {
-        set: (key: string, value: any) => localStorage.setItem(key, JSON.stringify(value)),
-        getString: (key: string) => { const v = localStorage.getItem(key); return v ? JSON.parse(v) : undefined; },
-        getNumber: (key: string) => { const v = localStorage.getItem(key); return v ? Number(JSON.parse(v)) : undefined; },
-        getBoolean: (key: string) => { const v = localStorage.getItem(key); return v ? Boolean(JSON.parse(v)) : undefined; },
-        getAllKeys: () => Object.keys(localStorage),
-        delete: (key: string) => localStorage.removeItem(key),
-        clearAll: () => localStorage.clear(),
-    };
-} else {
-    _mmkvStorage = createMMKV({ id: 'oneoh-config-storage', encryptionKey: 'oneoh-networktools' });
-}
-
-/** @deprecated 直接访问 MMKV，仅用于迁移兼容层。新代码请使用 SBConfig / TaskLog 等 API。 */
-export const MMKVStore = _mmkvStorage;
-
-// ─────────────────────────────────────────────────────────────────────────────
 // SQLite KV 后端
 // ─────────────────────────────────────────────────────────────────────────────
 
-let _db: any = null; // SQLite.SQLiteDatabase | null — untyped to avoid importing the type on web
+let _db: SQLiteDatabase | null = null;
 /** 内存缓存：同步读取直接命中，写入同时更新缓存与 SQLite */
 const _cache: Record<string, string> = {};
 let _cacheLoaded = false;
@@ -53,7 +31,7 @@ let _cacheLoaded = false;
 const WEB_KV_PREFIX = 'oneoh_kv:';
 const isWeb = Platform.OS === 'web';
 
-function getDB(): any {
+function getDB(): SQLiteDatabase {
     if (isWeb) {
         throw new Error('[KV] getDB() must never be called on web');
     }
@@ -87,9 +65,9 @@ function loadCache(): void {
         return;
     }
     try {
-        const rows = getDB().getAllSync(
+        const rows = getDB().getAllSync<{ key: string; value: string }>(
             'SELECT key, value FROM kv_store'
-        ) as { key: string; value: string }[];
+        );
         for (const row of rows) {
             _cache[row.key] = row.value;
         }
@@ -143,104 +121,6 @@ export function kvDelete(key: string): void {
         getDB().runSync('DELETE FROM kv_store WHERE key = ?', [key]);
     } catch (e) {
         console.warn('[KV] SQLite delete failed for key:', key, e);
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MMKV → SQLite 数据迁移
-// ─────────────────────────────────────────────────────────────────────────────
-
-const MIGRATION_FLAG = 'mmkv_migrated_v1';
-
-// 已知存储为 number 类型的 MMKV key
-const NUMBER_KEYS = new Set(['usedTraffic', 'totalTraffic', 'expireTime']);
-// 已知存储为 boolean 类型的 MMKV key
-const BOOLEAN_KEYS = new Set(['firstLaunchDone']);
-
-/**
- * 将 MMKV 中的全部数据迁移到 SQLite kv_store 表。
- * - 幂等：已迁移则立即返回。
- * - URL 去重：configLink 相同值只写入一次。
- * - 迁移成功后清除 MMKV 数据。
- * - 使用同步 SQLite API，可在 React 渲染前安全调用。
- */
-export function migrateMMKVToSQLite(): void {
-    // web 平台不需要迁移
-    if (Platform.OS === 'web') {
-        kvSet(MIGRATION_FLAG, '1');
-        return;
-    }
-
-    loadCache();
-
-    // 已迁移则跳过
-    if (kvGet(MIGRATION_FLAG) === '1') return;
-
-    console.log('[KV] Starting MMKV → SQLite migration...');
-
-    try {
-        const allKeys: string[] = _mmkvStorage.getAllKeys?.() ?? [];
-        const db = getDB();
-        const entries: Array<[string, string]> = [];
-        const seenConfigUrls = new Set<string>();
-
-        for (const key of allKeys) {
-            try {
-                let value: string | null = null;
-
-                if (NUMBER_KEYS.has(key)) {
-                    const n: number | undefined = _mmkvStorage.getNumber(key);
-                    if (n !== null && n !== undefined) value = String(n);
-                } else if (BOOLEAN_KEYS.has(key)) {
-                    const b: boolean | undefined = _mmkvStorage.getBoolean(key);
-                    if (b !== null && b !== undefined) value = b ? 'true' : 'false';
-                } else {
-                    // 字符串、任务日志 JSON、任意其他 key
-                    const s: string | undefined = _mmkvStorage.getString(key);
-                    if (s !== null && s !== undefined) value = s;
-                }
-
-                if (value === null || value === undefined) continue;
-
-                // configLink URL 应用层唯一性去重
-                if (key === 'configLink') {
-                    if (seenConfigUrls.has(value)) {
-                        console.log('[KV] Migration: skipping duplicate configLink:', value);
-                        continue;
-                    }
-                    seenConfigUrls.add(value);
-                }
-
-                entries.push([key, value]);
-            } catch (e) {
-                console.warn('[KV] Migration: failed to read key:', key, e);
-            }
-        }
-
-        // 单事务批量写入
-        db.withTransactionSync(() => {
-            for (const [k, v] of entries) {
-                db.runSync(
-                    'INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)',
-                    [k, v]
-                );
-                _cache[k] = v;
-            }
-            // 写入迁移完成标记
-            db.runSync(
-                'INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)',
-                [MIGRATION_FLAG, '1']
-            );
-            _cache[MIGRATION_FLAG] = '1';
-        });
-
-        // 迁移成功后删除 MMKV 数据
-        _mmkvStorage.clearAll?.();
-
-        console.log(`[KV] MMKV → SQLite migration complete. Migrated ${entries.length} entries.`);
-    } catch (e) {
-        console.error('[KV] Migration failed, will retry on next launch:', e);
-        // 不设置迁移标记，下次启动重试
     }
 }
 
@@ -359,7 +239,6 @@ const PROFILE_MIGRATION_V1_FLAG = 'sub_migration_v1';
 
 /**
  * One-time migration from single-profile kv keys to ProfileStore format.
- * Must be called after migrateMMKVToSQLite().
  */
 export function migrateV1ProfileToMulti(): void {
     if (kvGet(PROFILE_MIGRATION_V1_FLAG) === '1') return;
@@ -369,7 +248,7 @@ export function migrateV1ProfileToMulti(): void {
         console.log('[KV] Migrating v1 single-profile to multi-profile format...');
         let name = kvGet('configName') ?? '';
         if (!name || name === 'default') {
-            name = urlHostname(url, 'Profile');
+            name = urlFilename(url) ?? urlHostname(url, 'Profile');
         }
         const profile = ProfileStore.add({
             name,
@@ -435,7 +314,23 @@ export const SBConfig = {
 
     setMode: (mode: configType) => kvSet('mode', mode),
     getMode: (): configType    => (kvGet('mode') as configType) ?? 'tun-rules',
+
+    // sing-box core log level. Injected into `log.level` by rewriteConfig()
+    // at the moment we hand the config to the engine. The built-in template
+    // ships with `debug`; we default to `info` here to avoid flooding the
+    // log viewer during normal operation. Takes effect on next VPN restart.
+    getLogLevel: (): SingBoxLogLevel =>
+        (kvGet('sing_box_log_level') as SingBoxLogLevel | null) ?? 'info',
+    setLogLevel: (level: SingBoxLogLevel) => kvSet('sing_box_log_level', level),
 };
+
+// sing-box documented levels (see `Log level` in sing-box reference).
+// `fatal` / `panic` are terminal — they're exposed here for completeness
+// but in practice the user rarely picks them; the default stays `info`.
+export const SING_BOX_LOG_LEVELS = [
+    'trace', 'debug', 'info', 'warn', 'error', 'fatal', 'panic',
+] as const;
+export type SingBoxLogLevel = (typeof SING_BOX_LOG_LEVELS)[number];
 
 // ─── Task Execution Log ──────────────────────────────────────────────────────
 
@@ -546,4 +441,28 @@ export const PendingTrigger = {
 export const AppLaunchFlags = {
     isFirstLaunch: (): boolean  => kvGet('firstLaunchDone') !== 'true',
     markFirstLaunchDone: (): void => kvSet('firstLaunchDone', 'true'),
+};
+
+// ─── Bugsnag Crash Test Flags ────────────────────────────────────────────────
+
+export type BugsnagCrashTestKind = 'js' | 'native-android';
+
+const BUGSNAG_CRASH_TEST_KEY = 'bugsnag_crash_test_on_next_launch';
+
+/**
+ * One-shot crash-test flag consumed during app startup.
+ *
+ * This is intentionally persisted so QA can arm the crash from the hidden dev
+ * screen, fully restart the app, and verify Bugsnag captures an app-start crash.
+ */
+export const BugsnagCrashTestFlags = {
+    arm(kind: BugsnagCrashTestKind): void {
+        kvSet(BUGSNAG_CRASH_TEST_KEY, kind);
+    },
+    consume(): BugsnagCrashTestKind | null {
+        const kind = kvGet(BUGSNAG_CRASH_TEST_KEY) as BugsnagCrashTestKind | null;
+        kvDelete(BUGSNAG_CRASH_TEST_KEY);
+        if (kind === 'js' || kind === 'native-android') return kind;
+        return null;
+    },
 };

@@ -1,72 +1,96 @@
-import { ThemedText } from '@/components/themed-text';
-import { DelayBadge } from '@/components/ui/home/delay-badge';
+import { NodeSignal } from '@/components/ui/home/node-signal';
+import { useAccentBlue, useHairlineColor } from '@/constants/ios26-palette';
 import i18n from '@/constants/language';
+import { Fonts } from '@/constants/theme';
 import { NodeItem } from '@/hooks/use-proxy-nodes';
 import { useTheme } from '@/hooks/use-theme';
-import { Ionicons } from '@expo/vector-icons';
 import {
     BottomSheetBackdrop,
     BottomSheetBackdropProps,
     BottomSheetFlatList,
     BottomSheetModal,
 } from '@gorhom/bottom-sheet';
-import { ForwardedRef, forwardRef, useMemo } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ForwardedRef, forwardRef, memo, useMemo } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-// ─── SheetItem ───────────────────────────────────────────────
 
 interface SheetItemProps {
     item: NodeItem;
+    index: number;
     selected: boolean;
+    autoResolvedNode: string | null;
     onSelect: (tag: string) => void;
 }
 
-function SheetItem({ item, selected, onSelect }: SheetItemProps) {
+const SheetItem = memo(function SheetItem({ item, index, selected, autoResolvedNode, onSelect }: SheetItemProps) {
     const theme = useTheme();
+    const accent = useAccentBlue();
+
+    const label = item.tag === 'auto'
+        ? autoResolvedNode
+            ? `${i18n.t('auto')} (${autoResolvedNode})`
+            : i18n.t('auto')
+        : item.tag;
+
     return (
         <Pressable
             onPress={() => onSelect(item.tag)}
-            style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingHorizontal: 20,
-                paddingVertical: 14,
-                backgroundColor: selected
-                    ? `${theme.backgroundSelected}99`
-                    : pressed ? `${theme.backgroundSelected}50` : 'transparent',
-            })}
-        >
-            <View style={{ width: 28, alignItems: 'center', marginRight: 4 }}>
-                {selected
-                    ? <Ionicons name="checkmark-circle" size={20} color="#4A8FCC" />
-                    : <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: theme.textSecondary }} />
-                }
-            </View>
-            <ThemedText
-                style={{ flex: 1, fontWeight: selected ? '600' : '400', fontSize: 15 }}
-                numberOfLines={1}
-            >
+            style={({ pressed }) => [
+                styles.row,
                 {
-                    item.tag === 'auto' ? i18n.t("auto") : item.tag
-                }
-            </ThemedText>
-            <DelayBadge delay={item.delay} testing={item.testing} />
+                    backgroundColor: selected
+                        ? `${accent}14`
+                        : pressed
+                            ? `${theme.textSecondary}12`
+                            : 'transparent',
+                    borderLeftColor: selected ? accent : 'transparent',
+                },
+            ]}
+        >
+            <Text
+                style={[
+                    styles.rowIndex,
+                    { color: theme.textSecondary, fontFamily: Fonts?.mono },
+                ]}
+            >
+                {String(index + 1).padStart(2, '0')}
+            </Text>
+
+            <Text
+                numberOfLines={1}
+                style={[
+                    styles.rowName,
+                    {
+                        color: theme.text,
+                        fontFamily: Fonts?.rounded,
+                        fontWeight: selected ? '700' : '500',
+                    },
+                ]}
+            >
+                {label}
+            </Text>
+
+            <NodeSignal delay={item.delay} testing={item.testing} />
         </Pressable>
     );
-}
+});
 
-// ─── Separator ───────────────────────────────────────────────
-
-function SheetSeparator() {
-    const theme = useTheme();
-    return <View style={{ height: StyleSheet.hairlineWidth, marginLeft: 52, backgroundColor: `${theme.textSecondary}25` }} />;
+function RowSeparator() {
+    const hairline = useHairlineColor();
+    return <View style={[styles.separator, { backgroundColor: hairline }]} />;
 }
 
 // ─── Backdrop ────────────────────────────────────────────────
 
 function renderBackdrop(props: BottomSheetBackdropProps) {
-    return <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.4} />;
+    return (
+        <BottomSheetBackdrop
+            {...props}
+            appearsOnIndex={0}
+            disappearsOnIndex={-1}
+            opacity={0.45}
+        />
+    );
 }
 
 // ─── NodePickerSheet ─────────────────────────────────────────
@@ -74,19 +98,30 @@ function renderBackdrop(props: BottomSheetBackdropProps) {
 export interface NodePickerSheetProps {
     nodes: NodeItem[];
     currentNode: string;
+    autoResolvedNode: string | null;
     onSelect: (tag: string) => void;
     onDismiss?: () => void;
 }
 
 export const NodePickerSheet = forwardRef<BottomSheetModal, NodePickerSheetProps>(
     function NodePickerSheet(
-        { nodes, currentNode, onSelect, onDismiss }: NodePickerSheetProps,
-        ref: ForwardedRef<BottomSheetModal>
+        { nodes, currentNode, autoResolvedNode, onSelect, onDismiss }: NodePickerSheetProps,
+        ref: ForwardedRef<BottomSheetModal>,
     ) {
         const theme = useTheme();
+        const hairline = useHairlineColor();
+        const accent = useAccentBlue();
         const insets = useSafeAreaInsets();
-        const snapPoints = useMemo(() => ['50%', '66.7%'], []);
+        const snapPoints = useMemo(() => ['60%', '85%'], []);
         const topInset = insets.top + 8;
+        const currentLabel = useMemo(() => {
+            if (nodes.length === 0) return i18n.t('no_nodes');
+            const selectedTag = nodes.find(n => n.tag === currentNode)?.tag;
+            if (selectedTag === 'auto') {
+                return i18n.t('auto');
+            }
+            return currentNode || i18n.t('auto');
+        }, [currentNode, nodes]);
 
         return (
             <BottomSheetModal
@@ -99,18 +134,129 @@ export const NodePickerSheet = forwardRef<BottomSheetModal, NodePickerSheetProps
                 backgroundStyle={{ backgroundColor: theme.background }}
                 handleIndicatorStyle={{ backgroundColor: `${theme.textSecondary}60` }}
             >
-                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: `${theme.textSecondary}20` }} />
+                <View style={styles.header}>
+                    <View style={styles.headerText}>
+                        <Text
+                            style={[
+                                styles.headerEyebrow,
+                                { color: theme.textSecondary, fontFamily: Fonts?.sans },
+                            ]}
+                        >
+                            {i18n.t('node_picker_title').toUpperCase()}
+                        </Text>
+                        <Text
+                            style={[
+                                styles.headerTitle,
+                                { color: theme.text, fontFamily: Fonts?.rounded },
+                            ]}
+                        >
+                            {currentLabel}
+                        </Text>
+                    </View>
+                    <View
+                        style={[
+                            styles.count,
+                            { borderColor: `${accent}55` },
+                        ]}
+                    >
+                        <Text
+                            style={[
+                                styles.countText,
+                                { color: accent, fontFamily: Fonts?.mono },
+                            ]}
+                        >
+                            {String(nodes.length).padStart(2, '0')}
+                        </Text>
+                    </View>
+                </View>
+
+                <View style={[styles.headerRule, { backgroundColor: hairline }]} />
+
                 <BottomSheetFlatList<NodeItem>
                     data={nodes}
                     keyExtractor={(item: NodeItem) => item.tag}
-                    renderItem={({ item }: { item: NodeItem }) => (
-                        <SheetItem item={item} selected={item.tag === currentNode} onSelect={onSelect} />
+                    renderItem={({ item, index }: { item: NodeItem; index: number }) => (
+                        <SheetItem
+                            item={item}
+                            index={index}
+                            selected={item.tag === currentNode}
+                            autoResolvedNode={autoResolvedNode}
+                            onSelect={onSelect}
+                        />
                     )}
-                    ItemSeparatorComponent={SheetSeparator}
+                    ItemSeparatorComponent={RowSeparator}
                     contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
                     showsVerticalScrollIndicator={false}
                 />
             </BottomSheetModal>
         );
-    }
+    },
 );
+
+const styles = StyleSheet.create({
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingTop: 12,
+        paddingBottom: 16,
+        gap: 12,
+    },
+    headerText: {
+        flex: 1,
+        gap: 4,
+    },
+    headerEyebrow: {
+        fontSize: 10,
+        fontWeight: '700',
+        letterSpacing: 1.4,
+        opacity: 0.7,
+    },
+    headerTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        letterSpacing: -0.5,
+    },
+    count: {
+        minWidth: 40,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 999,
+        borderWidth: 1,
+        alignItems: 'center',
+    },
+    countText: {
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 0.4,
+    },
+    headerRule: {
+        height: StyleSheet.hairlineWidth,
+        marginHorizontal: 20,
+    },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingLeft: 20,
+        paddingRight: 24,
+        paddingVertical: 14,
+        gap: 14,
+        borderLeftWidth: 3,
+    },
+    rowIndex: {
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.4,
+        opacity: 0.6,
+        minWidth: 22,
+    },
+    rowName: {
+        flex: 1,
+        fontSize: 15,
+        letterSpacing: -0.2,
+    },
+    separator: {
+        height: StyleSheet.hairlineWidth,
+        marginLeft: 56,
+    },
+});

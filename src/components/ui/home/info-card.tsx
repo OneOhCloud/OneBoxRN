@@ -1,15 +1,17 @@
 import { SettingsRow } from '@/components/ui/ios26/settings-row';
 import i18n from '@/constants/language';
-import { Fonts } from '@/constants/theme';
-import { getStoreValue } from '@/database/store';
+import { Fonts, TabularNums } from '@/constants/theme';
+import { useVpn } from '@/contexts/vpn-context';
+import { extractSystemDns } from '@/database/helper';
 import { useTheme } from '@/hooks/use-theme';
 import { getSingBoxUserAgent } from '@/utils';
+import { jsLog } from '@/utils/log-sink';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo } from 'react';
 import { Platform, Pressable, Text, ToastAndroid, View } from 'react-native';
 
-// ─── Status capsule — iOS 26 tinted pill ───────────────────────────────────
 function StatusCapsule({ connected }: { connected: boolean }) {
     const color = connected ? '#34C759' : '#8E8E93';
     const bg = connected ? 'rgba(52,199,89,0.14)' : 'rgba(142,142,147,0.16)';
@@ -41,7 +43,6 @@ function StatusCapsule({ connected }: { connected: boolean }) {
     );
 }
 
-// ─── Copy-to-clipboard tint pill ───────────────────────────────────────────
 function CopyButton({ onPress, tint }: { onPress: () => void; tint: string }) {
     return (
         <Pressable
@@ -64,34 +65,36 @@ function CopyButton({ onPress, tint }: { onPress: () => void; tint: string }) {
     );
 }
 
-/** System status rows — no card background; wrap in a card at the call site. */
 export function InfoCard({ connected }: { connected: boolean }) {
     const theme = useTheme();
+    const { directDns, getStartConfig, refreshDirectDns } = useVpn();
 
-    // Lazy-init so any platform-specific throw (e.g. expo-device on web)
-    // doesn't tear down the whole route at render time.
-    const [ua] = useState<string>(() => {
+    // Memoized — getSingBoxUserAgent() calls expo-device which can throw on
+    // web in restricted contexts. Catching here keeps the route alive.
+    const ua = useMemo(() => {
         try {
             return getSingBoxUserAgent();
         } catch (e) {
-            console.warn('[InfoCard] getSingBoxUserAgent failed:', e);
+            jsLog.warn('[InfoCard] getSingBoxUserAgent failed:', e);
             return '—';
         }
-    });
-    const [bestDns, setBestDns] = useState<string>('—');
+    }, []);
 
-    useEffect(() => {
-        let cancelled = false;
-        getStoreValue('directDNS', '—')
-            .then(v => { if (!cancelled) setBestDns(v); })
-            .catch(e => {
-                if (!cancelled) {
-                    console.warn('[InfoCard] getStoreValue failed:', e);
-                    setBestDns('—');
-                }
+    const launchDns = useMemo(
+        () => (connected ? (extractSystemDns(getStartConfig()) ?? '—') : '—'),
+        [connected, getStartConfig]
+    );
+
+    // On every focus, re-probe the direct DNS so Settings always shows the
+    // same value as the merged config. Single-flight is enforced by VpnContext.
+    useFocusEffect(
+        useCallback(() => {
+            if (connected) return;
+            refreshDirectDns().catch((e: unknown) => {
+                jsLog.warn('[InfoCard] refreshDirectDns failed:', e);
             });
-        return () => { cancelled = true; };
-    }, [connected]);
+        }, [connected, refreshDirectDns])
+    );
 
     const handleCopyUA = () => {
         try {
@@ -104,27 +107,24 @@ export function InfoCard({ connected }: { connected: boolean }) {
 
     return (
         <View>
-            {/* Run status — tinted capsule */}
             <SettingsRow
                 iconName="radio-outline"
-                iconColor={connected ? '#34C759' : '#8E8E93'}
+                iconColor="#007AFF"
                 label={i18n.t('run_status')}
                 trailing={<StatusCapsule connected={connected} />}
             />
 
-            {/* DNS server — mono value */}
             <SettingsRow
-                iconName="globe-outline"
-                iconColor="#32ADE6"
+                iconName="server-outline"
+                iconColor="#007AFF"
                 label={i18n.t('dns_server')}
-                value={bestDns}
+                value={connected ? launchDns : directDns}
                 valueMono
             />
 
-            {/* User-Agent — truncated mono value with tinted copy pill */}
             <SettingsRow
                 iconName="finger-print-outline"
-                iconColor="#5856D6"
+                iconColor="#007AFF"
                 label={i18n.t('user_agent')}
                 isLast
                 trailing={
@@ -137,12 +137,12 @@ export function InfoCard({ connected }: { connected: boolean }) {
                                 fontSize: 11,
                                 fontFamily: Fonts?.mono,
                                 color: theme.textSecondary,
-                                fontVariant: ['tabular-nums'],
+                                fontVariant: TabularNums,
                             }}
                         >
                             {ua}
                         </Text>
-                        <CopyButton onPress={handleCopyUA} tint="#5856D6" />
+                        <CopyButton onPress={handleCopyUA} tint="#007AFF" />
                     </View>
                 }
             />

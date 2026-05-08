@@ -1,7 +1,3 @@
-/**
- * Profiles Screen — routing mode selector + multi-profile management.
- * Redesigned with unified active profile card + simplified profile list.
- */
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { notifyError, notifySuccess } from '@/components/ui/haptics';
@@ -9,38 +5,34 @@ import { EmptyState } from '@/components/ui/home/empty-state';
 import { ImportUrlModal } from '@/components/ui/home/import-url-modal';
 import { ModeSelector } from '@/components/ui/home/mode-selector';
 import { SectionAction, SectionHeader } from '@/components/ui/ios26/section';
-import { ActiveProfileCard, useGlassSurface } from '@/components/ui/profiles/active-profile-card';
+import { TabFocusAnimator } from '@/components/ui/tab-focus-animator';
+import { useGlassSurface } from '@/constants/ios26-palette';
+import { ActiveProfileCard } from '@/components/ui/profiles/active-profile-card';
 import { ImportRow, ProfileRow } from '@/components/ui/profiles/profile-row';
 import i18n from '@/constants/language';
-import { BottomTabInset, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
-import { getProcessedConfig } from '@/database/helper';
+import { Fonts, MaxContentWidth, TabScreenEdges } from '@/constants/theme';
 import { ProfileStore } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
-import ExpoOneBox, { VPN_STATUS } from '@/modules/expo-onebox';
 import { executeConfigRefresh } from '@/tasks/config-refresh';
+import { requestVpnRestart } from '@/utils/vpn-restart';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// SectionHeader / SectionAction are imported from @/components/ui/ios26/section
-// so every tab screen shares identical metrics. Do not re-declare locally.
-
 export default function ProfilesScreen() {
     const theme = useTheme();
 
-    // Lazy-init from the store so the first render already reflects real data —
-    // avoids a one-frame EmptyState → populated repaint during the tab crossfade.
+    // Lazy-init from the store: first render already reflects real data,
+    // avoiding a one-frame EmptyState → populated repaint during tab crossfade.
     const [subs, setSubs] = useState<ReturnType<typeof ProfileStore.getAll>>(() => ProfileStore.getAll());
     const [activeId, setActiveId] = useState<string | null>(() => ProfileStore.getActiveId());
-    const [refreshing, setRefreshing] = useState(false);
+    const [pullRefreshing, setPullRefreshing] = useState(false);
+    const [cardRefreshing, setCardRefreshing] = useState(false);
     const refreshingRef = useRef(false);
     const [importUrlVisible, setImportUrlVisible] = useState(false);
     const [editMode, setEditMode] = useState(false);
 
-    // Guarded setters: only commit a new state if something actually changed.
-    // This makes no-op refocuses (common when bouncing between tabs) truly
-    // free of re-renders, eliminating flicker on tab transitions.
     const loadData = useCallback(() => {
         const nextSubs = ProfileStore.getAll();
         setSubs(prev => {
@@ -69,30 +61,10 @@ export default function ProfilesScreen() {
     const handleActivate = useCallback((id: string) => {
         ProfileStore.setActiveId(id);
         setActiveId(id);
-
-        // If VPN is running, restart with the new profile's config
-        const currentStatus = ExpoOneBox.getStatus();
-        if (currentStatus !== VPN_STATUS.STARTED && currentStatus !== VPN_STATUS.STARTING) return;
-
-        const STOP_TIMEOUT_MS = 10_000;
-        let done = false;
-        const proceed = () => {
-            if (done) return;
-            done = true;
-            clearTimeout(timer);
-            sub.remove();
-            getProcessedConfig()
-                .then(config => ExpoOneBox.start(config))
-                .catch(e => console.warn('[VPN] Profile switch restart failed:', e));
-        };
-        const sub = ExpoOneBox.addListener('onStatusChange', (e) => {
-            if (e.status === VPN_STATUS.STOPPED) proceed();
-        });
-        const timer = setTimeout(() => {
-            console.warn('[VPN] Profile switch: stop timeout, restarting anyway');
-            proceed();
-        }, STOP_TIMEOUT_MS);
-        ExpoOneBox.stop().catch(() => setTimeout(proceed, 300));
+        // Debounced + in-flight-guarded restart. Shared with VpnContext.setMode
+        // so rapid mode + profile switches coalesce into one restart per
+        // quiescent period instead of racing.
+        requestVpnRestart();
     }, []);
 
     const handleDelete = useCallback((sub: { id: string; name: string }) => {
@@ -102,10 +74,10 @@ export default function ProfilesScreen() {
         ]);
     }, [loadData]);
 
-    const handleRefresh = useCallback(async () => {
+    const runRefresh = useCallback(async (setPending: (v: boolean) => void) => {
         if (refreshingRef.current) return;
         refreshingRef.current = true;
-        setRefreshing(true);
+        setPending(true);
         try {
             const result = await executeConfigRefresh();
             if (result?.status === 'success') {
@@ -120,34 +92,36 @@ export default function ProfilesScreen() {
             Alert.alert(i18n.t('sub_refresh_failed'), e instanceof Error ? e.message : '');
         } finally {
             refreshingRef.current = false;
-            setRefreshing(false);
+            setPending(false);
         }
     }, [loadData]);
+
+    const handlePullRefresh = useCallback(() => runRefresh(setPullRefreshing), [runRefresh]);
+    const handleCardRefresh = useCallback(() => runRefresh(setCardRefreshing), [runRefresh]);
 
     const handleImportClose = useCallback(() => { setImportUrlVisible(false); loadData(); }, [loadData]);
 
     const activeSub = subs.find(s => s.id === activeId) ?? null;
-
     const hasProfiles = subs.length > 0;
     const glass = useGlassSurface();
 
-    // Empty-state short path: renders the exact same tree as
-    // src/app/(tabs)/index.tsx's empty state — ThemedView → SafeAreaView →
-    // EmptyState, no ScrollView. This is the only way to guarantee the two
-    // tabs align pixel-perfectly when switching between them in empty state.
+    // Empty state matches the shape of src/app/(tabs)/index.tsx's empty state
+    // (same wrapper, same padding) so tab switches align pixel-perfectly.
     if (!hasProfiles) {
         return (
             <ThemedView style={{ flex: 1, flexDirection: 'row', justifyContent: 'center' }}>
                 <SafeAreaView
+                    edges={TabScreenEdges}
                     style={{
                         flex: 1,
                         maxWidth: MaxContentWidth,
                         paddingHorizontal: 16,
-                        paddingBottom: BottomTabInset + Spacing.two,
                         justifyContent: 'center',
                     }}
                 >
-                    <EmptyState onImportUrl={() => setImportUrlVisible(true)} />
+                    <TabFocusAnimator variant="fadeDown">
+                        <EmptyState onImportUrl={() => setImportUrlVisible(true)} />
+                    </TabFocusAnimator>
                 </SafeAreaView>
                 <ImportUrlModal visible={importUrlVisible} onClose={handleImportClose} />
             </ThemedView>
@@ -155,106 +129,96 @@ export default function ProfilesScreen() {
     }
 
     return (
-        // Populated layout: masthead + ScrollView. The SafeAreaView + maxWidth
-        // wrapper stays identical to the empty path above and to the Home tab,
-        // so the top edge of the first content row is always at the same Y.
         <ThemedView style={{ flex: 1, flexDirection: 'row', justifyContent: 'center' }}>
             <SafeAreaView
+                edges={TabScreenEdges}
                 style={{
                     flex: 1,
                     maxWidth: MaxContentWidth,
-                    paddingBottom: BottomTabInset + Spacing.two,
                 }}
             >
+                <TabFocusAnimator variant="fadeDown">
+                <View
+                    style={{
+                        paddingHorizontal: 20,
+                        paddingTop: 12,
+                        paddingBottom: 12,
+                    }}
+                >
+                    <ThemedText
+                        style={{
+                            fontSize: 34,
+                            fontFamily: Fonts?.rounded,
+                            fontWeight: '800',
+                            letterSpacing: -0.9,
+                            lineHeight: 41,
+                        }}
+                    >
+                        {i18n.t('sub_title')}
+                    </ThemedText>
+                </View>
 
-                    {/* ── Masthead — hidden when there are no profiles, so the
-                        empty state takes over the full screen. ── */}
-                    {hasProfiles && (
-                        <View
-                            style={{
-                                paddingHorizontal: 20,
-                                paddingTop: 12,
-                                paddingBottom: 12,
-                            }}
-                        >
-                            <ThemedText
-                                style={{
-                                    fontSize: 34,
-                                    fontFamily: Fonts?.rounded,
-                                    fontWeight: '800',
-                                    letterSpacing: -0.9,
-                                    lineHeight: 41,
-                                }}
-                            >
-                                {i18n.t('sub_title')}
-                            </ThemedText>
-                        </View>
+                <ScrollView
+                    contentContainerStyle={{
+                        flexGrow: 1,
+                        paddingHorizontal: 16,
+                        paddingTop: 4,
+                        gap: 24,
+                    }}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={pullRefreshing}
+                            onRefresh={handlePullRefresh}
+                            tintColor={theme.textSecondary}
+                        />
+                    }
+                >
+                    {activeSub && (
+                        <ActiveProfileCard
+                            sub={activeSub}
+                            refreshing={cardRefreshing}
+                            onRefresh={handleCardRefresh}
+                        />
                     )}
 
-                    <ScrollView
-                        contentContainerStyle={{
-                            flexGrow: 1,
-                            paddingHorizontal: 16,
-                            paddingTop: 4,
-                            gap: 24,
-                        }}
-                        showsVerticalScrollIndicator={false}
-                        refreshControl={
-                            <RefreshControl
-                                refreshing={refreshing}
-                                onRefresh={handleRefresh}
-                                tintColor={theme.textSecondary}
-                            />
-                        }
-                    >
-                        {/* Hero — Liquid Glass card with integrated refresh button */}
-                        {activeSub && (
-                            <ActiveProfileCard
-                                sub={activeSub}
-                                refreshing={refreshing}
-                                onRefresh={handleRefresh}
-                            />
-                        )}
-
-                        {/* Routing mode */}
-                        <View>
-                            <SectionHeader label={i18n.t('routing_mode')} />
-                            <View style={[glass, { padding: 12 }]}>
-                                <ModeSelector hideSectionLabel />
-                            </View>
+                    <View>
+                        <SectionHeader label={i18n.t('routing_mode')} />
+                        <View style={[glass, { padding: 12 }]}>
+                            <ModeSelector />
                         </View>
+                    </View>
 
-                        {/* Profile list — Edit pill sits in the section header */}
-                        <View>
-                            <SectionHeader
-                                label={i18n.t('sub_section_list')}
-                                trailing={
-                                    <SectionAction
-                                        label={editMode ? i18n.t('done') : i18n.t('edit')}
-                                        active={editMode}
-                                        onPress={() => setEditMode(e => !e)}
-                                    />
-                                }
-                            />
-                            <View style={[glass, { paddingVertical: 4 }]}>
-                                {subs.map((sub) => (
-                                    <ProfileRow
-                                        key={sub.id}
-                                        sub={sub}
-                                        isActive={sub.id === activeId}
-                                        isLast={false}
-                                        editMode={editMode}
-                                        onActivate={() => handleActivate(sub.id)}
-                                        onDelete={() => handleDelete(sub)}
-                                    />
-                                ))}
-                                <ImportRow
-                                    isLast
-                                    onPress={() => setImportUrlVisible(true)}
+                    <View>
+                        <SectionHeader
+                            label={i18n.t('sub_section_list')}
+                            trailing={
+                                <SectionAction
+                                    label={editMode ? i18n.t('done') : i18n.t('edit')}
+                                    active={editMode}
+                                    onPress={() => setEditMode(e => !e)}
                                 />
-                            </View>
+                            }
+                        />
+                        <View style={[glass, { paddingVertical: 4 }]}>
+                            {subs.map((sub) => (
+                                <ProfileRow
+                                    key={sub.id}
+                                    sub={sub}
+                                    isActive={sub.id === activeId}
+                                    editMode={editMode}
+                                    onActivate={() => handleActivate(sub.id)}
+                                    onDelete={() => handleDelete(sub)}
+                                />
+                            ))}
+                            <ImportRow
+                                isLast
+                                onPress={() => setImportUrlVisible(true)}
+                            />
                         </View>
-                    </ScrollView>
+                    </View>
+                </ScrollView>
+                </TabFocusAnimator>
             </SafeAreaView>
 
             <ImportUrlModal visible={importUrlVisible} onClose={handleImportClose} />
