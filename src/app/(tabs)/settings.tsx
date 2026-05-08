@@ -14,8 +14,21 @@ import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import React, { useRef } from 'react';
-import { Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+async function openExternalUrl(url: string) {
+    try {
+        const supported = await Linking.canOpenURL(url);
+        if (!supported) throw new Error(`Unsupported URL: ${url}`);
+        await Linking.openURL(url);
+    } catch (error) {
+        console.warn('[Settings] failed to open external URL:', url, error);
+        if (Platform.OS !== 'web') {
+            Alert.alert('Unable to open link', url);
+        }
+    }
+}
 
 export default function SettingsScreen() {
     const { connected } = useVpn();
@@ -104,13 +117,13 @@ export default function SettingsScreen() {
                                     iconName="globe-outline"
                                     iconColor="#007AFF"
                                     label={i18n.t('official_website')}
-                                    onPress={() => Linking.openURL('https://sing-box.net')}
+                                    onPress={() => { void openExternalUrl('https://sing-box.net'); }}
                                 />
                                 <SettingsRow
                                     iconName="shield-checkmark-outline"
                                     iconColor="#007AFF"
                                     label={i18n.t('privacy_policy')}
-                                    onPress={() => Linking.openURL('https://sing-box.net/privacy')}
+                                    onPress={() => { void openExternalUrl('https://sing-box.net/privacy'); }}
                                     isLast
                                 />
                             </View>
