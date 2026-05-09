@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import React from 'react';
 import { Platform } from 'react-native';
+import ExpoOneBox from '../modules/expo-onebox';
 
 const DATABASE_VERSION = 2;
 
@@ -57,6 +58,9 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     if (Platform.OS === 'web') {
         return <>{children}</>;
+    }
+    if (Platform.OS === 'android') {
+        ExpoOneBox.repairSQLiteDirectory();
     }
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { SQLiteProvider } = require('expo-sqlite') as typeof import('expo-sqlite');
