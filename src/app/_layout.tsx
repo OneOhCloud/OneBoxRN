@@ -13,7 +13,7 @@ import { updateVerificationData } from '@/utils/domain-verification';
 import { jsLog } from '@/utils/log-sink';
 import Bugsnag from '@bugsnag/expo';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { Asset } from 'expo-asset';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';

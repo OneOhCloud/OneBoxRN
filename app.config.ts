@@ -134,6 +134,7 @@ export default ({ config: _config }: ConfigContext): ExpoConfig => ({
     './scripts/withAndroidStatusBar.js',
     './scripts/withReleaseSigningConfig.js',
     './scripts/withFmtFix.js',
+    'expo-status-bar',
     'expo-localization',
     'expo-image',
     'expo-web-browser',
