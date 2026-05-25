@@ -82,8 +82,6 @@ export default ({ config: _config }: ConfigContext): ExpoConfig => ({
     [
       'expo-build-properties',
       {
-        buildReactNativeFromSource: true,
-        useHermesV1: true,
         ios: {
           appleTeamId: 'GN2W3N34TM',
           infoPlist: {

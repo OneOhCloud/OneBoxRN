@@ -85,7 +85,6 @@
   },
   "private": true,
   "overrides": {
-    "hermes-compiler": "250829098.0.4",
     "lightningcss": "1.30.1"
   }
 }
