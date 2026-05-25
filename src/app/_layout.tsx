@@ -222,14 +222,6 @@ export default function RootLayout() {
                             <Stack screenOptions={{ headerShown: false }}>
                                 <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '主页' }} />
                                 <Stack.Screen
-                                    name="config/dev"
-                                    options={{
-                                        headerShown: false,
-                                        presentation: 'card',
-                                        animation: 'none',
-                                    }}
-                                />
-                                <Stack.Screen
                                     name="config"
                                     options={{
                                         headerShown: false,

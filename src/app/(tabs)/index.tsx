@@ -5,20 +5,26 @@
 import { ThemedView } from '@/components/themed-view';
 import { ConnectButton } from '@/components/ui/home/connect-button';
 import { EmptyState } from '@/components/ui/home/empty-state';
+import { selectionChanged } from '@/components/ui/haptics';
 import { FAB_CLEARANCE } from '@/components/ui/home/import-fab';
 import { ImportUrlModal } from '@/components/ui/home/import-url-modal';
 import { NodeList } from '@/components/ui/home/node-list';
+import { NodePickerSheet, type NodePickerSheetHandle } from '@/components/ui/home/node-picker-sheet';
 import { ProfileSummaryCard } from '@/components/ui/home/profile-summary-card';
 import { SpeedRow } from '@/components/ui/home/speed-row';
 import { TabFocusAnimator } from '@/components/ui/tab-focus-animator';
 import { useAccentBlue, useGlassSurface } from '@/constants/ios26-palette';
 import i18n from '@/constants/language';
 import { Fonts, MaxContentWidth, TabScreenEdges } from '@/constants/theme';
+import { ProfileStore } from '@/database/kv';
 import { useHomeScreen } from '@/hooks/use-home-screen';
+import { useProxyNodes } from '@/hooks/use-proxy-nodes';
 import { useTheme } from '@/hooks/use-theme';
+import ExpoOneBox from '@/modules/expo-onebox';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef, useState } from 'react';
-import { LayoutChangeEvent, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, LayoutChangeEvent, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, {
     Easing,
     runOnJS,
@@ -58,6 +64,7 @@ function WipeSlot({
     const [ready, setReady] = useState(false);
     const [W, setW] = useState(0);
     const [transitioning, setTransitioning] = useState(false);
+    const [H, setH] = useState(0);
     const isFirstMount = useRef(true);
 
     useEffect(() => {
@@ -97,10 +104,14 @@ function WipeSlot({
 
     const onGhostLayout = (e: LayoutChangeEvent) => {
         const w = e.nativeEvent.layout.width;
+        const h = e.nativeEvent.layout.height;
         if (w > 0 && w !== widthShared.value) {
             widthShared.value = w;
             setW(w);
             setReady(true);
+        }
+        if (h > 0 && h !== H) {
+            setH(h);
         }
     };
 
@@ -109,11 +120,11 @@ function WipeSlot({
         <View style={{ borderRadius: CARD_RADIUS, overflow: 'hidden' }}>
             {/* Ghost: normal-flow height anchor; visible until width is measured */}
             <View
-                style={{ opacity: ready ? 0 : 1 }}
+                style={{ opacity: ready ? 0 : 1, height: ready ? H : undefined }}
                 pointerEvents={ready ? 'none' : 'auto'}
                 onLayout={onGhostLayout}
             >
-                {showSecond ? second : first}
+                {ready ? null : (showSecond ? second : first)}
             </View>
 
             {ready && (
@@ -192,6 +203,36 @@ export default function HomeScreen() {
     const theme = useTheme();
     const accent = useAccentBlue();
     const glass = useGlassSurface();
+    const nodeSheetRef = useRef<NodePickerSheetHandle>(null);
+    const [activeProfileId, setActiveProfileId] = useState<string | null>(() => ProfileStore.getActiveId());
+    useFocusEffect(
+        useCallback(() => {
+            setActiveProfileId(ProfileStore.getActiveId());
+        }, [])
+    );
+    const {
+        nodes,
+        currentNode,
+        autoResolvedNode,
+        isLoading: isNodeLoading,
+        error: nodeError,
+        setCurrentNode,
+    } = useProxyNodes(connected, activeProfileId);
+
+    const openNodePicker = useCallback(() => {
+        nodeSheetRef.current?.present();
+    }, []);
+
+    const handleNodeSelect = useCallback(async (tag: string) => {
+        nodeSheetRef.current?.dismiss();
+        selectionChanged();
+        try {
+            await ExpoOneBox.selectProxyNode(tag);
+            setCurrentNode(tag);
+        } catch (e: unknown) {
+            Alert.alert(i18n.t('node_switch_failed'), e instanceof Error ? e.message : i18n.t('request_failed'));
+        }
+    }, [setCurrentNode]);
 
     const speedOpacity = useSharedValue(connected ? 1 : 0);
     useEffect(() => {
@@ -240,7 +281,13 @@ export default function HomeScreen() {
 
     const nodeListCard = (
         <View style={[glass, { paddingHorizontal: 20, paddingVertical: 16 }]}>
-            <NodeList />
+            <NodeList
+                nodes={nodes}
+                currentNode={currentNode}
+                isLoading={isNodeLoading}
+                error={nodeError}
+                onOpenPicker={openNodePicker}
+            />
         </View>
     );
 
@@ -291,6 +338,13 @@ export default function HomeScreen() {
             </SafeAreaView>
 
             <ImportUrlModal visible={importUrlVisible} onClose={handleImportUrlClose} />
+            <NodePickerSheet
+                ref={nodeSheetRef}
+                nodes={nodes}
+                currentNode={currentNode}
+                autoResolvedNode={autoResolvedNode}
+                onSelect={handleNodeSelect}
+            />
         </ThemedView>
     );
 }

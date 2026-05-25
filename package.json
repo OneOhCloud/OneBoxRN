@@ -28,7 +28,7 @@
     "@bugsnag/expo": "^55.0.0",
     "@expo-google-fonts/material-symbols": "^0.4.24",
     "@expo/vector-icons": "^15.1.1",
-    "@gorhom/bottom-sheet": "^5.2.8",
+    "@gorhom/bottom-sheet": "^5.2.14",
     "@react-native-community/netinfo": "12.0.1",
     "expo": "^56.0.0",
     "expo-application": "~56.0.3",

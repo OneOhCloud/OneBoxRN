@@ -1,6 +1,13 @@
 // app/config/_layout.tsx
-import { Slot } from 'expo-router';
+import { Stack } from 'expo-router';
 
 export default function ConfigLayout() {
-  return <Slot />;
+    return (
+        <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="dev" options={{ animation: 'none' }} />
+            <Stack.Screen name="logs" />
+            <Stack.Screen name="view-config" />
+        </Stack>
+    );
 }

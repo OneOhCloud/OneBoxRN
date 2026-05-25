@@ -1,25 +1,34 @@
 import { selectionChanged } from '@/components/ui/haptics';
-import { NodePickerSheet } from '@/components/ui/home/node-picker-sheet';
 import { NodeSignal } from '@/components/ui/home/node-signal';
 import { useAccentBlue } from '@/constants/ios26-palette';
 import i18n from '@/constants/language';
 import { Fonts } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
-import { ProfileStore } from '@/database/kv';
-import { useProxyNodes } from '@/hooks/use-proxy-nodes';
+import { NodeItem } from '@/hooks/use-proxy-nodes';
 import { useTheme } from '@/hooks/use-theme';
-import ExpoOneBox from '@/modules/expo-onebox';
-import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export type { NodeItem } from '@/hooks/use-proxy-nodes';
 
 // How long (ms) to keep showing the last node name after disconnection
 const NODE_LABEL_LINGER_MS = 1000;
 
-export function NodeList() {
+interface NodeListProps {
+    nodes: NodeItem[];
+    currentNode: string;
+    isLoading: boolean;
+    error: string | null;
+    onOpenPicker: () => void;
+}
+
+export function NodeList({
+    nodes,
+    currentNode,
+    isLoading,
+    error,
+    onOpenPicker,
+}: NodeListProps) {
     const theme = useTheme();
     const accent = useAccentBlue();
     const { connected } = useVpn();
@@ -35,33 +44,11 @@ export function NodeList() {
         return () => clearTimeout(timer);
     }, [connected]);
 
-    const [activeProfileId, setActiveProfileId] = useState<string | null>(() => ProfileStore.getActiveId());
-    useFocusEffect(
-        useCallback(() => {
-            setActiveProfileId(ProfileStore.getActiveId());
-        }, [])
-    );
-
-    const { nodes, currentNode, autoResolvedNode, isLoading, error, setCurrentNode, setPickerOpen } = useProxyNodes(connected, activeProfileId);
-    const sheetRef = useRef<BottomSheetModal>(null);
-
-    const handleSelect = useCallback(async (tag: string) => {
-        sheetRef.current?.dismiss();
-        selectionChanged();
-        try {
-            await ExpoOneBox.selectProxyNode(tag);
-            setCurrentNode(tag);
-        } catch (e: unknown) {
-            Alert.alert(i18n.t('node_switch_failed'), e instanceof Error ? e.message : i18n.t('request_failed'));
-        }
-    }, [setCurrentNode]);
-
     const openPicker = useCallback(() => {
         if (!connected || nodes.length === 0) return;
         selectionChanged();
-        setPickerOpen(true);
-        sheetRef.current?.present();
-    }, [connected, nodes.length, setPickerOpen]);
+        onOpenPicker();
+    }, [connected, nodes.length, onOpenPicker]);
 
     const currentItem = nodes.find(n => n.tag === currentNode);
 
@@ -90,7 +77,7 @@ export function NodeList() {
         return i18n.t('no_nodes');
     })();
 
-    const interactive = connected && nodes.length > 0 && !isLoading;
+    const interactive = connected && nodes.length > 0;
     // Show caret during linger period even though interaction is disabled
     const showCaret = interactive || (displayConnected && lastNameRef.current !== null);
 
@@ -151,14 +138,6 @@ export function NodeList() {
                 )}
             </Pressable>
 
-            <NodePickerSheet
-                ref={sheetRef}
-                nodes={nodes}
-                currentNode={currentNode}
-                autoResolvedNode={autoResolvedNode}
-                onSelect={handleSelect}
-                onDismiss={() => setPickerOpen(false)}
-            />
         </View>
     );
 }

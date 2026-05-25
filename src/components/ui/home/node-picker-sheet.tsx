@@ -95,6 +95,8 @@ function renderBackdrop(props: BottomSheetBackdropProps) {
 
 // ─── NodePickerSheet ─────────────────────────────────────────
 
+export type NodePickerSheetHandle = BottomSheetModal;
+
 export interface NodePickerSheetProps {
     nodes: NodeItem[];
     currentNode: string;
@@ -103,10 +105,10 @@ export interface NodePickerSheetProps {
     onDismiss?: () => void;
 }
 
-export const NodePickerSheet = forwardRef<BottomSheetModal, NodePickerSheetProps>(
+export const NodePickerSheet = forwardRef<NodePickerSheetHandle, NodePickerSheetProps>(
     function NodePickerSheet(
         { nodes, currentNode, autoResolvedNode, onSelect, onDismiss }: NodePickerSheetProps,
-        ref: ForwardedRef<BottomSheetModal>,
+        ref: ForwardedRef<NodePickerSheetHandle>,
     ) {
         const theme = useTheme();
         const hairline = useHairlineColor();
