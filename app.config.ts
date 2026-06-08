@@ -1,5 +1,13 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
-import versionJson from './version.json';
+
+const { readFileSync } = require('node:fs') as typeof import('node:fs');
+const { join } = require('node:path') as typeof import('node:path');
+
+type VersionJson = {
+  version: string;
+};
+
+const versionJson = JSON.parse(readFileSync(join(__dirname, 'version.json'), 'utf8')) as VersionJson;
 
 /**
  * Dynamic Expo config.
