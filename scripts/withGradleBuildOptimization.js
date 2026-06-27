@@ -10,8 +10,17 @@ const { withGradleProperties } = require('@expo/config-plugins');
  * 4. Build cache — reuse task outputs across builds
  * 5. Caching — enable org.gradle.caching for incremental builds
  * 6. File system watching — continuous monitoring avoids full re-scan
- * 7. Configuration on demand — only configure relevant projects
- * 8. Kotlin daemon JVM args — match memory for Kotlin compilation
+ * 7. Kotlin daemon JVM args — match memory for Kotlin compilation
+ *
+ * NOTE: org.gradle.configureondemand is intentionally NOT set. It is
+ * unsupported by the Android Gradle Plugin and the React Native Gradle
+ * Plugin: it lazily configures only "touched" projects and drops the
+ * task-dependency edges that wire codegen (BuildConfig, R.jar,
+ * autolinking PackageList.java / autolinking.h) ahead of the :app
+ * compile/CMake tasks. With it on, the consumers race ahead of the
+ * generators and the build fails non-deterministically with
+ * "Unresolved reference 'BuildConfig'", missing R.jar, and
+ * "'autolinking.h' file not found".
  */
 module.exports = function withGradleBuildOptimization(config) {
   return withGradleProperties(config, (config) => {
@@ -32,9 +41,6 @@ module.exports = function withGradleBuildOptimization(config) {
 
       // ── File System Watching (avoid full FS scan on each build) ──
       'org.gradle.vfs.watch': 'true',
-
-      // ── Configure On Demand (only configure touched projects) ──
-      'org.gradle.configureondemand': 'true',
 
       // ── Kotlin Compilation ──
       'kotlin.daemon.jvmargs':
