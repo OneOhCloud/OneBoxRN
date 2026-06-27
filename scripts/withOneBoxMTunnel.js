@@ -178,6 +178,37 @@ puts "   2. Run: npx expo run:ios --device"
 `;
 
 /**
+ * 解析一个能 `require 'xcodeproj'` 的 Ruby 解释器。
+ *
+ * 脚本依赖 xcodeproj gem 操作 .xcodeproj。该 gem 通常随 CocoaPods 装在 *某一个*
+ * Ruby 下，但 PATH 上第一个 `ruby` 不一定是那个 Ruby —— 例如 Homebrew Ruby 抢占
+ * PATH，而 xcodeproj 只装在 macOS 自带 Ruby 的用户 gem 里。故按"能力"而非"名字"选
+ * 解释器：逐个候选执行 `require 'xcodeproj'`，取第一个成功的。
+ *
+ * 候选顺序：
+ *   1. ONEBOX_RUBY 环境变量（显式覆盖，逃生通道）
+ *   2. `ruby`（PATH 默认；EAS 云端构建走这条）
+ *   3. `/usr/bin/ruby`（macOS 自带 Ruby，本地 xcodeproj 常装在它的用户 gem 下）
+ *
+ * @returns {string|null} 可用的 Ruby 可执行路径；都不行则 null
+ */
+const resolveRubyWithXcodeproj = () => {
+  const candidates = [process.env.ONEBOX_RUBY, 'ruby', '/usr/bin/ruby'].filter(Boolean);
+  const seen = new Set();
+  for (const ruby of candidates) {
+    if (seen.has(ruby)) continue;
+    seen.add(ruby);
+    try {
+      execSync(`"${ruby}" -e "require 'xcodeproj'"`, { stdio: 'ignore' });
+      return ruby;
+    } catch (_) {
+      // 该解释器无法加载 xcodeproj，尝试下一个候选
+    }
+  }
+  return null;
+};
+
+/**
  * Expo config plugin to add OneBoxMTunnel Network Extension target
  * 在每次 prebuild 后自动运行 Ruby 脚本添加扩展 target
  * Ruby 脚本内容已内嵌，兼容 EAS 本地/云端构建的临时目录环境
@@ -201,9 +232,20 @@ const withOneBoxMTunnel = (config) => {
         // 写出内嵌的脚本内容到临时文件
         fs.writeFileSync(scriptPath, RUBY_SCRIPT, { encoding: 'utf8', mode: 0o755 });
 
+        // 选择一个能 require 'xcodeproj' 的 Ruby（PATH 上第一个 ruby 未必装了该 gem）
+        const ruby = resolveRubyWithXcodeproj();
+        if (!ruby) {
+          console.error(
+            '[withOneBoxMTunnel] ❌ 未找到能加载 xcodeproj 的 Ruby 解释器。\n' +
+              '   安装它（gem install xcodeproj），或用 ONEBOX_RUBY 指向已装该 gem 的 Ruby。',
+          );
+          return config; // 与既有策略一致：不阻断构建
+        }
+        console.log(`[withOneBoxMTunnel] 使用 Ruby: ${ruby}`);
+
         // 运行 Ruby 脚本，传入 iOS 目录路径 和 原始模块源码目录
         const moduleIosDir = path.join(projectRoot, 'src', 'modules', 'expo-onebox', 'ios');
-        execSync(`ruby "${scriptPath}" "${iosDir}" "${moduleIosDir}"`, {
+        execSync(`"${ruby}" "${scriptPath}" "${iosDir}" "${moduleIosDir}"`, {
           stdio: 'inherit',
           cwd: projectRoot,
         });
