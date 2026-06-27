@@ -59,6 +59,26 @@ interface SingBoxConfigLike {
 }
 
 /**
+ * Locate the route rule that anchors a given action — the one whose `domain`
+ * array carries that action's anchor domain. Returns undefined when the config
+ * has no such rule (a stale template snapshot may predate an anchor).
+ */
+export function findAnchorRule(
+    config: SingBoxConfigLike,
+    action: RuleAction,
+): RouteRuleLike | undefined {
+    const rules = config?.route?.rules;
+    if (!Array.isArray(rules)) return undefined;
+    const anchor = ACTION_ANCHOR[action];
+    return rules.find((r) => Array.isArray(r.domain) && r.domain.includes(anchor));
+}
+
+/** True when the config carries the route rule anchoring the given action. */
+export function hasActionAnchor(config: SingBoxConfigLike, action: RuleAction): boolean {
+    return findAnchorRule(config, action) !== undefined;
+}
+
+/**
  * Inject user custom rules into a sing-box route config, in place.
  *
  * For each action with a non-empty set, locate the anchor route rule (the
@@ -75,17 +95,13 @@ export function injectCustomRules(
     config: SingBoxConfigLike,
     sets: Record<RuleAction, RuleSet>,
 ): void {
-    const rules = config?.route?.rules;
-    if (!Array.isArray(rules)) return;
+    if (!Array.isArray(config?.route?.rules)) return;
 
     for (const action of RULE_ACTIONS) {
         const set = sets[action];
         if (!set || isRuleSetEmpty(set)) continue;
 
-        const anchor = ACTION_ANCHOR[action];
-        const rule = rules.find(
-            (r) => Array.isArray(r.domain) && r.domain.includes(anchor),
-        );
+        const rule = findAnchorRule(config, action);
         if (!rule) continue;
 
         (rule.domain ??= []).push(...set.domain);

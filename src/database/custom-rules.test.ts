@@ -3,7 +3,9 @@ import { test } from 'node:test';
 
 import {
     filterFlatRules,
+    findAnchorRule,
     flattenRuleSets,
+    hasActionAnchor,
     injectCustomRules,
     sortFlatRules,
     type FlatRule,
@@ -42,6 +44,30 @@ function set(partial: Partial<RuleSet>): RuleSet {
 function emptySets(): Record<RuleAction, RuleSet> {
     return { reject: set({}), direct: set({}), proxy: set({}) };
 }
+
+test('hasActionAnchor detects a present anchor and a missing one', () => {
+    const config = fixtureConfig();
+    assert.equal(hasActionAnchor(config, 'reject'), true);
+    assert.equal(hasActionAnchor(config, 'direct'), true);
+    assert.equal(hasActionAnchor(config, 'proxy'), true);
+
+    // A stale template that predates the reject anchor (drop the first rule).
+    const stale = { route: { rules: config.route.rules.slice(1) } };
+    assert.equal(hasActionAnchor(stale, 'reject'), false);
+    assert.equal(hasActionAnchor(stale, 'direct'), true);
+});
+
+test('hasActionAnchor is false for a config without route rules', () => {
+    assert.equal(hasActionAnchor({}, 'reject'), false);
+    assert.equal(hasActionAnchor({ route: {} }, 'reject'), false);
+});
+
+test('findAnchorRule returns the exact rule object the merger would mutate', () => {
+    const config = fixtureConfig();
+    const rule = findAnchorRule(config, 'reject');
+    assert.equal(rule, config.route.rules[0]);
+    assert.equal(findAnchorRule({ route: { rules: [] } }, 'reject'), undefined);
+});
 
 test('each action injects into its own anchor without touching action/outbound', () => {
     const config = fixtureConfig();

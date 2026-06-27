@@ -46,3 +46,24 @@ export function resolveVersionPath(v: SingBoxVersion): string {
         `Unsupported sing-box version ${v.major}.${v.minor}.${v.patch}`,
     );
 }
+
+/**
+ * KV key under which a per-mode config template is cached.
+ *
+ * The app version is part of the key so that installing a new app build
+ * abandons every template the previous build cached: the cache misses, the
+ * template shipped inside this build becomes the floor, and the remote is
+ * refetched fresh. Without this, a remote snapshot taken before a route-rule
+ * anchor (e.g. `reject-tag.oneoh.cloud`) existed could survive the upgrade and
+ * silently strip the user's custom rules — `injectCustomRules` skips any
+ * anchor it cannot find.
+ *
+ * The sing-box minor is also embedded so caches reset across core minors.
+ */
+export function buildTemplateCacheKey(
+    appVersion: string,
+    singBoxMajor: string,
+    mode: string,
+): string {
+    return `key-sing-box-${singBoxMajor}-app-${appVersion}-${mode}-template-config-cache`;
+}

@@ -1,13 +1,15 @@
 import { configType } from '@/definition';
 import { ExpoOneBox } from '@/modules/expo-onebox';
 import { jsLog } from '@/utils/log-sink';
-import { parseSingBoxVersion, resolveVersionPath } from '@/utils/sing-box-template-path';
+import { buildTemplateCacheKey, parseSingBoxVersion, resolveVersionPath } from '@/utils/sing-box-template-path';
 import { getSingBoxMajorVersion, getSingBoxVersion } from '@/utils/sing-box-version';
+import Constants from 'expo-constants';
 import { fetch } from 'expo/fetch';
 import { parse as parseJsonc } from 'jsonc-parser';
-import { injectCustomRules } from './custom-rules';
+import { applyPlatformTunExclusions } from './apply-tun-exclusions';
+import { hasActionAnchor, injectCustomRules } from './custom-rules';
 import { SBConfig } from './kv';
-import { getAllCustomRuleSets, getStoreValue, setStoreValue } from './store';
+import { deleteStoreValue, getAllCustomRuleSets, getStoreValue, setStoreValue } from './store';
 import { BUILT_IN_TEMPLATE_OBJECTS } from './template/generated';
 import { templateMemoryCache } from './template-cache';
 
@@ -22,8 +24,12 @@ export type StatusChangedPayload = void | TerminatedPayload;
 
 // ─── Config template cache key ───────────────────────────────────────────────
 
+// App version is baked at build time from version.json via app.config.ts, so
+// every release rotates the template cache key (see buildTemplateCacheKey).
+const APP_VERSION = Constants.expoConfig?.version ?? 'unknown';
+
 export function getConfigTemplateCacheKey(mode: configType): string {
-    return `key-sing-box-${getSingBoxMajorVersion()}-${mode}-template-config-cache`;
+    return buildTemplateCacheKey(APP_VERSION, getSingBoxMajorVersion(), mode);
 }
 
 // ─── DNS rewrite ─────────────────────────────────────────────────────────────
@@ -254,6 +260,59 @@ export async function prefetchConfigTemplates(): Promise<void> {
     );
 }
 
+/**
+ * Wipe every cached config template: the persisted KV snapshot and its
+ * freshness timestamp for each mode, plus the in-memory copy. The next
+ * getConfigTemplate() then falls back to the built-in bundled template, and
+ * the next prefetchConfigTemplates() refetches the remote fresh.
+ *
+ * Escape hatch for a stale remote snapshot that predates a route-rule anchor —
+ * the same failure the app-versioned cache key (buildTemplateCacheKey) prevents
+ * across upgrades, exposed here for on-device recovery without reinstalling.
+ */
+export async function clearConfigTemplateCache(): Promise<void> {
+    templateMemoryCache.clear();
+    for (const mode of TEMPLATE_MODES) {
+        await deleteStoreValue(getConfigTemplateCacheKey(mode));
+        await deleteStoreValue(getTemplateCacheTimestampKey(mode));
+    }
+    jsLog.info('[Template] Cache cleared for all modes');
+}
+
+export interface TemplateCacheInfo {
+    mode: configType;
+    /** A remote snapshot is persisted in KV (vs. falling back to built-in). */
+    cached: boolean;
+    /** Age of the cached snapshot in ms, or null when not cached. */
+    ageMs: number | null;
+    /** The effective template (cache or built-in) carries the reject anchor. */
+    hasRejectAnchor: boolean;
+}
+
+/**
+ * Read-only probe of the template cache for the dev screen: for each mode,
+ * whether a remote snapshot is cached, its age, and whether the *effective*
+ * template still carries the reject anchor `injectCustomRules` depends on.
+ */
+export async function inspectConfigTemplateCache(): Promise<TemplateCacheInfo[]> {
+    const out: TemplateCacheInfo[] = [];
+    for (const mode of TEMPLATE_MODES) {
+        const cached = await getStoreValue(getConfigTemplateCacheKey(mode), null);
+        const tsRaw = await getStoreValue(getTemplateCacheTimestampKey(mode), null);
+        const isCached = !!(cached && typeof cached === 'object');
+        const effective = isCached
+            ? cached
+            : JSON.parse(getDefaultConfigTemplate(mode, getSingBoxMajorVersion()));
+        out.push({
+            mode,
+            cached: isCached,
+            ageMs: tsRaw ? Date.now() - Number(tsRaw) : null,
+            hasRejectAnchor: hasActionAnchor(effective, 'reject'),
+        });
+    }
+    return out;
+}
+
 // ─── Server node injection ────────────────────────────────────────────────────
 
 export async function updateVPNServerConfigFromDB(
@@ -313,6 +372,9 @@ export async function getTunConfig(config: string): Promise<string> {
 
     jsLog.info('[Config] TUN Stack:', newConfig.inbounds?.[0]?.stack);
     await rewriteConfig(newConfig);
+    // Carry the profile's per-platform TUN bypass list into the active config
+    // (Android: exclude_package, iOS: route_exclude_address). Platform-split.
+    applyPlatformTunExclusions(configJson, newConfig);
     return updateVPNServerConfigFromDB(configJson, newConfig);
 }
 
@@ -322,6 +384,7 @@ export default async function getGlobalTunConfig(config: string): Promise<string
     const newConfig = await getConfigTemplate('tun-global');
     jsLog.info('[Config] Building tun-global config');
     await rewriteConfig(newConfig);
+    applyPlatformTunExclusions(configJson, newConfig);
     return updateVPNServerConfigFromDB(configJson, newConfig);
 }
 

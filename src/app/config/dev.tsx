@@ -11,10 +11,12 @@ import { DevHeader } from '@/components/dev/dev-header';
 import { ExecutionHistoryCard } from '@/components/dev/execution-history-card';
 import { LogLevelCard } from '@/components/dev/log-level-card';
 import { PrimaryUrlTestCard } from '@/components/dev/primary-url-test-card';
+import { TemplateCacheCard } from '@/components/dev/template-cache-card';
 import TrafficCard, { SectionLabel } from '@/components/ui/home/traffic-card';
 import i18n from '@/constants/language';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
+import { inspectConfigTemplateCache, type TemplateCacheInfo } from '@/database/helper';
 import type { TaskLogEntry } from '@/database/kv';
 import { SBConfig, TaskLog } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
@@ -44,6 +46,7 @@ export default function DevScreen() {
     const [taskInfo, setTaskInfo] = useState<TaskInfo | null>(null);
     const [config, setConfig] = useState<ConfigState | null>(null);
     const [taskLog, setTaskLog] = useState<TaskLogEntry | null>(null);
+    const [templateCache, setTemplateCache] = useState<TemplateCacheInfo[] | null>(null);
     const [loading, setLoading] = useState(true);
 
     const load = useCallback(async () => {
@@ -68,6 +71,8 @@ export default function DevScreen() {
         } else {
             setTaskLog(null);
         }
+
+        setTemplateCache(await inspectConfigTemplateCache().catch(() => []));
 
         setLoading(false);
     }, []);
@@ -122,7 +127,8 @@ export default function DevScreen() {
                             index={5}
                         />
                     )}
-                    <ExecutionHistoryCard taskLog={taskLog} index={6} />
+                    <TemplateCacheCard info={templateCache} onChanged={load} index={6} />
+                    <ExecutionHistoryCard taskLog={taskLog} index={7} />
                 </ScrollView>
             )}
         </View>

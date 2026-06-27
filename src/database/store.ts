@@ -74,6 +74,10 @@ export async function setStoreValue(key: string, value: any): Promise<void> {
     await store.save();
 }
 
+export async function deleteStoreValue(key: string): Promise<void> {
+    store.delete(key);
+}
+
 export const setLanguage = async (language: string) => setStoreValue(LANGUAGE_STORE_KEY, language);
 
 export async function getEnableTun(): Promise<boolean> {
