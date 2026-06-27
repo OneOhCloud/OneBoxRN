@@ -10,7 +10,7 @@ import React, { useEffect, useRef, useState } from 'react';
 // JS-side mutations of `.current` emit the
 // "Tried to modify key 'current' of an object which has been already
 // passed to a worklet" warning.
-import { Pressable, StyleSheet, View } from 'react-native';
+import { AppState, AppStateStatus, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
     cancelAnimation,
     Easing,
@@ -129,6 +129,30 @@ export function ConnectButton({ connected, loading, onPress }: ConnectButtonProp
     useEffect(() => {
         fillProgress.value = withTiming(connected ? 1 : 0, { duration: 280 });
     }, [connected, fillProgress]);
+
+    // Re-assert the connected fill when the app returns to the foreground.
+    // The blue overlay's fillOpacity lives only in Reanimated's UI-thread
+    // animatedProps; the system can drop the last-applied SVG prop across a
+    // background cycle (Android surface re-attach). Because `connected` is
+    // unchanged on resume, the effect above never re-pushes, stranding the
+    // overlay at fillOpacity 0 — the white base then shows through and the
+    // button renders white. Snap to the correct steady state on resume.
+    // modify(forceUpdate=true) bypasses Reanimated's same-value short-circuit
+    // (see valueSetter), so the native node is re-applied even when the value
+    // is unchanged; when it is already correct this is visually a no-op.
+    const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+    useEffect(() => {
+        const sub = AppState.addEventListener('change', (next) => {
+            if (appStateRef.current !== 'active' && next === 'active') {
+                fillProgress.modify(() => {
+                    'worklet';
+                    return connected ? 1 : 0;
+                }, true);
+            }
+            appStateRef.current = next;
+        });
+        return () => sub.remove();
+    }, [fillProgress, connected]);
 
     const blueCircleProps = useAnimatedProps(() => ({
         fillOpacity: fillProgress.value,
