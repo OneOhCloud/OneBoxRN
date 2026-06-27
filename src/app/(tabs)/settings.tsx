@@ -130,6 +130,19 @@ export default function SettingsScreen() {
                         </View>
 
                         <View>
+                            <SectionHeader label={i18n.t('section_routing')} />
+                            <View style={[glass, { paddingVertical: 4 }]}>
+                                <SettingsRow
+                                    iconName="git-network-outline"
+                                    iconColor="#5856D6"
+                                    label={i18n.t('routing_rules_entry')}
+                                    onPress={() => router.push('/config/routing-rules')}
+                                    isLast
+                                />
+                            </View>
+                        </View>
+
+                        <View>
                             <SectionHeader label={i18n.t('section_tools')} />
                             <View style={[glass, { paddingVertical: 4 }]}>
                                 <SettingsRow

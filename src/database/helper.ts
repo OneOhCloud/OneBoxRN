@@ -5,8 +5,9 @@ import { parseSingBoxVersion, resolveVersionPath } from '@/utils/sing-box-templa
 import { getSingBoxMajorVersion, getSingBoxVersion } from '@/utils/sing-box-version';
 import { fetch } from 'expo/fetch';
 import { parse as parseJsonc } from 'jsonc-parser';
+import { injectCustomRules } from './custom-rules';
 import { SBConfig } from './kv';
-import { getCustomRuleSet, getStoreValue, setStoreValue } from './store';
+import { getAllCustomRuleSets, getStoreValue, setStoreValue } from './store';
 import { BUILT_IN_TEMPLATE_OBJECTS } from './template/generated';
 import { templateMemoryCache } from './template-cache';
 
@@ -307,22 +308,8 @@ export async function getTunConfig(config: string): Promise<string> {
 
     jsLog.info('[Config] Building tun-rules config');
 
-    const directRuleSet = await getCustomRuleSet('direct');
-    const proxyRuleSet = await getCustomRuleSet('proxy');
-
-    for (const rule of newConfig.route.rules) {
-        if (!rule.domain || !Array.isArray(rule.domain)) continue;
-        if (rule.domain.includes('direct-tag.oneoh.cloud')) {
-            rule.domain.push(...directRuleSet.domain);
-            rule.domain_suffix.push(...directRuleSet.domain_suffix);
-            rule.ip_cidr.push(...directRuleSet.ip_cidr);
-        }
-        if (rule.domain.includes('proxy-tag.oneoh.cloud')) {
-            rule.domain.push(...proxyRuleSet.domain);
-            rule.domain_suffix.push(...proxyRuleSet.domain_suffix);
-            rule.ip_cidr.push(...proxyRuleSet.ip_cidr);
-        }
-    }
+    const sets = await getAllCustomRuleSets();
+    injectCustomRules(newConfig, sets);
 
     jsLog.info('[Config] TUN Stack:', newConfig.inbounds?.[0]?.stack);
     await rewriteConfig(newConfig);

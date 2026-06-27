@@ -9,6 +9,7 @@ import {
     USER_AGENT_STORE_KEY,
 } from '@/definition';
 import { getSingBoxMajorVersion } from '@/utils/sing-box-version';
+import { emptyRuleSet, RULE_ACTIONS, type RuleAction, type RuleSet } from './custom-rules';
 import { kvDelete, kvGet, kvSet } from './kv';
 
 export const LANGUAGE_STORE_KEY = 'language';
@@ -105,16 +106,11 @@ export async function setUseDHCP(value: boolean): Promise<void> {
     store.set(USE_DHCP_STORE_KEY, value);
 }
 
-export async function setCustomRuleSet(
-    key: 'direct' | 'proxy',
-    config: { domain: string[]; domain_suffix: string[]; ip_cidr: string[] }
-): Promise<void> {
+export async function setCustomRuleSet(key: RuleAction, config: RuleSet): Promise<void> {
     store.set(`custom_ruleset_${key}`, JSON.stringify(config));
 }
 
-export async function getCustomRuleSet(
-    key: 'direct' | 'proxy'
-): Promise<{ domain: string[]; domain_suffix: string[]; ip_cidr: string[] }> {
+export async function getCustomRuleSet(key: RuleAction): Promise<RuleSet> {
     const s = store.getRaw(`custom_ruleset_${key}`);
     if (s) {
         try {
@@ -129,7 +125,15 @@ export async function getCustomRuleSet(
             console.error('[Store] Failed to parse custom ruleset:', e);
         }
     }
-    return { domain: [], domain_suffix: [], ip_cidr: [] };
+    return emptyRuleSet();
+}
+
+export async function getAllCustomRuleSets(): Promise<Record<RuleAction, RuleSet>> {
+    // Destructure order mirrors RULE_ACTIONS (reject, direct, proxy).
+    const [reject, direct, proxy] = await Promise.all(
+        RULE_ACTIONS.map((action) => getCustomRuleSet(action)),
+    );
+    return { reject, direct, proxy };
 }
 
 export async function setDirectDNS(dnsServers: string): Promise<void> {

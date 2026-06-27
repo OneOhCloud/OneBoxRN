@@ -8,6 +8,7 @@ export default function ConfigLayout() {
             <Stack.Screen name="dev" options={{ animation: 'none' }} />
             <Stack.Screen name="logs" />
             <Stack.Screen name="view-config" />
+            <Stack.Screen name="routing-rules" />
         </Stack>
     );
 }

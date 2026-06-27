@@ -6,15 +6,7 @@ React Native VPN app. Expo SDK 55 + Expo Router. Core engine: sing-box v1.13.0. 
 
 ---
 
-## Dispatch protocol (hard rule)
-
-Dispatch protocol is mandatory. Main Claude does NOT edit production code directly — dispatch `implementer` (forward work) or `investigator` (root-cause) first. Inline work is allowed ONLY for the exhaustive exceptions listed in `~/.claude/orchestrator.md § orchestrator rules § rule 5 (exhaustive)` (meta-docs, read-only Q&A, standard-gate runs, ≤ 3-LOC typo/comment fixes, git inspection, user-facing summaries). No size-based escape hatch.
-
-Generic pipeline + standard return + token logging + doc-driven loading: see `~/.claude/orchestrator.md`.
-
-Agents: `~/.claude/agents/*.md`.
-
-### Standard gate
+## Standard gate
 
 ```bash
 npx tsc --noEmit          # TypeScript: must print nothing
@@ -26,13 +18,13 @@ Clean = all three exit 0, no new errors. Deviation must be named in return.
 
 ### File-length budget tolerance
 
-≤ 1.3× brief's stated budget → no flag. ≥ 1.5× → reviewer "concern" + implementer justifies.
+≤ 1.3× brief's stated budget → no flag. ≥ 1.5× → mark as "concern" and require justification.
 
 ---
 
 ## Review flag categories
 
-Project-specific flags `code-reviewer` checks in addition to `~/.claude/agents/code-reviewer.md § generic flag categories`.
+Project-specific review flags:
 
 | flag | rule source § (this doc unless noted) | severity |
 |---|---|---|
@@ -68,7 +60,7 @@ Also avoid: wording implying recurring payments, purchases, billing, or premium 
 
 ## Project-specific rule docs
 
-Machine-style docs under `docs/claude/`. Agents load per `docs/claude/doc-index.json`.
+Machine-style docs under `docs/claude/`. Load them per `docs/claude/doc-index.json`.
 
 | doc | scope |
 |---|---|
@@ -252,6 +244,7 @@ See `docs/claude/comet-animation.md`. Any new animated border / loading indicato
 - NativeWind v5 + Tailwind v4 (`@tailwindcss/postcss`) via `className`
 - CSS-based config in `src/global.css` (no `tailwind.config.js` for Tailwind v4)
 - theme colours via CSS variables + `useTheme()` hook — never hardcode
+- do not use lines, dividers, hairlines, or border strokes to create visual hierarchy; use color and tonal contrast instead
 - no new styling libs
 
 ### Data fetching
