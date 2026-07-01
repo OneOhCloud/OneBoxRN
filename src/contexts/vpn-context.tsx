@@ -1,12 +1,13 @@
+import { StartupFailureModal, type StartupFailureInfo } from '@/components/ui/startup-failure-modal';
 import i18n from '@/constants/language';
-import { SBConfig, type SingBoxLogLevel } from '@/database/kv';
 import { refreshDirectDns } from '@/database/helper';
+import { SBConfig, type SingBoxLogLevel } from '@/database/kv';
 import { getStoreValue } from '@/database/store';
 import { configType } from '@/definition';
 import { emitLog, jsLog, type LogLevel } from '@/utils/log-sink';
 import { requestVpnRestart } from '@/utils/vpn-restart';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { Alert, AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus } from 'react-native';
 import ExpoOneBox, { TrafficUpdateEventPayload, VPN_STATUS } from '../modules/expo-onebox';
 
 // ─── sing-box core log-level parsing ────────────────────────
@@ -29,6 +30,9 @@ import ExpoOneBox, { TrafficUpdateEventPayload, VPN_STATUS } from '../modules/ex
 
 const ANSI_STRIP_RE = /\x1b\[[0-9;]*m/g;
 const LEVEL_PREFIX_RE = /^(TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|PANIC)\b/i;
+
+// QA switch: set to true to show the startup failure UI on app/VPN startup.
+const FORCE_STARTUP_FAILURE = false;
 
 function parseCoreLineLevel(message: string): SingBoxLogLevel | null {
     const stripped = message.replace(ANSI_STRIP_RE, '').trimStart();
@@ -78,6 +82,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     const [traffic, setTraffic] = useState<TrafficUpdateEventPayload | null>(null);
     const [mode, setModeState] = useState<configType>(() => SBConfig.getMode());
     const [directDns, setDirectDns] = useState<string>('—');
+    const [startupFailure, setStartupFailure] = useState<StartupFailureInfo | null>(null);
 
     // Single-flight: if a refresh is already in progress, all callers
     // share the same promise instead of racing to call getBestDns + KV-write.
@@ -119,12 +124,36 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         requestVpnRestart();
     }, []);
 
+    const presentStartupFailure = useCallback((info: Omit<StartupFailureInfo, 'occurredAt'>) => {
+        const message = info.message?.trim() || i18n.t('startup_error_empty_message');
+        jsLog.warn('[VPN] Start failed:', message);
+        emitLog({ source: 'native', level: 'error', message: `[StartFailed] ${message}` });
+        setStartupFailure({
+            ...info,
+            message,
+            occurredAt: new Date().toISOString(),
+        });
+    }, []);
+
     const syncStatus = useCallback(() => {
         const s = ExpoOneBox.getStatus();
         setStatus(s);
         setConnected(s === VPN_STATUS.STARTED || s === VPN_STATUS.STARTING);
         if (s === VPN_STATUS.STOPPED) setTraffic(null);
     }, []);
+
+    useEffect(() => {
+        if (!FORCE_STARTUP_FAILURE) return;
+        const timer = setTimeout(() => {
+            presentStartupFailure({
+                message: i18n.t('startup_forced_error_message'),
+                source: 'debug_switch',
+                type: 'ForcedStartupFailure',
+                status: ExpoOneBox.getStatus(),
+            });
+        }, 0);
+        return () => clearTimeout(timer);
+    }, [presentStartupFailure]);
 
     useEffect(() => {
         ExpoOneBox.setCoreLogEnabled(true);
@@ -144,12 +173,10 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         const startFailAlertShown = { current: false };
         let startFailTimer: ReturnType<typeof setTimeout> | null = null;
 
-        const showStartFailAlert = (errMsg: string) => {
+        const showStartFailAlert = (info: Omit<StartupFailureInfo, 'occurredAt'>) => {
             if (startFailAlertShown.current) return;
             startFailAlertShown.current = true;
-            jsLog.warn('[VPN] Start failed:', errMsg);
-            emitLog({ source: 'native', level: 'error', message: `[StartFailed] ${errMsg}` });
-            Alert.alert(i18n.t('vpn_start_failed'), errMsg, [{ text: i18n.t('confirm') }]);
+            presentStartupFailure(info);
         };
 
         const statusSub = ExpoOneBox.addListener('onStatusChange', (event: { status: number; statusName: string; message: string }) => {
@@ -162,6 +189,15 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
                 isStartingUp.current = true;
                 startFailAlertShown.current = false;
                 if (startFailTimer) { clearTimeout(startFailTimer); startFailTimer = null; }
+                if (FORCE_STARTUP_FAILURE) {
+                    showStartFailAlert({
+                        message: i18n.t('startup_forced_error_message'),
+                        source: 'debug_switch',
+                        type: 'ForcedStartupFailure',
+                        status: event.status,
+                        statusName: event.statusName,
+                    });
+                }
             }
 
             if (event.status === VPN_STATUS.STARTED) {
@@ -181,9 +217,19 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
                         const errMsg = ExpoOneBox.getStartError();
                         jsLog.info('[VPN] JS fallback: GetStartError() =', errMsg);
                         if (errMsg) {
-                            showStartFailAlert(errMsg);
+                            showStartFailAlert({
+                                message: errMsg,
+                                source: 'startup_error_file',
+                                status: event.status,
+                                statusName: event.statusName,
+                            });
                         } else {
-                            showStartFailAlert(i18n.t('startup_abnormal_exit'));
+                            showStartFailAlert({
+                                message: i18n.t('startup_error_empty_message'),
+                                source: 'fallback',
+                                status: event.status,
+                                statusName: event.statusName,
+                            });
                         }
                     }, 800);
                 }
@@ -199,7 +245,12 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             if (event.type === 'StartServiceFailed') {
                 jsLog.info('[VPN] Received StartServiceFailed from native:', event.message);
                 if (startFailTimer) { clearTimeout(startFailTimer); startFailTimer = null; }
-                showStartFailAlert(event.message);
+                showStartFailAlert({
+                    message: event.message,
+                    source: 'native_event',
+                    type: event.type,
+                    status: event.status ?? ExpoOneBox.getStatus(),
+                });
             }
         });
 
@@ -260,7 +311,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             refreshSub.remove();
             trafficSub.remove();
         };
-    }, [syncStatus]);
+    }, [presentStartupFailure, syncStatus]);
 
     const appStateRef = useRef<AppStateStatus>(AppState.currentState);
     useEffect(() => {
@@ -276,6 +327,9 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     return (
         <VpnContext.Provider value={{ connected, status, traffic, mode, setMode, directDns, getStartConfig, refreshDirectDns: refreshDirectDnsAction }}>
             {children}
+            {startupFailure ? (
+                <StartupFailureModal info={startupFailure} onClose={() => setStartupFailure(null)} />
+            ) : null}
         </VpnContext.Provider>
     );
 }
