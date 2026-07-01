@@ -26,20 +26,25 @@ export function ActionBadge({ action, small }: { action: RuleAction; small?: boo
     return (
         <View
             style={{
-                alignSelf: 'flex-start',
+                alignSelf: 'center',
+                minHeight: small ? 28 : 32,
                 backgroundColor: `${color}1F`,
                 borderRadius: small ? 6 : 8,
-                paddingHorizontal: small ? 7 : 9,
-                paddingVertical: small ? 2 : 4,
+                paddingHorizontal: small ? 8 : 10,
+                alignItems: 'center',
+                justifyContent: 'center',
             }}
         >
             <Text
                 style={{
                     color,
-                    fontSize: small ? 11 : 13,
+                    fontSize: small ? 12 : 13,
+                    lineHeight: small ? 16 : 18,
                     fontWeight: '700',
                     fontFamily: Fonts?.rounded,
                     letterSpacing: -0.1,
+                    includeFontPadding: false,
+                    textAlignVertical: 'center',
                 }}
             >
                 {i18n.t(`rule_action_${action}`)}
@@ -55,9 +60,9 @@ export function KindChip({ kind }: { kind: RuleKind }) {
     return (
         <View
             style={{
-                minWidth: 26,
-                paddingHorizontal: 6,
-                paddingVertical: 3,
+                minWidth: 32,
+                height: 28,
+                paddingHorizontal: 7,
                 borderRadius: 6,
                 backgroundColor: chrome,
                 alignItems: 'center',
@@ -68,8 +73,11 @@ export function KindChip({ kind }: { kind: RuleKind }) {
                 style={{
                     color: theme.textSecondary,
                     fontSize: 13,
+                    lineHeight: 16,
                     fontWeight: '600',
                     fontFamily: Fonts?.mono,
+                    includeFontPadding: false,
+                    textAlignVertical: 'center',
                 }}
             >
                 {KIND_GLYPH[kind]}

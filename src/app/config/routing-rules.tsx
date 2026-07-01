@@ -329,19 +329,21 @@ export default function RoutingRulesScreen() {
                     </View>
                 )}
 
-                <Text
-                    style={{
-                        marginTop: Spacing.three,
-                        marginHorizontal: 20,
-                        fontSize: 12,
-                        lineHeight: 16,
-                        fontFamily: Fonts?.sans,
-                        color: theme.textSecondary,
-                        opacity: 0.7,
-                    }}
-                >
-                    {i18n.t('rule_restart_note')}
-                </Text>
+                {flat.length > 0 ? (
+                    <Text
+                        style={{
+                            marginTop: Spacing.three,
+                            marginHorizontal: 20,
+                            fontSize: 12,
+                            lineHeight: 16,
+                            fontFamily: Fonts?.sans,
+                            color: theme.textSecondary,
+                            opacity: 0.7,
+                        }}
+                    >
+                        {i18n.t('rule_restart_note')}
+                    </Text>
+                ) : null}
             </ScrollView>
 
             <RuleComposerSheet

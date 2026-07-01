@@ -39,9 +39,12 @@ export function RuleRow({ rule, onEdit, onDelete }: RuleRowProps) {
                 style={{
                     flex: 1,
                     fontSize: 15,
+                    lineHeight: 20,
                     fontFamily: Fonts?.mono,
                     color: theme.text,
                     letterSpacing: -0.1,
+                    includeFontPadding: false,
+                    textAlignVertical: 'center',
                 }}
             >
                 {rule.value}
