@@ -65,9 +65,19 @@ export function ConnectButton({ connected, loading, onPress }: ConnectButtonProp
 
     // We can't tie the arc to `loading` directly: the user wants it to keep
     // spinning until at least one full 360° rotation has completed, even if
-    // loading flips false earlier. `arcVisible` stays true past `loading`
-    // for however long is needed to finish the current cycle.
-    const [arcVisible, setArcVisible] = useState(false);
+    // loading flips false earlier. A three-phase machine models that tail:
+    // transitions are adjusted during render (guarded setState), 'winding'
+    // is only reachable from 'spinning', and the fade-out completion lands
+    // back in 'hidden'.
+    type ArcPhase = 'hidden' | 'spinning' | 'winding';
+    const [arcPhase, setArcPhase] = useState<ArcPhase>(loading ? 'spinning' : 'hidden');
+    if (loading && arcPhase !== 'spinning') {
+        setArcPhase('spinning');
+    }
+    if (!loading && arcPhase === 'spinning') {
+        setArcPhase('winding');
+    }
+
     const spinStart = useSharedValue(0);
     const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -77,40 +87,41 @@ export function ConnectButton({ connected, loading, onPress }: ConnectButtonProp
             hideTimerRef.current = null;
         }
 
-        if (loading) {
-            spinStart.value = Date.now();
-            loadingProgress.value = 0;
-            loadingProgress.value = withRepeat(
+        if (arcPhase === 'spinning') {
+            spinStart.set(Date.now());
+            loadingProgress.set(0);
+            loadingProgress.set(withRepeat(
                 withTiming(1, { duration: SPIN_DURATION_MS, easing: Easing.linear }),
                 -1,
                 false,
-            );
-            setArcVisible(true);
-            arcOpacity.value = withTiming(1, { duration: 300 });
+            ));
+            arcOpacity.set(withTiming(1, { duration: 300 }));
             return;
         }
 
-        if (spinStart.value === 0) {
-            arcOpacity.value = 0;
-            setArcVisible(false);
-            loadingProgress.value = 0;
+        if (arcPhase === 'hidden') {
+            arcOpacity.set(0);
+            loadingProgress.set(0);
             return;
         }
+
         // Wind down after at least N full revolutions from start, then fade out.
-        const elapsed = Date.now() - spinStart.value;
+        const elapsed = Date.now() - spinStart.get();
         const remaining = Math.max(0, SPIN_MIN_MS - elapsed);
         hideTimerRef.current = setTimeout(() => {
             hideTimerRef.current = null;
-            arcOpacity.value = withTiming(0, { duration: 600 }, (finished) => {
+            arcOpacity.set(withTiming(0, { duration: 600 }, (finished) => {
+                // Worklet completion callback (UI thread) — `.value` is the
+                // supported accessor here.
                 if (finished) {
                     cancelAnimation(loadingProgress);
                     loadingProgress.value = 0;
                     spinStart.value = 0;
-                    runOnJS(setArcVisible)(false);
+                    runOnJS(setArcPhase)('hidden');
                 }
-            });
+            }));
         }, remaining);
-    }, [loading, loadingProgress, arcOpacity, spinStart]);
+    }, [arcPhase, loadingProgress, arcOpacity, spinStart]);
 
     useEffect(() => () => {
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -127,7 +138,7 @@ export function ConnectButton({ connected, loading, onPress }: ConnectButtonProp
 
     const fillProgress = useSharedValue(connected ? 1 : 0);
     useEffect(() => {
-        fillProgress.value = withTiming(connected ? 1 : 0, { duration: 280 });
+        fillProgress.set(withTiming(connected ? 1 : 0, { duration: 280 }));
     }, [connected, fillProgress]);
 
     // Re-assert the connected fill when the app returns to the foreground.
@@ -203,7 +214,7 @@ export function ConnectButton({ connected, loading, onPress }: ConnectButtonProp
                     />
                 </Svg>
 
-                {arcVisible && (
+                {arcPhase !== 'hidden' && (
                     <Animated.View
                         pointerEvents="none"
                         style={[styles.svgOverlay, styles.loadingLayer, arcFadeStyle]}
@@ -250,8 +261,8 @@ export function ConnectButton({ connected, loading, onPress }: ConnectButtonProp
 
                 <Pressable
                     onPress={() => { mediumImpact(); onPress(); }}
-                    onPressIn={() => { pressScale.value = withSpring(0.92); }}
-                    onPressOut={() => { pressScale.value = withSpring(1); }}
+                    onPressIn={() => { pressScale.set(withSpring(0.92)); }}
+                    onPressOut={() => { pressScale.set(withSpring(1)); }}
                     disabled={loading}
                     style={styles.content}
                 >

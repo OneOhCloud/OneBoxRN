@@ -48,7 +48,17 @@ export function RotatingBorder({
     const counterProgress = useSharedValue(0);
     const fadeOpacity     = useSharedValue(0);
 
-    const [visible, setVisible] = useState(false);
+    // Three-phase machine replaces the visible flag: transitions are adjusted
+    // during render (guarded setState), so no setState runs inside the effect.
+    type Phase = 'hidden' | 'active' | 'winding';
+    const [phase, setPhase] = useState<Phase>(active ? 'active' : 'hidden');
+    if (active && phase !== 'active') {
+        setPhase('active');
+    }
+    if (!active && phase === 'active') {
+        setPhase('winding');
+    }
+
     const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const startedAtRef = useRef<number>(0);
 
@@ -104,43 +114,47 @@ export function RotatingBorder({
             stopTimerRef.current = null;
         }
 
-        if (active) {
-            setVisible(true);
-            fadeOpacity.value = withTiming(1, { duration: 300 });
+        if (phase === 'active') {
+            fadeOpacity.set(withTiming(1, { duration: 300 }));
             startedAtRef.current = Date.now();
 
-            progress.value = 0;
-            progress.value = withRepeat(
+            progress.set(0);
+            progress.set(withRepeat(
                 withTiming(1, { duration, easing: Easing.linear }),
                 -1,
                 false,
-            );
+            ));
 
-            counterProgress.value = 0;
-            counterProgress.value = withRepeat(
+            counterProgress.set(0);
+            counterProgress.set(withRepeat(
                 withTiming(1, { duration: duration * 1.65, easing: Easing.linear }),
                 -1,
                 false,
-            );
+            ));
             return;
         }
 
+        if (phase !== 'winding') return;
+
+        // Keep sweeping until MIN_REVOLUTIONS have played, then fade out.
         const MIN_REVOLUTIONS = 1.5;
         const elapsed = Date.now() - startedAtRef.current;
         const wait    = Math.max(0, duration * MIN_REVOLUTIONS - elapsed);
         stopTimerRef.current = setTimeout(() => {
             stopTimerRef.current = null;
-            fadeOpacity.value = withTiming(0, { duration: 600 }, (finished) => {
+            fadeOpacity.set(withTiming(0, { duration: 600 }, (finished) => {
+                // Worklet completion callback (UI thread) — `.value` is the
+                // supported accessor here, and the rule does not flag it.
                 if (finished) {
                     cancelAnimation(progress);
                     cancelAnimation(counterProgress);
                     progress.value        = 0;
                     counterProgress.value = 0;
-                    runOnJS(setVisible)(false);
+                    runOnJS(setPhase)('hidden');
                 }
-            });
+            }));
         }, wait);
-    }, [active, duration, progress, counterProgress, fadeOpacity]);
+    }, [phase, duration, progress, counterProgress, fadeOpacity]);
 
     useEffect(() => {
         return () => {
@@ -150,7 +164,7 @@ export function RotatingBorder({
         };
     }, [progress, counterProgress]);
 
-    if (!visible || width <= 0 || height <= 0) return null;
+    if (phase === 'hidden' || width <= 0 || height <= 0) return null;
 
     const R = {
         x: inset, y: inset, width: innerW, height: innerH,

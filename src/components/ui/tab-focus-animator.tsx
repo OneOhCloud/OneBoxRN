@@ -45,15 +45,15 @@ export function TabFocusAnimator({
     useFocusEffect(
         useCallback(() => {
             // On focus — play forwards.
-            opacity.value = withTiming(1, { duration: variant === 'fade' ? 220 : 320 });
+            opacity.set(withTiming(1, { duration: variant === 'fade' ? 220 : 320 }));
             if (variant === 'fadeDown') {
-                translateY.value = withSpring(0, { damping: 18, stiffness: 180, mass: 0.9 });
+                translateY.set(withSpring(0, { damping: 18, stiffness: 180, mass: 0.9 }));
             }
 
             // On blur — reset so the next focus re-plays.
             return () => {
-                opacity.value = 0;
-                translateY.value = variant === 'fadeDown' ? dy : 0;
+                opacity.set(0);
+                translateY.set(variant === 'fadeDown' ? dy : 0);
             };
         }, [variant, dy, opacity, translateY]),
     );

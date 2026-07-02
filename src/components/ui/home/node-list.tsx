@@ -6,7 +6,7 @@ import { Fonts } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { NodeItem } from '@/hooks/use-proxy-nodes';
 import { useTheme } from '@/hooks/use-theme';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export type { NodeItem } from '@/hooks/use-proxy-nodes';
@@ -33,13 +33,16 @@ export function NodeList({
     const accent = useAccentBlue();
     const { connected } = useVpn();
 
-    // Delay clearing the node label so it doesn't snap to "—" the instant VPN stops
+    // Delay clearing the node label so it doesn't snap to "—" the instant VPN
+    // stops. The rising edge is adjusted during render (guarded setState, per
+    // React's "adjusting state when props change"); only the falling edge needs
+    // the linger timer.
     const [displayConnected, setDisplayConnected] = useState(connected);
+    if (connected && !displayConnected) {
+        setDisplayConnected(true);
+    }
     useEffect(() => {
-        if (connected) {
-            setDisplayConnected(true);
-            return;
-        }
+        if (connected) return;
         const timer = setTimeout(() => setDisplayConnected(false), NODE_LABEL_LINGER_MS);
         return () => clearTimeout(timer);
     }, [connected]);
@@ -61,10 +64,12 @@ export function NodeList({
         return currentItem.tag;
     })();
 
-    // Freeze the last known name so it lingers after disconnection
-    const lastNameRef = useRef<string | null>(null);
-    if (connected && liveName !== null) {
-        lastNameRef.current = liveName;
+    // Freeze the last known name so it lingers after disconnection — state
+    // adjusted during render (React's "storing information from previous
+    // renders"), not a ref, so render never touches a mutable cell.
+    const [lastName, setLastName] = useState<string | null>(null);
+    if (connected && liveName !== null && liveName !== lastName) {
+        setLastName(liveName);
     }
 
     const displayName = (() => {
@@ -72,14 +77,14 @@ export function NodeList({
         if (!displayConnected) return i18n.t('no_expire_info');
         // During linger period: show frozen name if live data is gone
         if (liveName !== null) return liveName;
-        if (lastNameRef.current !== null) return lastNameRef.current;
+        if (lastName !== null) return lastName;
         if (isLoading) return i18n.t('loading');
         return i18n.t('no_nodes');
     })();
 
     const interactive = connected && nodes.length > 0;
     // Show caret during linger period even though interaction is disabled
-    const showCaret = interactive || (displayConnected && lastNameRef.current !== null);
+    const showCaret = interactive || (displayConnected && lastName !== null);
 
     return (
         <View>

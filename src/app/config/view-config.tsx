@@ -300,37 +300,48 @@ export default function ViewConfigScreen() {
         [rawImported]
     );
 
-    const loadMerged = React.useCallback(async () => {
-        setMergedState({ kind: 'loading' });
+    // Zero-setState reader: computes the next merged state without touching
+    // React, so the auto-load effect never sets state synchronously.
+    const runMerge = React.useCallback(async (): Promise<typeof mergedState> => {
         try {
             const isRunning = status === VPN_STATUS.STARTED || status === VPN_STATUS.STARTING;
             const startCfg = isRunning ? getStartConfig() : '';
             const result = isRunning ? startCfg : await getProcessedConfig();
             const pretty = prettyJson(result);
             const meta = computeMergedMeta(rawImported, result);
-            setMergedState({ kind: 'ready', content: pretty, meta });
+            return { kind: 'ready', content: pretty, meta };
         } catch (e) {
-            setMergedState({ kind: 'error', message: (e as Error)?.message || String(e) });
+            return { kind: 'error', message: (e as Error)?.message || String(e) };
         }
     }, [rawImported, status, getStartConfig]);
 
-    React.useEffect(() => {
-        if (tab !== 'merged' || !rawImported) return;
-        if (mergedState.kind === 'idle' || mergedState.kind === 'error') {
-            void loadMerged();
-        }
-    }, [tab, rawImported, mergedState.kind, loadMerged]);
+    // Retry button handler — event context, synchronous setState is fine here.
+    const loadMerged = React.useCallback(() => {
+        setMergedState({ kind: 'loading' });
+        void runMerge().then(setMergedState);
+    }, [runMerge]);
 
-    // An empty imported config never loads a merge; derive the error
-    // presentation at render instead of writing it back as state. The
-    // 'idle' guard keeps a user-initiated retry ('loading') visible.
-    const effectiveMerged = React.useMemo<typeof mergedState>(
-        () =>
-            tab === 'merged' && !rawImported && mergedState.kind === 'idle'
-                ? { kind: 'error', message: i18n.t('view_config_empty_title') }
-                : mergedState,
-        [tab, rawImported, mergedState],
-    );
+    // Auto-load runs only from 'idle': a failed load stays on the error panel
+    // until the user retries, instead of the previous error↔loading effect
+    // cycle that auto-retried a persistent failure forever.
+    React.useEffect(() => {
+        if (tab !== 'merged' || !rawImported || mergedState.kind !== 'idle') return;
+        let cancelled = false;
+        runMerge().then((next) => {
+            if (!cancelled) setMergedState(next);
+        });
+        return () => { cancelled = true; };
+    }, [tab, rawImported, mergedState.kind, runMerge]);
+
+    // 'idle' on the merged tab is derived at render: the auto-load is in
+    // flight (→ loading panel), or the imported config is empty and can
+    // never load (→ error panel). Nothing is written back as state.
+    const effectiveMerged = React.useMemo<typeof mergedState>(() => {
+        if (tab !== 'merged' || mergedState.kind !== 'idle') return mergedState;
+        return rawImported
+            ? { kind: 'loading' }
+            : { kind: 'error', message: i18n.t('view_config_empty_title') };
+    }, [tab, rawImported, mergedState]);
 
     const currentText: string | null = React.useMemo(() => {
         if (tab === 'imported') return rawImported ? importedPretty : null;

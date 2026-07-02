@@ -102,9 +102,13 @@ export function ActiveProfileCard({
     const fillColor = hasTraffic ? usageColor(pct, isDark) : theme.textSecondary;
     const trackColor = isDark ? SILVER_DARK : SILVER_LIGHT;
 
+    // Mount snapshot keeps render pure (react-hooks/purity). Day-granularity
+    // value; the card remounts on profile switch, so staleness across a
+    // midnight while mounted is acceptable.
+    const [now] = useState(() => Date.now());
     const daysLeft =
         sub.expireTime > 0
-            ? Math.max(0, Math.ceil((sub.expireTime * 1000 - Date.now()) / 86400000))
+            ? Math.max(0, Math.ceil((sub.expireTime * 1000 - now) / 86400000))
             : null;
     const daysColor = daysLeft !== null && daysLeft < 30 ? ALERT : theme.textSecondary;
 
