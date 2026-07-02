@@ -11,14 +11,16 @@ import { ActiveProfileCard } from '@/components/ui/profiles/active-profile-card'
 import { ImportRow, ProfileRow } from '@/components/ui/profiles/profile-row';
 import i18n from '@/constants/language';
 import { Fonts, MaxContentWidth, TabScreenEdges } from '@/constants/theme';
-import { ProfileStore } from '@/database/kv';
+import { ProfileStore, type Profile } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { executeConfigRefresh } from '@/tasks/config-refresh';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, View } from 'react-native';
+import { Alert, FlatList, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+type SegmentPosition = 'first' | 'middle' | 'last';
 
 export default function ProfilesScreen() {
     const theme = useTheme();
@@ -106,6 +108,54 @@ export default function ProfilesScreen() {
     const hasProfiles = subs.length > 0;
     const glass = useGlassSurface();
 
+    // The profiles list is virtualized (FlatList), so the single glass card
+    // is split into per-row segments: side borders everywhere, top radius on
+    // the first row, bottom radius + the iOS shadow only on the footer
+    // segment (per-segment shadows would double at the seams; the offset
+    // y=10 / radius 24 shadow reads below the card, so footer-only
+    // approximates the previous single-card look).
+    const glassSegment = useCallback((position: SegmentPosition) => {
+        const borderColor = 'borderColor' in glass ? glass.borderColor : undefined;
+        return [
+            { backgroundColor: glass.backgroundColor },
+            borderColor !== undefined
+                ? { borderColor, borderLeftWidth: 1, borderRightWidth: 1 }
+                : null,
+            position === 'first' && {
+                borderTopLeftRadius: glass.borderRadius,
+                borderTopRightRadius: glass.borderRadius,
+                paddingTop: 4,
+                ...(borderColor !== undefined ? { borderTopWidth: 1 } : null),
+            },
+            position === 'last' && {
+                borderBottomLeftRadius: glass.borderRadius,
+                borderBottomRightRadius: glass.borderRadius,
+                paddingBottom: 4,
+                ...(borderColor !== undefined ? { borderBottomWidth: 1 } : null),
+                ...('shadowColor' in glass
+                    ? {
+                        shadowColor: glass.shadowColor,
+                        shadowOffset: glass.shadowOffset,
+                        shadowOpacity: glass.shadowOpacity,
+                        shadowRadius: glass.shadowRadius,
+                    }
+                    : null),
+            },
+        ];
+    }, [glass]);
+
+    const renderProfile = useCallback(({ item, index }: { item: Profile; index: number }) => (
+        <View style={glassSegment(index === 0 ? 'first' : 'middle')}>
+            <ProfileRow
+                sub={item}
+                isActive={item.id === activeId}
+                editMode={editMode}
+                onActivate={() => handleActivate(item.id)}
+                onDelete={() => handleDelete(item)}
+            />
+        </View>
+    ), [glassSegment, activeId, editMode, handleActivate, handleDelete]);
+
     // Empty state matches the shape of src/app/(tabs)/index.tsx's empty state
     // (same wrapper, same padding) so tab switches align pixel-perfectly.
     if (!hasProfiles) {
@@ -159,12 +209,51 @@ export default function ProfilesScreen() {
                     </ThemedText>
                 </View>
 
-                <ScrollView
+                <FlatList
+                    data={subs}
+                    keyExtractor={(sub) => sub.id}
+                    renderItem={renderProfile}
+                    // JSX elements (not inline components) so header/footer
+                    // keep type identity and never remount across renders.
+                    ListHeaderComponent={
+                        <View style={{ gap: 24 }}>
+                            {activeSub && (
+                                <ActiveProfileCard
+                                    sub={activeSub}
+                                    refreshing={cardRefreshing}
+                                    onRefresh={handleCardRefresh}
+                                />
+                            )}
+                            <View>
+                                <SectionHeader label={i18n.t('routing_mode')} />
+                                <View style={[glass, { padding: 12 }]}>
+                                    <ModeSelector />
+                                </View>
+                            </View>
+                            <SectionHeader
+                                label={i18n.t('sub_section_list')}
+                                trailing={
+                                    <SectionAction
+                                        label={editMode ? i18n.t('done') : i18n.t('edit')}
+                                        active={editMode}
+                                        onPress={() => setEditMode(e => !e)}
+                                    />
+                                }
+                            />
+                        </View>
+                    }
+                    ListFooterComponent={
+                        <View style={glassSegment('last')}>
+                            <ImportRow
+                                isLast
+                                onPress={() => setImportUrlVisible(true)}
+                            />
+                        </View>
+                    }
                     contentContainerStyle={{
                         flexGrow: 1,
                         paddingHorizontal: 16,
                         paddingTop: 4,
-                        gap: 24,
                     }}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
@@ -174,51 +263,7 @@ export default function ProfilesScreen() {
                             tintColor={theme.textSecondary}
                         />
                     }
-                >
-                    {activeSub && (
-                        <ActiveProfileCard
-                            sub={activeSub}
-                            refreshing={cardRefreshing}
-                            onRefresh={handleCardRefresh}
-                        />
-                    )}
-
-                    <View>
-                        <SectionHeader label={i18n.t('routing_mode')} />
-                        <View style={[glass, { padding: 12 }]}>
-                            <ModeSelector />
-                        </View>
-                    </View>
-
-                    <View>
-                        <SectionHeader
-                            label={i18n.t('sub_section_list')}
-                            trailing={
-                                <SectionAction
-                                    label={editMode ? i18n.t('done') : i18n.t('edit')}
-                                    active={editMode}
-                                    onPress={() => setEditMode(e => !e)}
-                                />
-                            }
-                        />
-                        <View style={[glass, { paddingVertical: 4 }]}>
-                            {subs.map((sub) => (
-                                <ProfileRow
-                                    key={sub.id}
-                                    sub={sub}
-                                    isActive={sub.id === activeId}
-                                    editMode={editMode}
-                                    onActivate={() => handleActivate(sub.id)}
-                                    onDelete={() => handleDelete(sub)}
-                                />
-                            ))}
-                            <ImportRow
-                                isLast
-                                onPress={() => setImportUrlVisible(true)}
-                            />
-                        </View>
-                    </View>
-                </ScrollView>
+                />
                 </TabFocusAnimator>
             </SafeAreaView>
 

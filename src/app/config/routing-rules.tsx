@@ -33,9 +33,9 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert,
+    FlatList,
     Platform,
     Pressable,
-    ScrollView,
     Text,
     TextInput,
     View,
@@ -206,6 +206,34 @@ export default function RoutingRulesScreen() {
         [sets, requestRestart],
     );
 
+    const renderRule = useCallback(({ item }: { item: FlatRule }) => (
+        <View
+            style={{
+                marginHorizontal: 16,
+                marginBottom: 8,
+                borderRadius: 14,
+                overflow: 'hidden',
+                backgroundColor: theme.cardBackground,
+                paddingVertical: 2,
+                ...Platform.select({
+                    ios: {
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.04,
+                        shadowRadius: 3,
+                    },
+                    default: {},
+                }),
+            }}
+        >
+            <RuleRow
+                rule={item}
+                onEdit={() => presentEdit(item)}
+                onDelete={() => handleDelete(item)}
+            />
+        </View>
+    ), [theme.cardBackground, presentEdit, handleDelete]);
+
     return (
         <View
             style={{
@@ -240,11 +268,18 @@ export default function RoutingRulesScreen() {
                 }
             />
 
-            <ScrollView
+            <FlatList
+                data={shown}
+                keyExtractor={(rule) => `${rule.action}:${rule.kind}:${rule.value}`}
+                renderItem={renderRule}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: Spacing.six }}
                 keyboardShouldPersistTaps="handled"
-            >
+                // Header is a JSX ELEMENT, not an inline component: a component
+                // would get a new type identity per keystroke and remount the
+                // search TextInput, dropping focus while typing.
+                ListHeaderComponent={
+                    <>
                 <View style={{ paddingHorizontal: 20, paddingTop: Spacing.two }}>
                     <Text
                         style={{
@@ -293,59 +328,30 @@ export default function RoutingRulesScreen() {
                     </View>
                 ) : null}
 
-                {flat.length === 0 ? (
-                    <EmptyState theme={theme} />
-                ) : shown.length === 0 ? (
-                    <NoMatchState theme={theme} />
-                ) : (
-                    <View style={{ marginTop: Spacing.three }}>
-                        {shown.map((rule) => (
-                            <View
-                                key={`${rule.action}:${rule.kind}:${rule.value}`}
-                                style={{
-                                    marginHorizontal: 16,
-                                    marginBottom: 8,
-                                    borderRadius: 14,
-                                    overflow: 'hidden',
-                                    backgroundColor: theme.cardBackground,
-                                    paddingVertical: 2,
-                                    ...Platform.select({
-                                        ios: {
-                                            shadowColor: '#000',
-                                            shadowOffset: { width: 0, height: 1 },
-                                            shadowOpacity: 0.04,
-                                            shadowRadius: 3,
-                                        },
-                                        default: {},
-                                    }),
-                                }}
-                            >
-                                <RuleRow
-                                    rule={rule}
-                                    onEdit={() => presentEdit(rule)}
-                                    onDelete={() => handleDelete(rule)}
-                                />
-                            </View>
-                        ))}
-                    </View>
-                )}
-
-                {flat.length > 0 ? (
-                    <Text
-                        style={{
-                            marginTop: Spacing.three,
-                            marginHorizontal: 20,
-                            fontSize: 12,
-                            lineHeight: 16,
-                            fontFamily: Fonts?.sans,
-                            color: theme.textSecondary,
-                            opacity: 0.7,
-                        }}
-                    >
-                        {i18n.t('rule_restart_note')}
-                    </Text>
-                ) : null}
-            </ScrollView>
+                {shown.length > 0 ? <View style={{ height: Spacing.three }} /> : null}
+                    </>
+                }
+                ListEmptyComponent={
+                    flat.length === 0 ? <EmptyState theme={theme} /> : <NoMatchState theme={theme} />
+                }
+                ListFooterComponent={
+                    flat.length > 0 ? (
+                        <Text
+                            style={{
+                                marginTop: Spacing.three,
+                                marginHorizontal: 20,
+                                fontSize: 12,
+                                lineHeight: 16,
+                                fontFamily: Fonts?.sans,
+                                color: theme.textSecondary,
+                                opacity: 0.7,
+                            }}
+                        >
+                            {i18n.t('rule_restart_note')}
+                        </Text>
+                    ) : null
+                }
+            />
 
             <RuleComposerSheet
                 ref={composerRef}
