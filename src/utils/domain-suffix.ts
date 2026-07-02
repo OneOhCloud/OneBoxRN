@@ -5,8 +5,8 @@
  * committed `domain-suffix.test.ts` can exercise them under Node's native
  * `--experimental-strip-types` + `node:test`.
  *
- * Consumers: `profile-loader.ts` (foreground config fetch) and
- * `domain-verification.ts` (background cache refresh).
+ * Consumers: `domain-verification.ts` (hostname verification + background
+ * cache refresh).
  */
 
 /**

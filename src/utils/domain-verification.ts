@@ -8,6 +8,7 @@ import { DOMAIN_VERIFICATION_KEYS } from '@/constants/cache-keys';
 import { kvGet, kvSet } from '@/database/kv';
 import ExpoOneBox from '@/modules/expo-onebox';
 import { fetchWithTimeout } from '@/utils';
+import { hostnameMatchesAnyAllowlist } from '@/utils/domain-suffix';
 
 // Remote verification list URL
 const VERIFIED_LIST_URL = 'https://www.sing-box.net/verified_subscriptions_sha256.txt';
@@ -53,6 +54,24 @@ export function getVerifiedDomainsList(): string[] {
     } catch {
         return [];
     }
+}
+
+/**
+ * Thin wrapper around the pure `hostnameMatchesAnyAllowlist` primitive:
+ * reads both KV-backed allowlists and delegates the suffix-hash check.
+ * On a miss, fires a non-blocking whitelist refresh (TTL-gated inside
+ * `updateVerificationData`) so the next verify benefits from newer data.
+ *
+ * Mirrors OneBox/Tauri `verify_hostname` semantics: zero network in the
+ * hot path, both the compile-time list and the remote-cached list
+ * considered in one suffix traversal.
+ */
+export async function verifyHostname(hostname: string): Promise<boolean> {
+    const known    = new Set<string>(getKnownDomainSha256List());
+    const verified = new Set<string>(getVerifiedDomainsList());
+    const ok       = await hostnameMatchesAnyAllowlist(hostname, known, verified);
+    if (!ok) void updateVerificationData(false);
+    return ok;
 }
 
 /**

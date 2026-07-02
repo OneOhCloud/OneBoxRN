@@ -12,7 +12,7 @@ import ExpoOneBox, { VPN_STATUS } from '@/modules/expo-onebox';
 import { fmtBytes, getRemoteNameByContentDisposition, getSingBoxUserAgent, urlFilename, urlHostname } from '@/utils';
 import { jsLog } from '@/utils/log-sink';
 import { parseProfileUserinfo } from '@/utils/profile-info';
-import { verifyHostname } from '@/utils/profile-loader';
+import { verifyHostname } from '@/utils/domain-verification';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
