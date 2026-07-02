@@ -5,10 +5,11 @@
 import { mediumImpact, notifyError, notifySuccess } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
 import { Fonts } from '@/constants/theme';
-import { getProcessedConfig } from '@/database/helper';
+import { useVpn } from '@/contexts/vpn-context';
+import type { StartFailure } from '@/contexts/vpn/types';
 import { ProfileStore } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
-import ExpoOneBox, { VPN_STATUS } from '@/modules/expo-onebox';
+import ExpoOneBox from '@/modules/expo-onebox';
 import { fmtBytes, getRemoteNameByContentDisposition, getSingBoxUserAgent, urlFilename, urlHostname } from '@/utils';
 import { jsLog } from '@/utils/log-sink';
 import { parseProfileUserinfo } from '@/utils/profile-info';
@@ -16,7 +17,7 @@ import { verifyHostname } from '@/utils/domain-verification';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─── Download Hook ──────────────────────────────────────────
@@ -31,15 +32,23 @@ function useDownloadConfig(url: string | undefined) {
         expire: number;
     } | null>(null);
 
+    // Reset-on-url-change is adjusted during render (guarded setState, per
+    // React's "adjusting state when props change") so the fetch effect never
+    // sets state synchronously.
+    const [prevUrl, setPrevUrl] = useState<string | undefined>(undefined);
+    if (prevUrl !== url) {
+        setPrevUrl(url);
+        setIsLoading(!!url);
+        setError(null);
+        setData(null);
+    }
+
     useEffect(() => {
         if (!url) {
             jsLog.debug('[Config] useDownloadConfig: url undefined, skipping fetch');
             return;
         }
         jsLog.info(`[Config] download start: host=${urlHostname(url, '(unparseable)')}`);
-        setIsLoading(true);
-        setError(null);
-        setData(null);
 
         const controller = new AbortController();
         const { signal } = controller;
@@ -116,6 +125,24 @@ function useDownloadConfig(url: string | undefined) {
     }, [url]);
 
     return { data, error, isLoading, extraInfo };
+}
+
+/**
+ * Maps a typed context-start failure onto this screen's user-visible
+ * message vocabulary (all wrapped in `config_apply_failed` by the apply
+ * effect's catch, matching the previous throw-based strings exactly).
+ * 'aborted' is handled before mapping — effect cleanup mid-phase.
+ */
+function mapStartFailureMessage(failure: Exclude<StartFailure, { kind: 'aborted' }>): string {
+    switch (failure.kind) {
+        case 'permission-denied':
+            return i18n.t('config_permission_denied');
+        case 'timeout':
+            return i18n.t('config_apply_timeout', { seconds: failure.timeoutMs / 1000 });
+        case 'config-error':
+        case 'native-error':
+            return failure.message;
+    }
 }
 
 // ─── Shared: Icon Orb ───────────────────────────────────────
@@ -386,11 +413,14 @@ export default function ConfigScreen() {
         }
     }
 
-    // Mount log — always emitted once per mount. Captures the exact param
-    // shape the screen was handed, which is the starting point for every
-    // stuck-import trace.
+    const { start, stop } = useVpn();
+
+    // Mount log — emitted once per mount (ref-guarded effect; refs are legal
+    // there). Captures the exact param shape the screen was handed, which is
+    // the starting point for every stuck-import trace.
     const mountLoggedRef = useRef(false);
-    if (!mountLoggedRef.current) {
+    useEffect(() => {
+        if (mountLoggedRef.current) return;
         mountLoggedRef.current = true;
         jsLog.info(
             `[Config] mount: hasData=${!!deepLinkData}, dataBytes=${deepLinkData?.length ?? 0}, apply=${apply ?? '(none)'}, requestedApply=${requestedApply}, decodedHost=${decodedUrl ? urlHostname(decodedUrl, '(none)') : '(none)'}`
@@ -398,7 +428,7 @@ export default function ConfigScreen() {
         if (decodeError) {
             jsLog.warn(`[Config] mount: deep link payload rejected → ${decodeError}`);
         }
-    }
+    });
 
     // Errors that arise outside the download hook (verify, apply) are kept
     // here so the screen can render a visible `ErrorView` instead of
@@ -410,16 +440,16 @@ export default function ConfigScreen() {
     // unverified hosts fall back to apply=0 behaviour (download + show
     // success card, no auto-start). The `null` placeholder blocks the
     // download/stop side effects until verification resolves.
-    const [shouldApply, setShouldApply] = useState<boolean | null>(null);
+    const [shouldApply, setShouldApply] = useState<boolean | null>(() =>
+        !decodedUrl || !requestedApply ? false : null,
+    );
     useEffect(() => {
         if (!decodedUrl) {
-            jsLog.info('[Config] verify: no usable decodedUrl → shouldApply=false');
-            setShouldApply(false);
+            jsLog.info('[Config] verify: no usable decodedUrl → shouldApply=false (decided at init)');
             return;
         }
         if (!requestedApply) {
-            jsLog.info('[Config] verify: apply!=1 in params → shouldApply=false');
-            setShouldApply(false);
+            jsLog.info('[Config] verify: apply!=1 in params → shouldApply=false (decided at init)');
             return;
         }
         let cancelled = false;
@@ -462,10 +492,15 @@ export default function ConfigScreen() {
     }, []);
 
     // When apply=1 and VPN is running, we must stop the VPN first before downloading.
-    // `downloadUrl` is only set (triggering the fetch) once any required stop is complete.
+    // `downloadUrl` is only set (triggering the fetch) once any required stop is
+    // complete. The context's stop() encapsulates the former listener + timers:
+    // it resolves on STOPPED, on the 10 s timeout, on stop-reject (+300 ms grace)
+    // or immediately as 'already-stopped' — every outcome proceeds to download,
+    // matching the previous proceed(source) semantics.
     const [downloadUrl, setDownloadUrl] = useState<string | undefined>(undefined);
-    const [isStopping, setIsStopping] = useState(false);
     const stopInitiatedRef = useRef(false);
+    // Derived: true exactly while the stop-wait gates the download.
+    const isStopping = shouldApply === true && downloadUrl === undefined;
 
     useEffect(() => {
         if (!decodedUrl) {
@@ -476,74 +511,42 @@ export default function ConfigScreen() {
             jsLog.debug('[Config] pre-download effect: shouldApply=null, waiting for verify');
             return;
         }
+
+        let cancelled = false;
+
         if (!shouldApply) {
             jsLog.info('[Config] pre-download: shouldApply=false → setDownloadUrl directly (no stop-wait)');
-            setDownloadUrl(decodedUrl);
-            return;
+            // Microtask keeps the write out of the synchronous effect body.
+            void Promise.resolve().then(() => {
+                if (!cancelled) setDownloadUrl(decodedUrl);
+            });
+            return () => {
+                cancelled = true;
+            };
         }
-        // shouldApply: stop VPN first, wait for STOPPED event, then trigger download
+
+        // shouldApply: stop VPN first (awaitable), then trigger download.
         if (stopInitiatedRef.current) {
             jsLog.debug('[Config] pre-download effect: stopInitiatedRef latched, skipping re-entry');
             return;
         }
         stopInitiatedRef.current = true;
 
-        const currentStatus = ExpoOneBox.getStatus();
-        jsLog.info(`[Config] pre-download: shouldApply=true, currentVpnStatus=${currentStatus}`);
-
-        if (currentStatus === VPN_STATUS.STARTED || currentStatus === VPN_STATUS.STARTING) {
-            let resolved = false;
-            setIsStopping(true);
-
-            const STOP_TIMEOUT_MS = 10000;
-            const stopStartedAt = Date.now();
-
-            const proceed = (source: string) => {
-                if (resolved) {
-                    jsLog.debug(`[Config] proceed() ignored (already resolved), source=${source}`);
-                    return;
-                }
-                resolved = true;
-                jsLog.info(`[Config] stop→download handoff: source=${source}, elapsedMs=${Date.now() - stopStartedAt}`);
-                clearTimeout(timeoutId);
-                statusListener.remove();
-                setIsStopping(false);
-                setDownloadUrl(decodedUrl);
-            };
-
-            // Wait for native STOPPED status — stop() resolves when the command is sent,
-            // not when the VPN tunnel is fully torn down.
-            const statusListener = ExpoOneBox.addListener('onStatusChange', (event) => {
-                jsLog.debug(`[Config] onStatusChange received: status=${event.status}`);
-                if (event.status === VPN_STATUS.STOPPED) proceed('STOPPED-event');
-            });
-
-            const timeoutId = setTimeout(() => {
-                jsLog.warn(`[Config] VPN stop wait timeout (${STOP_TIMEOUT_MS}ms) — proceeding with download`);
-                proceed('timeout');
-            }, STOP_TIMEOUT_MS);
-
-            jsLog.info('[Config] invoking ExpoOneBox.stop()');
-            ExpoOneBox.stop()
-                .then(() => {
-                    jsLog.debug('[Config] ExpoOneBox.stop() resolved — awaiting STOPPED event');
-                })
-                .catch((err) => {
-                    // stop() rejected (e.g. already stopped) — proceed after brief delay
-                    jsLog.warn(`[Config] ExpoOneBox.stop() rejected: ${(err as Error)?.message ?? String(err)} — scheduling proceed(+300ms)`);
-                    setTimeout(() => proceed('stop-reject-fallback'), 300);
-                });
-
-            return () => {
-                jsLog.debug('[Config] pre-download effect cleanup (stop-wait branch)');
-                resolved = true;
-                clearTimeout(timeoutId);
-                statusListener.remove();
-            };
-        } else {
-            jsLog.info('[Config] pre-download: VPN already stopped/idle → setDownloadUrl directly');
+        const stopStartedAt = Date.now();
+        jsLog.info('[Config] pre-download: shouldApply=true → context stop({ timeoutMs: 10000 })');
+        void stop({ timeoutMs: 10_000 }).then((result) => {
+            if (cancelled) {
+                jsLog.debug('[Config] stop resolved after cleanup, dropping');
+                return;
+            }
+            jsLog.info(`[Config] stop→download handoff: outcome=${result.outcome}, elapsedMs=${Date.now() - stopStartedAt}`);
             setDownloadUrl(decodedUrl);
-        }
+        });
+
+        return () => {
+            jsLog.debug('[Config] pre-download effect cleanup (stop-wait branch)');
+            cancelled = true;
+        };
     // decodedUrl is derived from route params and never changes; shouldApply
     // transitions exactly once from null → bool.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -564,60 +567,36 @@ export default function ConfigScreen() {
         appliedRef.current = true;
 
         let cancelled = false;
+        // Aborting mid-phase (permission dialog up, config processing) on
+        // effect cleanup preserves the previous property that unmounting
+        // does not proceed to a tunnel start.
+        const controller = new AbortController();
 
         async function startAfterImport() {
             const startedAt = Date.now();
             jsLog.info('[Config] apply: startAfterImport enter, setIsApplying(true)');
             setIsApplying(true);
             try {
-                if (Platform.OS === 'android') {
-                    jsLog.debug('[Config] apply: checking Android VPN permission');
-                    const hasPermission = await ExpoOneBox.checkVpnPermission();
-                    jsLog.info(`[Config] apply: Android VPN permission granted=${hasPermission}`);
-                    if (!hasPermission) {
-                        jsLog.info('[Config] apply: requesting Android VPN permission');
-                        const granted = await ExpoOneBox.requestVpnPermission();
-                        jsLog.info(`[Config] apply: requestVpnPermission → ${granted}`);
-                        if (!granted) {
-                            throw new Error(i18n.t('config_permission_denied'));
-                        }
-                    }
-                }
-                if (cancelled) {
-                    jsLog.debug('[Config] apply: cancelled before getProcessedConfig');
-                    return;
-                }
-
-                jsLog.debug('[Config] apply: calling getProcessedConfig()');
-                const processedConfig = await getProcessedConfig();
-                jsLog.info(`[Config] apply: processedConfig ready, bytes=${processedConfig.length}, elapsedMs=${Date.now() - startedAt}`);
-
-                jsLog.info('[Config] apply: calling ExpoOneBox.start() — awaiting native resolve');
+                // Permission gate, config processing and the 20 s wall-clock
+                // race (native start can hang if the preceding stop left the
+                // tunnel in an intermediate state) all live inside the
+                // context action now.
+                jsLog.info('[Config] apply: calling context start({ timeoutMs: 20000 })');
                 const startInvokedAt = Date.now();
-
-                // Race `ExpoOneBox.start()` against a wall-clock timeout.
-                // Native `start` can hang indefinitely if the preceding
-                // `stop()` left the tunnel in an intermediate state —
-                // surfacing that as a concrete error keeps the screen out
-                // of permanent LoadingView.
-                const START_TIMEOUT_MS = 20_000;
-                let timeoutId: ReturnType<typeof setTimeout> | null = null;
-                const timeoutPromise = new Promise<never>((_, reject) => {
-                    timeoutId = setTimeout(() => {
-                        reject(new Error(i18n.t('config_apply_timeout', { seconds: START_TIMEOUT_MS / 1000 })));
-                    }, START_TIMEOUT_MS);
-                });
-                try {
-                    await Promise.race([ExpoOneBox.start(processedConfig), timeoutPromise]);
-                } finally {
-                    if (timeoutId !== null) clearTimeout(timeoutId);
-                }
-                jsLog.info(`[Config] apply: ExpoOneBox.start() resolved, startElapsedMs=${Date.now() - startInvokedAt}`);
-
+                const result = await start({ timeoutMs: 20_000, signal: controller.signal });
                 if (cancelled) {
                     jsLog.debug('[Config] apply: cancelled after start, skipping dismissTo');
                     return;
                 }
+                if (!result.ok) {
+                    if (result.failure.kind === 'aborted') {
+                        jsLog.debug('[Config] apply: start aborted mid-phase (effect cleanup), dropping');
+                        return;
+                    }
+                    throw new Error(mapStartFailureMessage(result.failure));
+                }
+                jsLog.info(`[Config] apply: start resolved ok, startElapsedMs=${Date.now() - startInvokedAt}, totalElapsedMs=${Date.now() - startedAt}`);
+
                 jsLog.info('[Config] apply: success → router.dismissTo("/")');
                 router.dismissTo('/');
             } catch (e: unknown) {
@@ -647,7 +626,9 @@ export default function ConfigScreen() {
         return () => {
             jsLog.debug('[Config] apply effect cleanup (cancelled=true)');
             cancelled = true;
+            controller.abort();
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data, shouldApply]);
 
     // When apply=1, keep showing loading until navigation fires (covers the gap
