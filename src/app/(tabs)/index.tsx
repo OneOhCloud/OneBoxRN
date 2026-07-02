@@ -16,11 +16,11 @@ import { TabFocusAnimator } from '@/components/ui/tab-focus-animator';
 import { useAccentBlue, useGlassSurface } from '@/constants/ios26-palette';
 import i18n from '@/constants/language';
 import { Fonts, MaxContentWidth, TabScreenEdges } from '@/constants/theme';
+import { useVpn } from '@/contexts/vpn-context';
 import { ProfileStore } from '@/database/kv';
 import { useHomeScreen } from '@/hooks/use-home-screen';
 import { useProxyNodes } from '@/hooks/use-proxy-nodes';
 import { useTheme } from '@/hooks/use-theme';
-import ExpoOneBox from '@/modules/expo-onebox';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -210,13 +210,13 @@ export default function HomeScreen() {
             setActiveProfileId(ProfileStore.getActiveId());
         }, [])
     );
+    const { selectNode } = useVpn();
     const {
         nodes,
         currentNode,
         autoResolvedNode,
         isLoading: isNodeLoading,
         error: nodeError,
-        setCurrentNode,
     } = useProxyNodes(connected, activeProfileId);
 
     const openNodePicker = useCallback(() => {
@@ -226,13 +226,11 @@ export default function HomeScreen() {
     const handleNodeSelect = useCallback(async (tag: string) => {
         nodeSheetRef.current?.dismiss();
         selectionChanged();
-        try {
-            await ExpoOneBox.selectProxyNode(tag);
-            setCurrentNode(tag);
-        } catch (e: unknown) {
-            Alert.alert(i18n.t('node_switch_failed'), e instanceof Error ? e.message : i18n.t('request_failed'));
+        const result = await selectNode(tag);
+        if (!result.ok) {
+            Alert.alert(i18n.t('node_switch_failed'), result.message || i18n.t('request_failed'));
         }
-    }, [setCurrentNode]);
+    }, [selectNode]);
 
     const speedOpacity = useSharedValue(connected ? 1 : 0);
     useEffect(() => {

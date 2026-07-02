@@ -1,53 +1,51 @@
 import { StartupFailureModal, type StartupFailureInfo } from '@/components/ui/startup-failure-modal';
 import i18n from '@/constants/language';
-import { refreshDirectDns } from '@/database/helper';
-import { SBConfig, type SingBoxLogLevel } from '@/database/kv';
+import { getProcessedConfig, refreshDirectDns } from '@/database/helper';
+import { SBConfig } from '@/database/kv';
 import { getStoreValue } from '@/database/store';
 import { configType } from '@/definition';
-import { emitLog, jsLog, type LogLevel } from '@/utils/log-sink';
-import { requestVpnRestart } from '@/utils/vpn-restart';
+import { emitLog, jsLog } from '@/utils/log-sink';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 import ExpoOneBox, { TrafficUpdateEventPayload, VPN_STATUS } from '../modules/expo-onebox';
-
-// ─── sing-box core log-level parsing ────────────────────────
-//
-// Filtering by user's preferred level is done on the native side
-// (`ExpoOneBox.setCoreLogLevel(...)` → Kotlin/Swift filter at the
-// CommandClient handler, before entries cross into JS). Background:
-// sing-box's `log.level` config only gates stdout and the observable
-// sink — the platform writer feeding our CommandServer stream is
-// unconditional (see `sing-box/log/observable.go:112-143` and
-// `daemon/instance.go:109` in the vendored tree). Client-side
-// filtering is the documented path.
-//
-// Here we keep only a small prefix parser so the Logs viewer can
-// colour rows by level (error red, warn amber). The format is fixed
-// by sing-box's `log/format.go:24`: `strings.ToUpper(FormatLevel(
-// level))`, i.e. `TRACE[0000] …`, `INFO[0000] …`, etc. ANSI colour
-// codes may wrap the level token because sing-box's platform
-// formatter has `DisableColors: false`, so we strip them first.
-
-const ANSI_STRIP_RE = /\x1b\[[0-9;]*m/g;
-const LEVEL_PREFIX_RE = /^(TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|PANIC)\b/i;
+import { requestVpnRestart } from '@/utils/vpn-restart';
+import { createVpnActions } from './vpn/actions';
+import { expoOneBoxBridge } from './vpn/bridge';
+import { parseCoreLineLevel, sbLevelToEntryLevel } from './vpn/core-log';
+import { nodeStore } from './vpn/node-store';
+import type {
+    SelectNodeResult,
+    StartOptions,
+    StartResult,
+    StopOptions,
+    StopResult,
+} from './vpn/types';
 
 // QA switch: set to true to show the startup failure UI on app/VPN startup.
 const FORCE_STARTUP_FAILURE = false;
 
-function parseCoreLineLevel(message: string): SingBoxLogLevel | null {
-    const stripped = message.replace(ANSI_STRIP_RE, '').trimStart();
-    const m = stripped.match(LEVEL_PREFIX_RE);
-    if (!m) return null;
-    const token = m[1].toLowerCase();
-    if (token === 'warning') return 'warn';
-    return token as SingBoxLogLevel;
-}
+// ─── Module-scope action singletons ─────────────────────────
+//
+// Created once (module scope, like the log-sink store) so identities are
+// stable across provider remounts / Fast Refresh and exactly one restart
+// machine exists per JS runtime. All ExpoOneBox mutations below flow
+// through these — no other layer may call the bridge mutation surface
+// (docs/claude/vpn-context.md).
 
-function sbLevelToEntryLevel(lv: SingBoxLogLevel): LogLevel {
-    if (lv === 'error' || lv === 'fatal' || lv === 'panic') return 'error';
-    if (lv === 'warn') return 'warn';
-    return 'info';
-}
+const vpnActions = createVpnActions({
+    bridge: expoOneBoxBridge,
+    platform: Platform.OS,
+    getProcessedConfig,
+    nodeStore,
+    log: jsLog,
+});
+
+// Migration ordering rule: exactly one restart machine may exist at a
+// time. Until every requestVpnRestart caller is migrated onto the
+// context, requestRestart delegates to the legacy util singleton; the
+// flip to createRestartMachine happens in the same commit that deletes
+// src/utils/vpn-restart.ts.
+const requestRestart = (): void => requestVpnRestart();
 
 // ---- Types ----
 
@@ -60,6 +58,15 @@ export interface VpnState {
     directDns: string;
     getStartConfig: () => string;
     refreshDirectDns: (fallback?: string) => Promise<string>;
+    /** Permission-gated connect; typed failures, never throws. */
+    start: (options?: StartOptions) => Promise<StartResult>;
+    /** Awaitable disconnect resolving on the STOPPED event. */
+    stop: (options?: StopOptions) => Promise<StopResult>;
+    /** Debounced, serialized restart with the freshest config. */
+    requestRestart: () => void;
+    selectNode: (tag: string) => Promise<SelectNodeResult>;
+    triggerNodeTests: () => void;
+    resetNodes: () => void;
 }
 
 const VpnContext = createContext<VpnState | null>(null);
@@ -77,8 +84,10 @@ const VpnContext = createContext<VpnState | null>(null);
  * inbound log line — untenable at 1000-line buffers.
  */
 export function VpnProvider({ children }: { children: React.ReactNode }) {
-    const [connected, setConnected] = useState(false);
-    const [status, setStatus] = useState(0);
+    // Lazy init reads native truth at first render (no mount-time
+    // setState); `connected` is derived, not stored.
+    const [status, setStatus] = useState(() => ExpoOneBox.getStatus());
+    const connected = status === VPN_STATUS.STARTED || status === VPN_STATUS.STARTING;
     const [traffic, setTraffic] = useState<TrafficUpdateEventPayload | null>(null);
     const [mode, setModeState] = useState<configType>(() => SBConfig.getMode());
     const [directDns, setDirectDns] = useState<string>('—');
@@ -120,8 +129,8 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     const setMode = useCallback((m: configType) => {
         setModeState(m);
         SBConfig.setMode(m);
-        // Debounced + in-flight-guarded restart. See src/utils/vpn-restart.ts.
-        requestVpnRestart();
+        // Debounced + in-flight-guarded restart.
+        requestRestart();
     }, []);
 
     const presentStartupFailure = useCallback((info: Omit<StartupFailureInfo, 'occurredAt'>) => {
@@ -138,7 +147,6 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     const syncStatus = useCallback(() => {
         const s = ExpoOneBox.getStatus();
         setStatus(s);
-        setConnected(s === VPN_STATUS.STARTED || s === VPN_STATUS.STARTING);
         if (s === VPN_STATUS.STOPPED) setTraffic(null);
     }, []);
 
@@ -160,9 +168,12 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         // Push the user's log level preference into the native filter so
         // it takes effect on the next CommandServer log entry — without
         // needing to restart the tunnel. See `setCoreLogLevel` in the
-        // Kotlin / Swift modules and the parser comment in this file.
+        // Kotlin / Swift modules and the parser comment in vpn/core-log.ts.
         ExpoOneBox.setCoreLogLevel(SBConfig.getLogLevel());
-        syncStatus();
+        // Status was lazily initialized at first render; re-sync from a
+        // zero-delay timer to close the render→subscribe race without a
+        // synchronous setState in the effect body.
+        const initialSyncTimer = setTimeout(syncStatus, 0);
 
         jsLog.info(`[App] VpnProvider ready, status=${ExpoOneBox.getStatus()}, mode=${SBConfig.getMode()}, logLevel=${SBConfig.getLogLevel()}`);
 
@@ -183,7 +194,6 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             jsLog.info(`[VPN] Status changed: ${event.statusName}(${event.status}), isStartingUp=${isStartingUp.current}`);
 
             setStatus(event.status);
-            setConnected(event.status === VPN_STATUS.STARTED || event.status === VPN_STATUS.STARTING);
 
             if (event.status === VPN_STATUS.STARTING) {
                 isStartingUp.current = true;
@@ -276,9 +286,12 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         });
 
         // Group updates fire from libbox's group stream via the native
-        // CommandClient handler — surface them as native-origin lines so
-        // the user can see node selection activity during normal run.
+        // CommandClient handler. This is the single onGroupUpdate
+        // subscription in the app (docs/claude/vpn-context.md): it feeds
+        // the node store (read via useProxyNodeState) and surfaces a
+        // native-origin log line for the Logs viewer.
         const groupSub = ExpoOneBox.addListener('onGroupUpdate', (event: { all: { tag: string; delay: number }[]; now: string; autoNow?: string }) => {
+            nodeStore.applyGroupUpdate(event);
             emitLog({
                 source: 'native',
                 level: 'info',
@@ -302,6 +315,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         });
 
         return () => {
+            clearTimeout(initialSyncTimer);
             if (startFailTimer) clearTimeout(startFailTimer);
             statusSub.remove();
             errorSub.remove();
@@ -325,7 +339,24 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     }, [syncStatus]);
 
     return (
-        <VpnContext.Provider value={{ connected, status, traffic, mode, setMode, directDns, getStartConfig, refreshDirectDns: refreshDirectDnsAction }}>
+        <VpnContext.Provider
+            value={{
+                connected,
+                status,
+                traffic,
+                mode,
+                setMode,
+                directDns,
+                getStartConfig,
+                refreshDirectDns: refreshDirectDnsAction,
+                start: vpnActions.start,
+                stop: vpnActions.stop,
+                requestRestart,
+                selectNode: vpnActions.selectNode,
+                triggerNodeTests: vpnActions.triggerNodeTests,
+                resetNodes: vpnActions.resetNodes,
+            }}
+        >
             {children}
             {startupFailure ? (
                 <StartupFailureModal info={startupFailure} onClose={() => setStartupFailure(null)} />
