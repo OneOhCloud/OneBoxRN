@@ -254,3 +254,34 @@ Acceptance criteria:
 - Do not run `npm audit fix --force` without a separate dependency-upgrade plan.
 - Do not add new state libraries; persistent app state stays in SQLite/KV.
 - Do not paper over lint failures with blanket disables.
+
+---
+
+## Remediation Status (appended 2026-07-02)
+
+Executed on branch `dev`; submodule `src/modules/expo-onebox` advanced f7bb133 → d1911ee.
+Companion docs: `2026-07-02-audit-exceptions.md` (F-07/F-08 decisions),
+`docs/claude/config-fetch-policy.md` (F-04 policy table),
+`docs/claude/terminology-exceptions.md` (F-10 registry).
+
+| finding | status | key commits | notes |
+|---|---|---|---|
+| F-01 VPN bridge centralization | **done** (device smoke pending) | c7a6907, 799a1b0, 0760891, b1a90c8, d8e9395, e39a922 | Context actions (typed results) + node store + restart machine; acceptance rg returns no matches; `vpn-restart.ts` deleted; 39 new pure tests. |
+| F-02 manual refresh persistence | **done** (device parity probe pending) | 5f44f74 (submodule), 28edb26 | iOS aligned to Android — manual results never persisted; parity probe row on the dev screen. |
+| F-03 Android TLS trust | **done** (device probes pending) | 0b60f1e (submodule), 28edb26 | `systemDefaultTrustManager()` replaces the no-op manager; hostname verification unchanged; TLS probe card added; gradle compile verified. |
+| F-04 fetch fallback policy | **done** (adapted) | c0b9569, d1911ee (submodule), 28edb26, 0c4ef5a | Dead JS `fetchConfigWithFallback` deleted with its only caller (see F-08); policy table doc + executable JS mirror with table-driven tests; native: cancellation never falls back, wall clock aligned 30 s, tokens unified. Kotlin redirect divergence documented as deferred residual. |
+| F-05 observability | **done** (device checks pending) | 0c4ef5a, 509b856, 31deb50 | Flow events ([EVT], flow=<id> greppable) thread capture→…→apply; TaskLog redacted (scrub-on-read) + flowId; durable LastFailure survives log clear; Bugsnag breadcrumbs/metadata (ids/codes only); native logs redacted. |
+| F-06 lint gate | **done** | 6796e77, 30ab3fa, + F-01 commits | `npx eslint src`: 33 → 0 errors, 0 warnings (monotonic per commit). Never run `expo lint` (rewrites package.json). |
+| F-07 npm audit | **done** | 0c53287 | 20 → 0 advisories at every severity, dev deps included; range-scoped overrides only; expo-doctor 20/20; prebuild proves xcode+uuid@11; exception log checked in. |
+| F-08 dual profile models | **done** | c0b9569, 7112580 | Dead `use-profiles.ts` deleted; ProfileStore pure core + 17 tests (migration, active-selection regression); legacy tables migration-frozen with rationale. |
+| F-09 UI performance | **done** (visual QA pending) | d244150, bf74fac | Profiles + routing-rules virtualized (FlatList, glass segmentation, focus-safe header); expo-image empty state; scaleX progress fill; WipeSlot clip documented as exemption. |
+| F-10 terminology & permissions | **done** | 71a32ea | Permission copy fixed; RECORD_AUDIO removed (manifest/plist verified post-prebuild); i18n keys renamed; exception registry + acceptance grep at exactly the documented hits. Bridge identifiers kept per explicit 4-layer-contract decision. |
+
+### Outstanding manual device checklist (declared, not claimed)
+1. iOS/Android build + run (`make run-ios` / `make run-android`), then `make dev-smoke-ios` / `make dev-smoke-android` (Swift changes compile-verified only via prebuild so far).
+2. Connect/disconnect, Android permission-deny path, node switch + haptic; mode/profile/rule/log-level changes coalesce to one restart.
+3. QR/deep-link import `apply=1` end-to-end (stop→download→store→process→start→dismiss); `apply=0`; unverified-host downgrade; back-out mid-apply leaves no orphan tunnel.
+4. Dev screen: Refresh Parity Probe PASS; TLS probe row 1 FAIL-as-expected / row 2 OK (both platforms); LastFailure card populated after a forced start failure and survives log clear.
+5. `make test-bg-worker` + `adb-logcat-bg`: exactly one auto TaskLog entry per background run, one manual-direct per manual refresh; logcat shows no full accelerated URL or raw header; `flow=<id>` traces the import phases.
+6. Lists: Profiles pull-to-refresh/activate/edit-delete; routing-rules search keeps TextInput focus; glass card seams/shadow visual QA in light+dark.
+7. EN+ZH walkthrough of all tabs (renamed i18n keys); Bugsnag dashboard shows breadcrumbs/lastFailure metadata without URLs.
