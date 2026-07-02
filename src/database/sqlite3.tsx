@@ -6,6 +6,15 @@ import ExpoOneBox from '../modules/expo-onebox';
 const DATABASE_VERSION = 2;
 let initialized = false;
 
+// LEGACY (v0→1): `subscriptions` / `subscription_configs` were created for a
+// profile model that never shipped a UI writer (verified via git history,
+// 2026-07). Runtime profile CRUD lives exclusively in ProfileStore (kv.ts,
+// kv_store rows). These CREATE statements are migration-frozen — shipped
+// migration steps are never rewritten (devices exist at user_version 1/2) —
+// do not add readers or writers. Table names are a documented terminology
+// exemption (docs/claude/terminology-exceptions.md). Data is orphaned and
+// empty on all installs; a future vN migration may DROP them.
+
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     const result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
     let currentDbVersion = result?.user_version ?? 0;

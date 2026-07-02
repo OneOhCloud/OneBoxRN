@@ -2,6 +2,11 @@ import { configType } from '@/definition';
 import { urlFilename, urlHostname } from '@/utils';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { Platform } from 'react-native';
+import {
+    createProfileStore,
+    migrateV1ProfileToMultiCore,
+    type KvBackend,
+} from './profile-store-core';
 
 // Lazy require expo-sqlite only on native platforms. Top-level importing on
 // web loads wa-sqlite + its worker, which touches IndexedDB / OPFS during
@@ -128,147 +133,29 @@ export function kvDelete(key: string): void {
 // Profile — multi-profile data model
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface Profile {
-    id: string;
-    name: string;
-    url: string;
-    usedTraffic: number;
-    totalTraffic: number;
-    expireTime: number;
-    configContent: string;
-    addedAt: number;
-}
+export type { Profile } from './profile-store-core';
 
-function generateProfileId(): string {
-    return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-}
-
-const PROFILE_IDS_KEY    = 'sub_ids';
-const ACTIVE_PROFILE_KEY = 'active_sub_id';
-
-function profileKey(id: string): string { return `sub_${id}`; }
-
-export const ProfileStore = {
-    getIds(): string[] {
-        const raw = kvGet(PROFILE_IDS_KEY);
-        if (!raw) return [];
-        try { return JSON.parse(raw) as string[]; } catch { return []; }
-    },
-
-    getAll(): Profile[] {
-        return this.getIds()
-            .map(id => this.getById(id))
-            .filter((s): s is Profile => s !== null);
-    },
-
-    getById(id: string): Profile | null {
-        const raw = kvGet(profileKey(id));
-        if (!raw) return null;
-        try { return JSON.parse(raw) as Profile; } catch { return null; }
-    },
-
-    getActiveId(): string | null {
-        return kvGet(ACTIVE_PROFILE_KEY);
-    },
-
-    setActiveId(id: string): void {
-        kvSet(ACTIVE_PROFILE_KEY, id);
-    },
-
-    getActive(): Profile | null {
-        const id = this.getActiveId();
-        if (!id) {
-            // Auto-promote first profile if no active is set
-            const ids = this.getIds();
-            if (ids.length > 0) {
-                kvSet(ACTIVE_PROFILE_KEY, ids[0]);
-                return this.getById(ids[0]);
-            }
-            return null;
-        }
-        return this.getById(id);
-    },
-
-    add(data: Omit<Profile, 'id' | 'addedAt'>): Profile {
-        const id = generateProfileId();
-        const profile: Profile = { ...data, id, addedAt: Date.now() };
-        const ids = this.getIds();
-        ids.push(id);
-        kvSet(PROFILE_IDS_KEY, JSON.stringify(ids));
-        kvSet(profileKey(id), JSON.stringify(profile));
-        return profile;
-    },
-
-    update(id: string, patch: Partial<Omit<Profile, 'id' | 'addedAt'>>): void {
-        const existing = this.getById(id);
-        if (!existing) return;
-        kvSet(profileKey(id), JSON.stringify({ ...existing, ...patch }));
-    },
-
-    delete(id: string): void {
-        const ids = this.getIds().filter(i => i !== id);
-        kvSet(PROFILE_IDS_KEY, JSON.stringify(ids));
-        kvDelete(profileKey(id));
-        if (this.getActiveId() === id) {
-            if (ids.length > 0) kvSet(ACTIVE_PROFILE_KEY, ids[0]);
-            else kvDelete(ACTIVE_PROFILE_KEY);
-        }
-    },
-
-    findByUrl(url: string): Profile | null {
-        return this.getAll().find(s => s.url === url) ?? null;
-    },
-
-    /** Update existing profile by URL, or add a new one. Sets it as active. */
-    upsertByUrl(data: Omit<Profile, 'id' | 'addedAt'>): Profile {
-        const existing = this.findByUrl(data.url);
-        if (existing) {
-            this.update(existing.id, data);
-            this.setActiveId(existing.id);
-            return { ...existing, ...data };
-        }
-        const profile = this.add(data);
-        this.setActiveId(profile.id);
-        return profile;
-    },
+// Pure core (node:test covered in profile-store-core.test.ts) wired to
+// the real KV backend. Persisted key formats are unchanged.
+const kvBackend: KvBackend = {
+    get: kvGet,
+    set: kvSet,
+    delete: kvDelete,
 };
 
-// ─── V1 single-profile → multi-profile migration ────────────────────────────
+export const ProfileStore = createProfileStore(kvBackend);
 
-const PROFILE_MIGRATION_V1_FLAG = 'sub_migration_v1';
+// ─── V1 single-profile → multi-profile migration ────────────────────────────
 
 /**
  * One-time migration from single-profile kv keys to ProfileStore format.
  */
 export function migrateV1ProfileToMulti(): void {
-    if (kvGet(PROFILE_MIGRATION_V1_FLAG) === '1') return;
-
-    const url = kvGet('configLink');
-    if (url) {
-        console.log('[KV] Migrating v1 single-profile to multi-profile format...');
-        let name = kvGet('configName') ?? '';
-        if (!name || name === 'default') {
-            name = urlFilename(url) ?? urlHostname(url, 'Profile');
-        }
-        const profile = ProfileStore.add({
-            name,
-            url,
-            usedTraffic: Number(kvGet('usedTraffic') ?? '0'),
-            totalTraffic: Number(kvGet('totalTraffic') ?? '1'),
-            expireTime: Number(kvGet('expireTime') ?? '0'),
-            configContent: kvGet('configContent') ?? '',
-        });
-        kvSet(ACTIVE_PROFILE_KEY, profile.id);
-        kvDelete('configLink');
-        kvDelete('configName');
-        kvDelete('usedTraffic');
-        kvDelete('totalTraffic');
-        kvDelete('expireTime');
-        kvDelete('configContent');
-        console.log('[KV] V1 profile migrated, id:', profile.id);
-    }
-
-    kvSet(PROFILE_MIGRATION_V1_FLAG, '1');
+    migrateV1ProfileToMultiCore(
+        kvBackend,
+        ProfileStore,
+        (url) => urlFilename(url) ?? urlHostname(url, 'Profile'),
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
