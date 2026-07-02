@@ -277,6 +277,14 @@ Companion docs: `2026-07-02-audit-exceptions.md` (F-07/F-08 decisions),
 | F-09 UI performance | **done** (visual QA pending) | d244150, bf74fac | Profiles + routing-rules virtualized (FlatList, glass segmentation, focus-safe header); expo-image empty state; scaleX progress fill; WipeSlot clip documented as exemption. |
 | F-10 terminology & permissions | **done** | 71a32ea | Permission copy fixed; RECORD_AUDIO removed (manifest/plist verified post-prebuild); i18n keys renamed; exception registry + acceptance grep at exactly the documented hits. Bridge identifiers kept per explicit 4-layer-contract decision. |
 
+### Post-remediation adversarial review
+A 5-dimension multi-agent review of the full diff (each finding judged by two
+independent skeptics) confirmed and fixed two regressions in 86c1ba5:
+start()'s unguarded permission phase (typed-result contract violation → silent
+failure on the home toggle) and the frozen expiry countdown in
+active-profile-card (unkeyed card never remounts). All other candidate
+findings were refuted.
+
 ### Outstanding manual device checklist (declared, not claimed)
 1. iOS/Android build + run (`make run-ios` / `make run-android`), then `make dev-smoke-ios` / `make dev-smoke-android` (Swift changes compile-verified only via prebuild so far).
 2. Connect/disconnect, Android permission-deny path, node switch + haptic; mode/profile/rule/log-level changes coalesce to one restart.
