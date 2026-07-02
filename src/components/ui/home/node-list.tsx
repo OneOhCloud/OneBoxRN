@@ -18,7 +18,6 @@ interface NodeListProps {
     nodes: NodeItem[];
     currentNode: string;
     isLoading: boolean;
-    error: string | null;
     onOpenPicker: () => void;
 }
 
@@ -26,7 +25,6 @@ export function NodeList({
     nodes,
     currentNode,
     isLoading,
-    error,
     onOpenPicker,
 }: NodeListProps) {
     const theme = useTheme();
@@ -57,7 +55,6 @@ export function NodeList({
 
     // Compute the live name only when we have real data
     const liveName = (() => {
-        if (error) return null;
         if (isLoading || !currentItem) return null;
         if (nodes.length === 0) return null;
         if (currentItem.tag === 'auto') return i18n.t('auto');
@@ -73,7 +70,6 @@ export function NodeList({
     }
 
     const displayName = (() => {
-        if (error) return i18n.t('request_failed');
         if (!displayConnected) return i18n.t('no_expire_info');
         // During linger period: show frozen name if live data is gone
         if (liveName !== null) return liveName;

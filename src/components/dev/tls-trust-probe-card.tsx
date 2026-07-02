@@ -20,7 +20,7 @@ const DEFAULT_INVALID_CERT_URL = 'https://expired.badssl.com/';
  * iOS: verifies Network.framework system-trust parity. Row 2 exercises the
  * happy path: custom-DNS resolve → IP dial → SNI → system trust.
  */
-export function TlsTrustProbeCard({ index }: { index?: number }) {
+export function TlsTrustProbeCard() {
     const theme = useTheme();
     const [invalidCertUrl, setInvalidCertUrl] = useState(DEFAULT_INVALID_CERT_URL);
     const [busy, setBusy] = useState(false);
@@ -73,7 +73,7 @@ export function TlsTrustProbeCard({ index }: { index?: number }) {
     };
 
     return (
-        <Card title="TLS Trust Probe" index={index}>
+        <Card title="TLS Trust Probe">
             <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 }}>
                 <TextInput
                     value={invalidCertUrl}

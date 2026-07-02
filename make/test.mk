@@ -17,12 +17,14 @@ BG_WM_DB     := /data/data/$(PKG)/no_backup/androidx.work.workdb
 BG_WM_TMP    := /data/local/tmp/$(PKG)_wm.db
 BG_LOCAL_TMP := /tmp/$(PKG)_wm.db
 
-# 从 dumpsys jobscheduler 动态提取 WorkManager Job ID
-_bg-job-id = $(shell \
-	adb shell dumpsys jobscheduler 2>/dev/null \
+# 运行时提取 WorkManager Job ID 的 shell 管道。
+# 必须在配方里用 $$($(BG_JOB_ID_SH)) 于运行时求值——不能用 $(shell)：
+# make 会在配方展开阶段（force-stop 之前）就执行它，拿到的是上一个
+# App 会话的 Job ID；重启后 WorkManager 换 generation 重新注册，旧 ID 失效。
+BG_JOB_ID_SH = adb shell dumpsys jobscheduler 2>/dev/null \
 	| grep "JOB $(BG_NS).*$(PKG)/$(BG_SVC)" \
 	| sed 's/.*u0a[0-9]*\/\([0-9]*\):.*/\1/' \
-	| head -1)
+	| head -1
 
 # ════════════════════════════════════════════════════════════
 #  ADB 后台 Worker 测试
@@ -47,36 +49,37 @@ test-bg-worker:
 	adb shell rm -f $(BG_WM_TMP); \
 	rm -f $(BG_LOCAL_TMP); \
 	echo "  ✓ last_enqueue_time 已归零，WAL 已清除"; \
-	echo "▶ 启动 App..."; \
-	adb shell monkey -p $(PKG) -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; \
-	echo "▶ 等待 WorkManager Job 注册（最多 15s）..."; \
-	WAIT=0; \
-	while [ $$WAIT -lt 15 ]; do \
-		JOB_ID="$(call _bg-job-id)"; \
-		[ -n "$$JOB_ID" ] && break; \
-		sleep 1; WAIT=$$((WAIT+1)); \
-	done; \
-	JOB_ID="$(call _bg-job-id)"; \
-	if [ -z "$$JOB_ID" ]; then \
-		echo "❌ WorkManager Job 未在 15s 内注册，请确认已导入 profile"; exit 1; \
-	fi; \
-	echo "  Job ID = $$JOB_ID"; \
-	echo "▶ 清空 logcat..."; \
+	echo "▶ 清空 logcat 并开始捕获..."; \
 	adb logcat -c; \
 	TMPLOG=$$(mktemp); \
 	adb logcat > "$$TMPLOG" & \
 	LOGCAT_PID=$$!; \
 	sleep 1; \
+	echo "▶ 启动 App..."; \
+	adb shell monkey -p $(PKG) -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; \
+	echo "▶ 等待 WorkManager Job 注册（最多 15s）..."; \
+	WAIT=0; JOB_ID=""; \
+	while [ $$WAIT -lt 15 ]; do \
+		JOB_ID=$$(grep -o "Scheduling work ID.*Job ID [0-9]*" "$$TMPLOG" 2>/dev/null | tail -1 | grep -o "[0-9]*$$"); \
+		[ -n "$$JOB_ID" ] && break; \
+		sleep 1; WAIT=$$((WAIT+1)); \
+	done; \
+	if [ -z "$$JOB_ID" ]; then \
+		kill $$LOGCAT_PID 2>/dev/null; wait $$LOGCAT_PID 2>/dev/null; rm -f "$$TMPLOG"; \
+		echo "❌ WorkManager Job 未在 15s 内注册，请确认已导入 profile"; exit 1; \
+	fi; \
+	echo "  Job ID = $$JOB_ID"; \
 	echo "▶ 触发后台 Worker..."; \
-	adb shell cmd jobscheduler run -f -n $(BG_NS) $(PKG) $$JOB_ID; \
+	adb shell cmd jobscheduler run -f -n $(BG_NS) $(PKG) $$JOB_ID \
+		|| echo "  （触发命令失败，不影响验证：调度时间已归零，GreedyScheduler 会随 App 启动自动执行）"; \
 	echo "▶ 等待 doWork() 完成（最多 30s）..."; \
 	DEADLINE=$$((SECONDS + 30)); \
 	while [ $$SECONDS -lt $$DEADLINE ]; do \
-		grep -q "CONFIG_LOAD\|No config URL\|not doing any work" "$$TMPLOG" 2>/dev/null && break; \
+		grep -q "Worker result \|No config URL\|not doing any work" "$$TMPLOG" 2>/dev/null && break; \
 		sleep 0.5; \
 	done; \
 	kill $$LOGCAT_PID 2>/dev/null; wait $$LOGCAT_PID 2>/dev/null; \
-	if grep -q "主URL成功\|加速回落成功" "$$TMPLOG"; then \
+	if grep -q "方式=PRIMARY\|方式=FALLBACK_ACCELERATOR" "$$TMPLOG"; then \
 		echo "✅ doWork() 成功:"; \
 		grep "\[CONFIG_LOAD\]" "$$TMPLOG"; \
 	elif grep -q "not doing any work and rescheduling" "$$TMPLOG"; then \
@@ -84,6 +87,10 @@ test-bg-worker:
 		rm -f "$$TMPLOG"; exit 2; \
 	elif grep -q "No config URL" "$$TMPLOG"; then \
 		echo "❌ doWork() 跳过：未注册后台任务或 config_url 为空"; \
+		rm -f "$$TMPLOG"; exit 1; \
+	elif grep -q "\[CONFIG_LOAD\] 方式=\|Worker result RETRY\|Worker result FAILURE" "$$TMPLOG"; then \
+		echo "❌ doWork() 已返回，但刷新失败:"; \
+		grep "\[CONFIG_LOAD\]\|Worker result" "$$TMPLOG"; \
 		rm -f "$$TMPLOG"; exit 1; \
 	else \
 		echo "❌ doWork() 未在 30s 内返回结果（超时）"; \
@@ -95,7 +102,7 @@ test-bg-worker:
 ## 仅触发后台 Worker，不等待结果（快速调试）
 test-bg-trigger:
 	@adb get-state >/dev/null 2>&1 || { echo "❌ 未找到 ADB 设备"; exit 1; }
-	@JOB_ID="$(call _bg-job-id)"; \
+	@JOB_ID=$$($(BG_JOB_ID_SH)); \
 	if [ -z "$$JOB_ID" ]; then \
 		echo "❌ 未找到 WorkManager Job"; exit 1; \
 	fi; \

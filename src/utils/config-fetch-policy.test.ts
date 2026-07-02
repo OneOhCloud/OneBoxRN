@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
     classifyFetchError,
+    errorCodeFromMessage,
     errorCodeOf,
     shouldFallbackToAccelerator,
     type FetchErrorKind,
@@ -42,6 +43,25 @@ describe('errorCodeOf', () => {
     it('http carries the status code when known', () => {
         assert.equal(errorCodeOf('http', 502), 'HTTP_502');
         assert.equal(errorCodeOf('http'), 'HTTP');
+    });
+});
+
+describe('errorCodeFromMessage', () => {
+    it('maps undefined / empty to undefined', () => {
+        assert.equal(errorCodeFromMessage(undefined), undefined);
+        assert.equal(errorCodeFromMessage(''), undefined);
+    });
+
+    it('extracts the HTTP status into the code', () => {
+        assert.equal(errorCodeFromMessage('HTTP 403 from primary'), 'HTTP_403');
+        assert.equal(errorCodeFromMessage('http 500'), 'HTTP_500');
+    });
+
+    it('classifies messages without a status by kind', () => {
+        assert.equal(errorCodeFromMessage('network unreachable'), 'NETWORK');
+        assert.equal(errorCodeFromMessage('request timed out'), 'TIMEOUT');
+        assert.equal(errorCodeFromMessage('ssl handshake failed'), 'TLS');
+        assert.equal(errorCodeFromMessage('No config content found'), 'UNKNOWN');
     });
 });
 

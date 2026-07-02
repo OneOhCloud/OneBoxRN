@@ -58,11 +58,9 @@ function withKind(set: RuleSet, kind: RuleKind, values: string[]): RuleSet {
 function NavBar({
     onBack,
     right,
-    theme,
 }: {
     onBack: () => void;
     right?: React.ReactNode;
-    theme: ReturnType<typeof useTheme>;
 }) {
     const accentBlue = useAccentBlue();
     return (
@@ -247,7 +245,6 @@ export default function RoutingRulesScreen() {
         >
             <NavBar
                 onBack={() => router.back()}
-                theme={theme}
                 right={
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <SectionAction

@@ -8,17 +8,15 @@ import { TaskDetailModal } from './task-detail-modal';
 
 interface ExecutionHistoryCardProps {
     taskLog: TaskLogEntry | null;
-    /** Cascade index for the summary card. Detail list uses index+1. */
-    index?: number;
 }
 
-export function ExecutionHistoryCard({ taskLog, index = 0 }: ExecutionHistoryCardProps) {
+export function ExecutionHistoryCard({ taskLog }: ExecutionHistoryCardProps) {
     const records = taskLog?.records ? [...taskLog.records].reverse() : [];
     const [selectedRecord, setSelectedRecord] = useState<TaskRecord | null>(null);
 
     return (
         <>
-            <Card title="Execution History" index={index}>
+            <Card title="Execution History">
                 {taskLog ? (
                     <>
                         <Row
@@ -57,7 +55,7 @@ export function ExecutionHistoryCard({ taskLog, index = 0 }: ExecutionHistoryCar
             </Card>
 
             {records.length > 0 && (
-                <Card title={`Recent Records`} subtitle={`${records.length} entries`} index={index + 1}>
+                <Card title={`Recent Records`} subtitle={`${records.length} entries`}>
                     {records.map((r, i) => (
                         <RecordRow
                             key={r.time + i}

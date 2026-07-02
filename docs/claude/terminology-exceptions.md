@@ -1,7 +1,7 @@
 ---
 applies-to: app.config.ts, src/lang, src/app, src/components, src/hooks, src/database/sqlite3.tsx, src/modules/expo-onebox
 loaded-when: reviewer flags an App Store banned term; any change touching the terminology acceptance grep
-updated-on: 2026-07 F-10 remediation
+updated-on: 2026-07-02 import-flow refactor (entries relocated from src/app/config/index.tsx)
 ---
 
 # terminology-exceptions
@@ -21,17 +21,20 @@ Expected matches: exactly the entries in § app-code exceptions.
 ## app-code exceptions (inside the grep scope)
 | where | term | why it stays |
 |---|---|---|
-| `src/app/config/index.tsx` (`ExpoOneBox.fetchSubscription` call) | `fetchSubscription` | bridge method name — 4-layer contract (docs/claude/bridge-signature.md); renaming requires synchronized Kotlin/Swift/TS/Web edits + prebuild + device smoke. Explicit keep decision, 2026-07 audit. |
+| `src/hooks/use-import-flow.ts` (`ExpoOneBox.fetchSubscription` call, moved from `src/app/config/index.tsx`) | `fetchSubscription` | bridge method name — 4-layer contract (docs/claude/bridge-signature.md); renaming requires synchronized Kotlin/Swift/TS/Web edits + prebuild + device smoke. Explicit keep decision, 2026-07 audit. |
 | `src/components/dev/tls-trust-probe-card.tsx` (2× `ExpoOneBox.fetchSubscription`) | `fetchSubscription` | same bridge method; dev-only probe surface. |
-| `src/app/config/index.tsx` (`getHeader('subscription-userinfo')`) | `subscription-userinfo` | standard HTTP response header name (protocol, cannot change). |
+| `src/hooks/import-flow-machine.ts` (`getHeader('subscription-userinfo')`, moved from `src/app/config/index.tsx`; plus the deps-doc comment naming `fetchSubscription`) | `subscription-userinfo`, `fetchSubscription` | standard HTTP response header name (protocol, cannot change) + sanctioned bridge method referenced in the injected-dep doc comment. |
+| `src/hooks/import-flow-machine.test.ts` (2× `'subscription-userinfo'` fixture header) | `subscription-userinfo` | test fixture mirroring the protocol header the machine parses. |
 
 ## out-of-grep-scope exceptions (documented for completeness)
-- **Bridge surface** (`src/modules/expo-onebox`, `src/tasks/config-refresh.ts`):
+- **Bridge surface** (`src/modules/expo-onebox`, `src/tasks/config-refresh.ts`,
+  `src/tasks/config-refresh-core.ts` + its `.test.ts`):
   `fetchSubscription`, `fetchSubscriptionWithFallback`, result fields
   `subscriptionUpload/Download/Total/Expire/UserinfoHeader` — same 4-layer
   contract rationale. Never user-visible.
 - **Protocol strings**: `'subscription-userinfo'` literals in `src/utils.ts`
-  (web mock), `src/utils/profile-info.ts` (parser), Kotlin/Swift workers.
+  (web mock), `src/utils/profile-info.ts` (parser),
+  `src/debug/import-tests/cases.ts` (pipeline-case fixture), Kotlin/Swift workers.
 - **External URL** (server-controlled path, cannot change):
   `https://www.sing-box.net/verified_subscriptions_sha256.txt`
   (`src/utils/domain-verification.ts`).

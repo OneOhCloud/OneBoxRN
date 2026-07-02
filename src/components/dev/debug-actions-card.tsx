@@ -8,10 +8,9 @@ import { Row } from './row';
 
 interface DebugActionsCardProps {
     onExecuted: () => void;
-    index?: number;
 }
 
-export function DebugActionsCard({ onExecuted, index }: DebugActionsCardProps) {
+export function DebugActionsCard({ onExecuted }: DebugActionsCardProps) {
     const handleExecuteDirectly = async () => {
         mediumImpact();
         try {
@@ -101,7 +100,7 @@ export function DebugActionsCard({ onExecuted, index }: DebugActionsCardProps) {
     };
 
     return (
-        <Card title="Debug Actions" index={index}>
+        <Card title="Debug Actions">
             <Row
                 iconName="play-circle-outline"
                 iconColor="#007AFF"

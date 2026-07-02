@@ -64,6 +64,19 @@ export function errorCodeOf(kind: FetchErrorKind, httpStatus?: number): string {
     }
 }
 
+/**
+ * Turn a raw native/fetch error string into the shared errorCode vocabulary,
+ * pulling an HTTP status out of the message when present
+ * (e.g. "HTTP 403 from primary" → "HTTP_403"). The single home for message →
+ * code, shared by start-failure and config-refresh telemetry.
+ */
+export function errorCodeFromMessage(message: string | undefined): string | undefined {
+    if (!message) return undefined;
+    const kind = classifyFetchError({ message });
+    const httpStatus = message.match(/http\s+(\d{3})/i);
+    return errorCodeOf(kind, httpStatus ? Number(httpStatus[1]) : undefined);
+}
+
 export type FallbackDenialReason =
     | 'network-fault'
     | 'http-no-fallback'

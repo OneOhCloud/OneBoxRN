@@ -8,7 +8,6 @@ interface ConfigStateCardProps {
     usedTraffic: number;
     totalTraffic: number;
     expireTime: number;
-    index?: number;
 }
 
 export function ConfigStateCard({
@@ -17,14 +16,13 @@ export function ConfigStateCard({
     usedTraffic,
     totalTraffic,
     expireTime,
-    index,
 }: ConfigStateCardProps) {
     const expireDate = expireTime > 0
         ? new Date(expireTime * 1000).toLocaleString()
         : 'N/A';
 
     return (
-        <Card title="Profile Config" index={index}>
+        <Card title="Profile Config">
             <Row
                 iconName="link-outline"
                 iconColor="#5AC8FA"

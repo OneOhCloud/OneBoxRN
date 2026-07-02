@@ -10,7 +10,7 @@ import { Row } from './row';
  * Grep the Logs viewer for `flow=<id>` to see the full trace (while the
  * ring still holds it).
  */
-export function LastFailureCard({ index }: { index?: number }) {
+export function LastFailureCard() {
     const [summary, setSummary] = useState(() => LastFailure.get());
 
     const refresh = () => {
@@ -25,7 +25,7 @@ export function LastFailureCard({ index }: { index?: number }) {
     };
 
     return (
-        <Card title="Last Failure" index={index}>
+        <Card title="Last Failure">
             {summary ? (
                 <>
                     <Row label="Event" value={summary.event} />

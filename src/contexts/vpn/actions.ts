@@ -23,10 +23,32 @@ import type {
 import { defaultTimers } from './types.ts';
 import type { NodeStore } from './node-store-core.ts';
 import { AUTO_GROUP_TAG, GATEWAY_GROUP_TAG } from './node-store-core.ts';
+import { errorCodeFromMessage } from '../../utils/config-fetch-policy.ts';
 
 const DEFAULT_STOP_TIMEOUT_MS = 10_000;
 /** Native stop() may still emit STOPPED after rejecting — grace window. */
 const STOP_REJECT_GRACE_MS = 300;
+
+/**
+ * Map a start failure to the shared errorCode vocabulary for telemetry.
+ * permission-denied / timeout / aborted map to fixed tokens; config-error and
+ * native-error carry real native strings, classified via the fetch-policy
+ * core. The single mapper for both the import flow and the home toggle — keep
+ * their vpn_toggle / config_import failure codes in lockstep.
+ */
+export function startFailureErrorCode(failure: StartFailure): string {
+    switch (failure.kind) {
+        case 'permission-denied':
+            return 'PERMISSION_DENIED';
+        case 'aborted':
+            return 'CANCELLED';
+        case 'timeout':
+            return 'TIMEOUT';
+        case 'config-error':
+        case 'native-error':
+            return errorCodeFromMessage(failure.message) ?? 'UNKNOWN';
+    }
+}
 
 function errorMessage(e: unknown): string {
     return e instanceof Error ? e.message : String(e);

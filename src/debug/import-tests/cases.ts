@@ -16,14 +16,23 @@
  *     instead of pinning `LoadingView`.
  */
 import { resolveQRData } from '@/components/ui/camera-qr';
+import {
+    createImportFlowMachine,
+    type ImportFlowDeps,
+    type ImportFlowMachine,
+    type ImportPhase,
+} from '@/hooks/import-flow-machine';
+import type { Profile } from '@/database/profile-store-core';
+import type { ConfigFetchResult } from '@/modules/expo-onebox/src/ExpoOneBox.types';
 import { hostnameMatchesAnyAllowlist, sha256Hex } from '@/utils/domain-suffix';
 
-import { raceWithTimeout } from './mocks';
+import { fakeVpnAsActions, raceWithTimeout } from './mocks';
 import {
     expect,
     expectEqual,
     expectThrows,
     TestCase,
+    type TestContext,
 } from './runner';
 
 // SHA-256 of the ASCII string "abc" — used as the canary known-vector.
@@ -280,6 +289,167 @@ const applyStartHangCaughtByTimeout: TestCase = {
     },
 };
 
+// ─── Import-flow pipeline (machine-level composition) ────────────────────────
+//
+// The building-block cases above guard the pieces; these four drive the real
+// `createImportFlowMachine` pipeline end-to-end on Hermes with FakeVpnModule
+// adapted to the context-action shape. They exist to catch runtime-class
+// regressions (atob, microtask ordering, AbortController) that node:test on
+// V8 cannot see — the transition logic itself is covered by
+// src/hooks/import-flow-machine.test.ts.
+
+const FLOW_URL = 'https://fixture.invalid/raw/pro.json';
+
+function flowDeps(ctx: TestContext, overrides?: Partial<ImportFlowDeps>): {
+    deps: ImportFlowDeps;
+    upserts: Omit<Profile, 'id' | 'addedAt'>[];
+} {
+    const actions = fakeVpnAsActions(ctx.fakeVpn);
+    const upserts: Omit<Profile, 'id' | 'addedAt'>[] = [];
+    const deps: ImportFlowDeps = {
+        verifyHostname: () => Promise.resolve(true),
+        stop: actions.stop,
+        start: actions.start,
+        fetchConfig: (): Promise<ConfigFetchResult> => Promise.resolve({
+            statusCode: 200,
+            headers: {
+                'subscription-userinfo': 'upload=10; download=20; total=100; expire=0',
+                'content-disposition': 'attachment; filename="pro.json"',
+            },
+            body: '{"outbounds":[]}',
+        }),
+        userAgent: 'SmokeUA/1.0',
+        profiles: {
+            findByUrl: () => null,
+            upsertByUrl: (data) => {
+                upserts.push(data);
+                return { id: 'smoke', addedAt: 0, ...data };
+            },
+        },
+        logFlowEvent: () => {},
+        recordFlowFailure: () => {},
+        haptics: { notifySuccess: () => {}, notifyError: () => {} },
+        log: { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} },
+        ...overrides,
+    };
+    return { deps, upserts };
+}
+
+/** Run the machine and resolve once it reaches a terminal phase. */
+function awaitTerminal(machine: ImportFlowMachine, timeoutMs: number): Promise<ImportPhase> {
+    const terminal = new Set(['success', 'applied', 'error', 'idle']);
+    return raceWithTimeout(
+        new Promise<ImportPhase>((resolve) => {
+            const check = () => {
+                const snapshot = machine.getSnapshot();
+                if (terminal.has(snapshot.phase)) resolve(snapshot);
+            };
+            machine.subscribe(check);
+            machine.run();
+            // idle never notifies (run returns before any transition) —
+            // poll once after a tick for the no-op paths.
+            setTimeout(check, 50);
+        }),
+        timeoutMs,
+        `machine did not reach a terminal phase within ${timeoutMs}ms`,
+    );
+}
+
+const importFlowApplyHappyPath: TestCase = {
+    id: 'import-flow-apply-happy-path',
+    name: 'pipeline: apply=1 verified runs stop → download → start → applied',
+    group: 'import',
+    async run(ctx) {
+        const { deps, upserts } = flowDeps(ctx);
+        const machine = createImportFlowMachine(
+            { data: btoa(FLOW_URL), apply: '1' },
+            deps,
+        );
+        const final = await awaitTerminal(machine, 3000);
+        ctx.log(`final=${final.phase}, stopCalls=${ctx.fakeVpn.callCount.stop}, startCalls=${ctx.fakeVpn.callCount.start}`);
+        expectEqual(final.phase, 'applied', 'terminal phase');
+        expectEqual(ctx.fakeVpn.callCount.stop, 1, 'stop calls');
+        expectEqual(ctx.fakeVpn.callCount.start, 1, 'start calls');
+        expectEqual(upserts.length, 1, 'profile upserts');
+        expectEqual(upserts[0].name, 'pro.json', 'derived name');
+    },
+};
+
+const importFlowUnverifiedDowngrade: TestCase = {
+    id: 'import-flow-unverified-downgrade',
+    name: 'pipeline: apply=1 unverified downgrades to manual success (no stop/start)',
+    group: 'import',
+    async run(ctx) {
+        const { deps, upserts } = flowDeps(ctx, { verifyHostname: () => Promise.resolve(false) });
+        const machine = createImportFlowMachine(
+            { data: btoa(FLOW_URL), apply: '1' },
+            deps,
+        );
+        const final = await awaitTerminal(machine, 3000);
+        ctx.log(`final=${final.phase}, stopCalls=${ctx.fakeVpn.callCount.stop}`);
+        expectEqual(final.phase, 'success', 'terminal phase');
+        expectEqual(ctx.fakeVpn.callCount.stop, 0, 'stop calls');
+        expectEqual(ctx.fakeVpn.callCount.start, 0, 'start calls');
+        expectEqual(upserts.length, 1, 'profile upserts');
+    },
+};
+
+const importFlowStartRejectSurfacesError: TestCase = {
+    id: 'import-flow-start-reject-surfaces-error',
+    name: 'pipeline: start rejection surfaces as error(start-failed), not a pinned loader',
+    group: 'import',
+    async run(ctx) {
+        ctx.fakeVpn.startBehavior = { kind: 'reject', message: 'simulated-native-failure' };
+        const { deps } = flowDeps(ctx);
+        const machine = createImportFlowMachine(
+            { data: btoa(FLOW_URL), apply: '1' },
+            deps,
+        );
+        const final = await awaitTerminal(machine, 3000);
+        ctx.log(`final=${JSON.stringify(final)}`);
+        expect(final.phase === 'error', `expected error phase, got ${final.phase}`);
+        expect(
+            final.phase === 'error' && final.error.kind === 'start-failed',
+            'expected start-failed error kind',
+        );
+        expect(
+            final.phase === 'error'
+                && final.error.kind === 'start-failed'
+                && final.error.failure.kind === 'native-error'
+                && final.error.failure.message === 'simulated-native-failure',
+            'native-error message must carry through the pipeline',
+        );
+    },
+};
+
+const importFlowStartHangCaughtByTimeout: TestCase = {
+    id: 'import-flow-start-hang-caught-by-timeout',
+    name: 'pipeline: hung start is caught by the machine start timeout',
+    group: 'import',
+    async run(ctx) {
+        ctx.fakeVpn.startBehavior = { kind: 'hang' };
+        const { deps } = flowDeps(ctx);
+        const machine = createImportFlowMachine(
+            { data: btoa(FLOW_URL), apply: '1' },
+            deps,
+            { startTimeoutMs: 500 },
+        );
+        const startedAt = Date.now();
+        const final = await awaitTerminal(machine, 3000);
+        const elapsed = Date.now() - startedAt;
+        ctx.log(`final=${JSON.stringify(final)}, elapsed=${elapsed}ms`);
+        expect(
+            final.phase === 'error'
+                && final.error.kind === 'start-failed'
+                && final.error.failure.kind === 'timeout',
+            'expected start-failed timeout',
+        );
+        // Generous ceiling — scheduling jitter on low-end devices; the
+        // regression guarded here is "hangs forever", not exact timing.
+        expect(elapsed < 1500, `timeout took too long: ${elapsed}ms`);
+    },
+};
+
 // ─── Exported suite ──────────────────────────────────────────────────────────
 
 export const IMPORT_TEST_CASES: readonly TestCase[] = [
@@ -297,4 +467,8 @@ export const IMPORT_TEST_CASES: readonly TestCase[] = [
     applyStartResolves,
     applyStartRejectsWithMessage,
     applyStartHangCaughtByTimeout,
+    importFlowApplyHappyPath,
+    importFlowUnverifiedDowngrade,
+    importFlowStartRejectSurfacesError,
+    importFlowStartHangCaughtByTimeout,
 ];

@@ -6,7 +6,7 @@
 import { VpnProvider } from '@/contexts/vpn-context';
 import { DatabaseProvider } from '@/database/sqlite3';
 import { AppLaunchFlags, BugsnagCrashTestFlags, migrateV1ProfileToMulti } from '@/database/kv';
-import { prefetchConfigTemplates } from '@/database/helper';
+import { prefetchConfigTemplates } from '@/database/config-template';
 import * as Task from '@/tasks/config-refresh';
 import { fetchWithTimeout } from '@/utils';
 import { updateVerificationData } from '@/utils/domain-verification';

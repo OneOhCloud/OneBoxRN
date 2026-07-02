@@ -4,12 +4,11 @@ import { Row } from './row';
 
 interface BackgroundTaskCardProps {
     isRegistered: boolean;
-    index?: number;
 }
 
-export function BackgroundTaskCard({ isRegistered, index }: BackgroundTaskCardProps) {
+export function BackgroundTaskCard({ isRegistered }: BackgroundTaskCardProps) {
     return (
-        <Card title="Background Task" index={index}>
+        <Card title="Background Task">
             <Row
                 iconName="timer-outline"
                 iconColor="#5856D6"

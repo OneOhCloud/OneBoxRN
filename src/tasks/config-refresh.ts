@@ -14,12 +14,11 @@ import Constants from 'expo-constants';
 import ExpoOneBox from '@/modules/expo-onebox';
 import { SBConfig, TaskLog, kvGet, kvSet } from '@/database/kv';
 import { getSingBoxUserAgent } from '@/utils';
-import { classifyFetchError, errorCodeOf } from '@/utils/config-fetch-policy';
 import { initializeVerificationData } from '@/utils/domain-verification';
 import { newFlowId } from '@/utils/flow-events';
 import { logFlowEvent, recordFlowFailure } from '@/utils/flow-log';
-import { djb2Hash, redactUrl } from '@/utils/log-redact';
 import { CONFIG_REFRESH_KEYS } from '@/constants/cache-keys';
+import { applyRefreshResult, type RefreshApplyDeps } from './config-refresh-core';
 
 const ACCELERATE_URL: string | null =
     (Constants.expoConfig?.extra?.accelerateUrl as string | null) || null;
@@ -47,16 +46,15 @@ async function pushRefreshOptionsToNative(): Promise<void> {
  * verification data.
  */
 export async function initializeConfigRefresh(): Promise<void> {
-    try {
-        await pushRefreshOptionsToNative();
-    } catch (e) {
-        console.warn('[ConfigRefresh] refresh options mirror push error:', e);
-    }
-    try {
-        await initializeVerificationData();
-    } catch (e) {
-        console.warn('[ConfigRefresh] initialization error:', e);
-    }
+    // Independent startup work — run concurrently so the native options push
+    // does not delay the verification-data fetch. Each keeps its own catch so
+    // one failing never rejects the other.
+    await Promise.all([
+        pushRefreshOptionsToNative().catch((e) =>
+            console.warn('[ConfigRefresh] refresh options mirror push error:', e)),
+        initializeVerificationData().catch((e) =>
+            console.warn('[ConfigRefresh] initialization error:', e)),
+    ]);
 }
 
 // ─── Dev settings ─────────────────────────────────────────────────────────────
@@ -121,7 +119,7 @@ export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null
     const flowId = newFlowId();
     logFlowEvent({ event: 'config_refresh', flowId, phase: 'refresh', status: 'start' });
     const result = await ExpoOneBox.executeConfigRefreshNow(url, getSingBoxUserAgent());
-    applyResultToSBConfig(result, url, 'manual-direct', flowId);
+    applyRefreshResult(refreshApplyDeps, { result, url, trigger: 'manual-direct', flowId });
     return result;
 }
 
@@ -140,7 +138,7 @@ export function syncNativeResultToJS(): void {
         if (url) {
             const flowId = newFlowId();
             logFlowEvent({ event: 'config_refresh', flowId, phase: 'sync', status: 'start' });
-            applyResultToSBConfig(result, url, 'auto', flowId);
+            applyRefreshResult(refreshApplyDeps, { result, url, trigger: 'auto', flowId });
         }
     } catch (e) {
         console.warn('[ConfigRefresh] syncNativeResultToJS error:', e);
@@ -149,61 +147,11 @@ export function syncNativeResultToJS(): void {
 
 // ─── Internal ─────────────────────────────────────────────────────────────────
 
-/** Native refresh error strings → shared errorCode vocabulary. */
-function refreshErrorCode(error: string | undefined): string | undefined {
-    if (!error) return undefined;
-    const kind = classifyFetchError({ message: error });
-    const httpMatch = error.match(/HTTP\s+(\d{3})/i);
-    return errorCodeOf(kind, httpMatch ? Number(httpMatch[1]) : undefined);
-}
-
-function applyResultToSBConfig(
-    result: ConfigRefreshResult,
-    url: string,
-    trigger: 'auto' | 'manual-direct',
-    flowId: string,
-): void {
-    let contentChanged = false;
-    if (result.status === 'success') {
-        SBConfig.setUsedTraffic(result.subscriptionUpload + result.subscriptionDownload);
-        SBConfig.setTotalTraffic(result.subscriptionTotal);
-        SBConfig.setExpireTime(result.subscriptionExpire);
-        if (result.content && result.content !== SBConfig.getConfigContent()) {
-            SBConfig.setConfigContent(result.content);
-            contentChanged = true;
-        }
-    }
-
-    TaskLog.append(url, {
-        time: result.timestamp,
-        status: result.status as 'success' | 'failed' | 'skipped',
-        trigger,
-        duration: result.durationMs,
-        method: result.method ?? 'primary',
-        contentChanged,
-        error: result.error,
-        acceleratedUrlRedacted: result.actualUrl ? redactUrl(result.actualUrl) : undefined,
-        flowId,
-        upload: result.subscriptionUpload,
-        download: result.subscriptionDownload,
-        total: result.subscriptionTotal,
-        expire: result.subscriptionExpire,
-    });
-
-    const event = {
-        event: 'config_refresh' as const,
-        flowId,
-        phase: 'refresh' as const,
-        status: result.status === 'success' ? ('ok' as const) : result.status === 'skipped' ? ('skip' as const) : ('fail' as const),
-        method: result.method ?? 'primary',
-        durationMs: result.durationMs,
-        errorCode: refreshErrorCode(result.error),
-        profileIdHash: djb2Hash(url),
-        detail: `trigger=${trigger} contentChanged=${contentChanged}`,
-    };
-    if (event.status === 'fail') {
-        recordFlowFailure(event);
-    } else {
-        logFlowEvent(event);
-    }
-}
+// Apply logic lives in config-refresh-core.ts (pure, node:test covered);
+// this is its one production wiring point.
+const refreshApplyDeps: RefreshApplyDeps = {
+    sbConfig: SBConfig,
+    taskLog: TaskLog,
+    logFlowEvent,
+    recordFlowFailure,
+};

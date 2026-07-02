@@ -3,10 +3,9 @@ import { ToggleSettingCard } from './toggle-setting-card';
 
 interface PrimaryUrlTestCardProps {
     onSettingChanged?: () => void;
-    index?: number;
 }
 
-export function PrimaryUrlTestCard({ onSettingChanged, index }: PrimaryUrlTestCardProps) {
+export function PrimaryUrlTestCard({ onSettingChanged }: PrimaryUrlTestCardProps) {
     return (
         <ToggleSettingCard
             title="Fallback Test"
@@ -20,7 +19,6 @@ export function PrimaryUrlTestCard({ onSettingChanged, index }: PrimaryUrlTestCa
             setValue={setTestPrimaryUrlUnavailable}
             onChanged={onSettingChanged}
             colorScheme="red"
-            index={index}
         />
     );
 }

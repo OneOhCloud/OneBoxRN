@@ -18,7 +18,7 @@ import TrafficCard, { SectionLabel } from '@/components/ui/home/traffic-card';
 import i18n from '@/constants/language';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
-import { inspectConfigTemplateCache, type TemplateCacheInfo } from '@/database/helper';
+import { inspectConfigTemplateCache, type TemplateCacheInfo } from '@/database/config-template';
 import type { TaskLogEntry } from '@/database/kv';
 import { SBConfig, TaskLog } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
@@ -131,11 +131,11 @@ export default function DevScreen() {
                         <TrafficCard traffic={traffic} />
                     </View>
 
-                    <LogLevelCard onChanged={load} index={1} />
-                    <PrimaryUrlTestCard onSettingChanged={load} index={2} />
-                    <TlsTrustProbeCard index={3} />
-                    {taskInfo && <BackgroundTaskCard isRegistered={taskInfo.isRegistered} index={4} />}
-                    <DebugActionsCard onExecuted={load} index={5} />
+                    <LogLevelCard onChanged={load} />
+                    <PrimaryUrlTestCard onSettingChanged={load} />
+                    <TlsTrustProbeCard />
+                    {taskInfo && <BackgroundTaskCard isRegistered={taskInfo.isRegistered} />}
+                    <DebugActionsCard onExecuted={load} />
                     {config && (
                         <ConfigStateCard
                             link={config.link}
@@ -143,12 +143,11 @@ export default function DevScreen() {
                             usedTraffic={config.usedTraffic}
                             totalTraffic={config.totalTraffic}
                             expireTime={config.expireTime}
-                            index={6}
                         />
                     )}
-                    <TemplateCacheCard info={templateCache} onChanged={load} index={7} />
-                    <LastFailureCard index={8} />
-                    <ExecutionHistoryCard taskLog={taskLog} index={9} />
+                    <TemplateCacheCard info={templateCache} onChanged={load} />
+                    <LastFailureCard />
+                    <ExecutionHistoryCard taskLog={taskLog} />
                 </ScrollView>
             )}
         </View>

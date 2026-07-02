@@ -1,6 +1,7 @@
 import type { SubInfo } from '@/utils';
 import i18n from '@/constants/language';
 import { useVpn } from '@/contexts/vpn-context';
+import { startFailureErrorCode } from '@/contexts/vpn/actions';
 import type { StartFailure } from '@/contexts/vpn/types';
 import { ProfileStore } from '@/database/kv';
 import { VPN_STATUS } from '@/modules/expo-onebox';
@@ -96,7 +97,7 @@ export function useHomeScreen() {
                 if (!result.ok) {
                     recordFlowFailure({
                         event: 'vpn_toggle', flowId, phase, status: 'fail',
-                        errorCode: result.failure.kind === 'permission-denied' ? 'PERMISSION_DENIED' : 'UNKNOWN',
+                        errorCode: startFailureErrorCode(result.failure),
                         detail: `kind=${result.failure.kind}`,
                     });
                     presentStartFailure(result.failure);

@@ -7,8 +7,6 @@ interface CardProps {
     title?: string;
     subtitle?: string;
     children: React.ReactNode;
-    /** Kept for caller compatibility; dev cards no longer animate on entry. */
-    index?: number;
 }
 
 /**
@@ -16,7 +14,7 @@ interface CardProps {
  * Light/dark background comes from `theme.glassBackground`, hairline border
  * from `theme.glassBorder`.
  */
-export function Card({ title, subtitle, children, index: _index = 0 }: CardProps) {
+export function Card({ title, subtitle, children }: CardProps) {
     const theme = useTheme();
     const hairline = useHairlineColor();
 

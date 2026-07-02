@@ -97,6 +97,10 @@ function renderBackdrop(props: BottomSheetBackdropProps) {
 
 export type NodePickerSheetHandle = BottomSheetModal;
 
+// Sheet content renders through @gorhom/portal into BottomSheetModalProvider's
+// PortalHost, which sits OUTSIDE VpnProvider in the tree — context hooks like
+// useVpn() would throw here. Data must arrive via props (or module-level
+// stores such as useProxyNodeState), never via VpnContext.
 export interface NodePickerSheetProps {
     nodes: NodeItem[];
     currentNode: string;

@@ -9,6 +9,13 @@
  * never tempted to branch on "am I in a test".
  */
 
+import type {
+    StartOptions,
+    StartResult,
+    StopOptions,
+    StopResult,
+} from '@/contexts/vpn/types';
+
 export type StartBehavior =
     | { kind: 'resolve' }
     | { kind: 'reject'; message: string }
@@ -59,6 +66,42 @@ export function createFakeVpnModule(opts: { startBehavior: StartBehavior }): Fak
     };
 
     return module;
+}
+
+/**
+ * Adapt a FakeVpnModule to the context-action result shape the
+ * import-flow machine consumes (`useVpn().start/stop` contract): typed
+ * results instead of rejections, with the same timeout/abort semantics
+ * as `createVpnActions`.
+ */
+export function fakeVpnAsActions(fakeVpn: FakeVpnModule): {
+    start(options?: StartOptions): Promise<StartResult>;
+    stop(options?: StopOptions): Promise<StopResult>;
+} {
+    return {
+        async start(options?: StartOptions): Promise<StartResult> {
+            if (options?.signal?.aborted) return { ok: false, failure: { kind: 'aborted' } };
+            const call = fakeVpn.start('{"fake":"config"}');
+            try {
+                if (options?.timeoutMs !== undefined) {
+                    await raceWithTimeout(call, options.timeoutMs, `no result within ${options.timeoutMs}ms`);
+                } else {
+                    await call;
+                }
+                return { ok: true };
+            } catch (e) {
+                const message = e instanceof Error ? e.message : String(e);
+                if (message.startsWith('no result within')) {
+                    return { ok: false, failure: { kind: 'timeout', timeoutMs: options?.timeoutMs ?? 0 } };
+                }
+                return { ok: false, failure: { kind: 'native-error', message } };
+            }
+        },
+        async stop(): Promise<StopResult> {
+            await fakeVpn.stop();
+            return { outcome: 'stopped' };
+        },
+    };
 }
 
 /**

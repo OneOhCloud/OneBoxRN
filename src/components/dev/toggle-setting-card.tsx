@@ -14,7 +14,6 @@ interface ToggleSettingCardProps {
     setValue: (enabled: boolean) => void;
     onChanged?: () => void;
     colorScheme?: ColorScheme;
-    index?: number;
 }
 
 export function ToggleSettingCard({
@@ -25,7 +24,6 @@ export function ToggleSettingCard({
     setValue,
     onChanged,
     colorScheme = 'green',
-    index,
 }: ToggleSettingCardProps) {
     // Lazy init covers the mount read; callers pass module-level getters with
     // stable identity, so the removed [getValue] effect only ever re-ran it.
@@ -43,7 +41,7 @@ export function ToggleSettingCard({
         : { track: '#FF3B30', icon: '#FF3B30', glyph: 'warning-outline' as const };
 
     return (
-        <Card title={title} index={index}>
+        <Card title={title}>
             <Row
                 iconName={colors.glyph}
                 iconColor={colors.icon}

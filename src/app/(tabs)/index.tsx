@@ -223,7 +223,6 @@ export default function HomeScreen() {
         currentNode,
         autoResolvedNode,
         isLoading: isNodeLoading,
-        error: nodeError,
     } = useProxyNodes(connected, activeProfileId);
 
     const openNodePicker = useCallback(() => {
@@ -290,7 +289,6 @@ export default function HomeScreen() {
                 nodes={nodes}
                 currentNode={currentNode}
                 isLoading={isNodeLoading}
-                error={nodeError}
                 onOpenPicker={openNodePicker}
             />
         </View>

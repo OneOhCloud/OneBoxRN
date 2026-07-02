@@ -1,17 +1,10 @@
 import { useVpn } from '@/contexts/vpn-context';
 import { useProxyNodeState } from '@/contexts/vpn/node-store';
+import type { NodeStoreState } from '@/contexts/vpn/node-store-core';
 import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 
 export { GATEWAY_GROUP_TAG, type NodeItem } from '@/contexts/vpn/node-store-core';
-
-export interface ProxyNodesState {
-    nodes: import('@/contexts/vpn/node-store-core').NodeItem[];
-    currentNode: string;
-    autoResolvedNode: string | null;
-    isLoading: boolean;
-    error: string | null;
-}
 
 // ─── Hook ────────────────────────────────────────────────────
 //
@@ -23,7 +16,7 @@ export interface ProxyNodesState {
 //      *when* to reset state / trigger tests (connect, profile change,
 //      foreground resume) — it never touches the bridge itself.
 
-export function useProxyNodes(connected: boolean, activeProfileId: string | null): ProxyNodesState {
+export function useProxyNodes(connected: boolean, activeProfileId: string | null): NodeStoreState {
     const { triggerNodeTests, resetNodes } = useVpn();
     const state = useProxyNodeState();
     const appStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -49,5 +42,5 @@ export function useProxyNodes(connected: boolean, activeProfileId: string | null
         return () => sub.remove();
     }, [connected, triggerNodeTests]);
 
-    return { ...state, error: null };
+    return state;
 }

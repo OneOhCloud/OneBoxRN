@@ -1,5 +1,5 @@
 import { configType } from '@/definition';
-import { urlFilename, urlHostname } from '@/utils';
+import { deriveProfileNameFromUrl } from '@/utils';
 import { djb2Hash, redactUrl } from '@/utils/log-redact';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { Platform } from 'react-native';
@@ -152,11 +152,7 @@ export const ProfileStore = createProfileStore(kvBackend);
  * One-time migration from single-profile kv keys to ProfileStore format.
  */
 export function migrateV1ProfileToMulti(): void {
-    migrateV1ProfileToMultiCore(
-        kvBackend,
-        ProfileStore,
-        (url) => urlFilename(url) ?? urlHostname(url, 'Profile'),
-    );
+    migrateV1ProfileToMultiCore(kvBackend, ProfileStore, deriveProfileNameFromUrl);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

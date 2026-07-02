@@ -4,8 +4,8 @@ import type { configType } from '@/definition';
 // `prefetchConfigTemplates` at app startup and read by `getConfigTemplate`.
 //
 // Why a wrapper around Map:
-//   Downstream `updateVPNServerConfigFromDB` (helper.ts) mutates the returned
-//   config object in place — it pushes user server nodes into the template's
+//   Downstream `buildSingBoxConfig` (config-merge-core.ts) mutates the
+//   returned config object in place — it pushes user server nodes into the template's
 //   `outbounds` / selector.outbounds / urltest.outbounds arrays. If the cache
 //   handed out a shared object reference, those nodes would accumulate across
 //   profile switches: switching from Profile A (20 nodes) to Profile B (10

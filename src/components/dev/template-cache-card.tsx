@@ -3,7 +3,7 @@ import {
     clearConfigTemplateCache,
     prefetchConfigTemplates,
     type TemplateCacheInfo,
-} from '@/database/helper';
+} from '@/database/config-template';
 import { Alert } from 'react-native';
 import { Card } from './card';
 import { Row } from './row';
@@ -12,7 +12,6 @@ interface TemplateCacheCardProps {
     /** Per-mode cache state, fetched by the parent's aggregator. */
     info: TemplateCacheInfo[] | null;
     onChanged?: () => void;
-    index?: number;
 }
 
 function formatAge(ageMs: number | null): string {
@@ -35,7 +34,7 @@ function isFlagged(info: TemplateCacheInfo): boolean {
     return info.mode === 'tun-rules' && !info.hasRejectAnchor;
 }
 
-export function TemplateCacheCard({ info, onChanged, index }: TemplateCacheCardProps) {
+export function TemplateCacheCard({ info, onChanged }: TemplateCacheCardProps) {
     const handleClear = () => {
         Alert.alert(
             'Clear Template Cache',
@@ -73,7 +72,7 @@ export function TemplateCacheCard({ info, onChanged, index }: TemplateCacheCardP
     };
 
     return (
-        <Card title="Config Template Cache" index={index}>
+        <Card title="Config Template Cache">
             {(info ?? []).map((it) => (
                 <Row
                     key={it.mode}

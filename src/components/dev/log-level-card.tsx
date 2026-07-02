@@ -10,12 +10,11 @@ import { LogLevelSheet } from './log-level-sheet';
 import { Row } from './row';
 
 interface LogLevelCardProps {
-    index?: number;
     /** Fired after the user confirms a level change. */
     onChanged?: () => void;
 }
 
-export function LogLevelCard({ index, onChanged }: LogLevelCardProps) {
+export function LogLevelCard({ onChanged }: LogLevelCardProps) {
     const { requestRestart } = useVpn();
     // Lazy init reads the store at first render; migration runs in RootLayout
     // before this dev screen can mount, so no post-mount re-read is needed.
@@ -45,7 +44,7 @@ export function LogLevelCard({ index, onChanged }: LogLevelCardProps) {
 
     return (
         <>
-            <Card title={i18n.t('dev_log_level_title')} index={index}>
+            <Card title={i18n.t('dev_log_level_title')}>
                 <Row
                     iconName="options-outline"
                     iconColor="#5AC8FA"
