@@ -4,7 +4,8 @@ import i18n from '@/constants/language';
 import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import React, { useEffect } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
     cancelAnimation,
     Easing,
@@ -122,7 +123,7 @@ export function EmptyState({ onImportUrl }: EmptyStateProps) {
                             },
                         }),
                     ]}
-                    resizeMode="contain"
+                    contentFit="contain"
                 />
             </Animated.View>
 

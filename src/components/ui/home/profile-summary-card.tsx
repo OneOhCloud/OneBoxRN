@@ -44,11 +44,14 @@ export function ProfileSummaryCard({ info, name, connected = false }: ProfileSum
 
     const fillProgress = useSharedValue(pct);
     useEffect(() => {
-        fillProgress.value = withTiming(pct, { duration: 900 });
+        fillProgress.set(withTiming(pct, { duration: 900 }));
     }, [pct, fillProgress]);
 
+    // scaleX instead of an animated width: the fill updates on every traffic
+    // refresh, and transforms skip per-frame layout. The rail clips overflow;
+    // at 3 px height the endcap distortion under scaleX is invisible.
     const fillStyle = useAnimatedStyle(() => ({
-        width: `${fillProgress.value * 100}%`,
+        transform: [{ scaleX: fillProgress.value }],
     }));
 
     return (
@@ -199,7 +202,9 @@ const styles = StyleSheet.create({
     },
     fill: {
         height: '100%',
+        width: '100%',
         borderRadius: 2,
+        transformOrigin: 'left',
     },
     metaRow: {
         flexDirection: 'row',

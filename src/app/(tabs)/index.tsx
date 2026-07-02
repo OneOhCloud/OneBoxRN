@@ -83,6 +83,13 @@ function WipeSlot({
         });
     }, [showSecond, progress]);
 
+    // Layout-prop animation exemption (audit F-09, docs/claude/
+    // terminology-exceptions.md → animation exemptions): this wipe reveal is
+    // intrinsically a clip animation — width/left ARE the effect. It runs only
+    // on rare state flips (config presence / connected wipe, ~1.4 s), is
+    // driven by Reanimated on the UI thread, and a transform-only rework would
+    // need nested counter-translations for both layers plus re-deriving the
+    // pixel-aligned glow/haze `left` tracking. Measured-safe; keep as-is.
     const newClipStyle = useAnimatedStyle(() => ({
         width: progress.value * widthShared.value,
     }));
