@@ -1,9 +1,9 @@
 import type { SubInfo } from '@/utils';
 import i18n from '@/constants/language';
 import { useVpn } from '@/contexts/vpn-context';
-import { getProcessedConfig } from '@/database/helper';
+import type { StartFailure } from '@/contexts/vpn/types';
 import { ProfileStore } from '@/database/kv';
-import ExpoOneBox, { VPN_STATUS } from '@/modules/expo-onebox';
+import { VPN_STATUS } from '@/modules/expo-onebox';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
@@ -28,7 +28,7 @@ function readActiveProfile(): ActiveProfileSnapshot {
 }
 
 export function useHomeScreen() {
-    const { connected, status } = useVpn();
+    const { connected, status, start, stop } = useVpn();
 
     const [localLoading, setLocalLoading] = useState(false);
     const loading =
@@ -48,38 +48,49 @@ export function useHomeScreen() {
         }, [])
     );
 
+    const presentToggleError = useCallback((msg: string) => {
+        if (Platform.OS === 'web') {
+            console.error('[Web] VPN toggle error:', msg);
+            window.alert(`${i18n.t('error')}: ${msg}`);
+        } else {
+            Alert.alert(i18n.t('error'), msg);
+        }
+    }, []);
+
+    const presentStartFailure = useCallback((failure: StartFailure) => {
+        switch (failure.kind) {
+            case 'permission-denied':
+                Alert.alert(i18n.t('insufficient_permission'), i18n.t('permission_required'));
+                return;
+            case 'aborted':
+            case 'timeout':
+                // No signal/timeout is passed from this screen — unreachable.
+                return;
+            case 'config-error':
+            case 'native-error':
+                presentToggleError(failure.message || i18n.t('operation_failed'));
+        }
+    }, [presentToggleError]);
+
     const handleToggleConnect = useCallback(async () => {
         if (loading) return;
         setLocalLoading(true);
         try {
             if (connected) {
-                await ExpoOneBox.stop();
-            } else {
-                if (Platform.OS === 'android') {
-                    const hasPermission = await ExpoOneBox.checkVpnPermission();
-                    if (!hasPermission) {
-                        const granted = await ExpoOneBox.requestVpnPermission();
-                        if (!granted) {
-                            Alert.alert(i18n.t('insufficient_permission'), i18n.t('permission_required'));
-                            return;
-                        }
-                    }
+                // Resolves on the STOPPED event (≤10 s) — the derived
+                // `loading` already covers the STOPPING span either way.
+                const result = await stop();
+                if (result.outcome === 'stop-rejected') {
+                    presentToggleError(result.message || i18n.t('operation_failed'));
                 }
-                const config = Platform.OS === 'web' ? '{}' : await getProcessedConfig();
-                await ExpoOneBox.start(config);
-            }
-        } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : i18n.t('operation_failed');
-            if (Platform.OS === 'web') {
-                console.error('[Web] VPN toggle error:', msg);
-                window.alert(`${i18n.t('error')}: ${msg}`);
             } else {
-                Alert.alert(i18n.t('error'), msg);
+                const result = await start();
+                if (!result.ok) presentStartFailure(result.failure);
             }
         } finally {
             setLocalLoading(false);
         }
-    }, [connected, loading]);
+    }, [connected, loading, start, stop, presentStartFailure, presentToggleError]);
 
     const handleImportUrlClose = useCallback(() => {
         setImportUrlVisible(false);
