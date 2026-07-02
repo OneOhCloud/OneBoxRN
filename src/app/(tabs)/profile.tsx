@@ -13,8 +13,8 @@ import i18n from '@/constants/language';
 import { Fonts, MaxContentWidth, TabScreenEdges } from '@/constants/theme';
 import { ProfileStore } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
+import { useVpn } from '@/contexts/vpn-context';
 import { executeConfigRefresh } from '@/tasks/config-refresh';
-import { requestVpnRestart } from '@/utils/vpn-restart';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, View } from 'react-native';
@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ProfilesScreen() {
     const theme = useTheme();
+    const { requestRestart } = useVpn();
 
     // Lazy-init from the store: first render already reflects real data,
     // avoiding a one-frame EmptyState → populated repaint during tab crossfade.
@@ -64,8 +65,8 @@ export default function ProfilesScreen() {
         // Debounced + in-flight-guarded restart. Shared with VpnContext.setMode
         // so rapid mode + profile switches coalesce into one restart per
         // quiescent period instead of racing.
-        requestVpnRestart();
-    }, []);
+        requestRestart();
+    }, [requestRestart]);
 
     const handleDelete = useCallback((sub: { id: string; name: string }) => {
         Alert.alert(i18n.t('sub_delete'), i18n.t('sub_delete_confirm'), [

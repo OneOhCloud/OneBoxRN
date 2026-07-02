@@ -8,11 +8,11 @@ import { emitLog, jsLog } from '@/utils/log-sink';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import ExpoOneBox, { TrafficUpdateEventPayload, VPN_STATUS } from '../modules/expo-onebox';
-import { requestVpnRestart } from '@/utils/vpn-restart';
-import { createVpnActions } from './vpn/actions';
+import { createVpnActions, stopAndAwaitStopped } from './vpn/actions';
 import { expoOneBoxBridge } from './vpn/bridge';
 import { parseCoreLineLevel, sbLevelToEntryLevel } from './vpn/core-log';
 import { nodeStore } from './vpn/node-store';
+import { createRestartMachine } from './vpn/restart-machine';
 import type {
     SelectNodeResult,
     StartOptions,
@@ -40,12 +40,16 @@ const vpnActions = createVpnActions({
     log: jsLog,
 });
 
-// Migration ordering rule: exactly one restart machine may exist at a
-// time. Until every requestVpnRestart caller is migrated onto the
-// context, requestRestart delegates to the legacy util singleton; the
-// flip to createRestartMachine happens in the same commit that deletes
-// src/utils/vpn-restart.ts.
-const requestRestart = (): void => requestVpnRestart();
+const restartMachine = createRestartMachine({
+    getStatus: () => expoOneBoxBridge.getStatus(),
+    stopAndWait: (timeoutMs) =>
+        stopAndAwaitStopped({ bridge: expoOneBoxBridge, log: jsLog }, timeoutMs),
+    start: (config) => expoOneBoxBridge.start(config),
+    getConfig: getProcessedConfig,
+    log: jsLog,
+});
+
+const requestRestart = (): void => restartMachine.request();
 
 // ---- Types ----
 

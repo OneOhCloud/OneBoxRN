@@ -4,7 +4,7 @@
  * One RuleSet per action (reject / direct / proxy) is loaded from the KV
  * store, flattened + sorted for display, and edited through a shared bottom
  * sheet composer. Any mutation persists via setCustomRuleSet and then asks the
- * tunnel to restart with the fresh config (requestVpnRestart no-ops when the
+ * tunnel to restart with the fresh config (requestRestart no-ops when the
  * tunnel is down). The screen never touches the native module directly.
  */
 import { SectionAction } from '@/components/ui/ios26/section';
@@ -26,7 +26,7 @@ import {
 } from '@/database/custom-rules';
 import { getAllCustomRuleSets, setCustomRuleSet } from '@/database/store';
 import { useTheme } from '@/hooks/use-theme';
-import { requestVpnRestart } from '@/utils/vpn-restart';
+import { useVpn } from '@/contexts/vpn-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { router } from 'expo-router';
@@ -111,6 +111,7 @@ export default function RoutingRulesScreen() {
     const theme = useTheme();
     const accentBlue = useAccentBlue();
     const safeAreaInsets = useSafeAreaInsets();
+    const { requestRestart } = useVpn();
 
     const [sets, setSets] = useState<Record<RuleAction, RuleSet>>(makeEmptySets);
     const [query, setQuery] = useState('');
@@ -176,10 +177,10 @@ export default function RoutingRulesScreen() {
 
             setSets(next);
             setEditing(null);
-            requestVpnRestart();
+            requestRestart();
             composerRef.current?.dismiss();
         },
-        [sets, editing],
+        [sets, editing, requestRestart],
     );
 
     const handleDelete = useCallback(
@@ -197,12 +198,12 @@ export default function RoutingRulesScreen() {
                         );
                         void setCustomRuleSet(rule.action, updated);
                         setSets((prev) => ({ ...prev, [rule.action]: updated }));
-                        requestVpnRestart();
+                        requestRestart();
                     },
                 },
             ]);
         },
-        [sets],
+        [sets, requestRestart],
     );
 
     return (

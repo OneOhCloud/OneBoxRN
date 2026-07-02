@@ -1,8 +1,8 @@
 import { lightImpact, selectionChanged } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
 import { SBConfig, SingBoxLogLevel } from '@/database/kv';
+import { useVpn } from '@/contexts/vpn-context';
 import ExpoOneBox from '@/modules/expo-onebox';
-import { requestVpnRestart } from '@/utils/vpn-restart';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useCallback, useRef, useState } from 'react';
 import { Card } from './card';
@@ -16,6 +16,7 @@ interface LogLevelCardProps {
 }
 
 export function LogLevelCard({ index, onChanged }: LogLevelCardProps) {
+    const { requestRestart } = useVpn();
     // Lazy init reads the store at first render; migration runs in RootLayout
     // before this dev screen can mount, so no post-mount re-read is needed.
     const [level, setLevel] = useState<SingBoxLogLevel>(() => SBConfig.getLogLevel());
@@ -38,9 +39,9 @@ export function LogLevelCard({ index, onChanged }: LogLevelCardProps) {
         ExpoOneBox.setCoreLogLevel(next);
         // Also rebuild config so the stdout + observable sinks pick up
         // the new level on next tunnel start (defence in depth).
-        requestVpnRestart();
+        requestRestart();
         onChanged?.();
-    }, [level, onChanged]);
+    }, [level, onChanged, requestRestart]);
 
     return (
         <>
