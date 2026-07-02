@@ -150,7 +150,7 @@ export default function RootLayout() {
     const colorScheme = useColorScheme();
 
     useEffect(() => {
-        // 单订阅 → 多订阅格式迁移（一次性，幂等）
+        // 单配置 → 多配置格式迁移（一次性，幂等）
         migrateV1ProfileToMulti();
         runBugsnagCrashTestIfArmed();
 

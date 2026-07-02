@@ -74,7 +74,7 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
                     }}
                 >
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <ThemedText style={{ fontSize: 18, fontWeight: '600' }}>{i18n.t('import_subscription')}</ThemedText>
+                        <ThemedText style={{ fontSize: 18, fontWeight: '600' }}>{i18n.t('import_profile')}</ThemedText>
                         <Pressable onPress={onClose} style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
                             <ThemedText style={{ color: '#007AFF', fontWeight: '500' }}>{i18n.t('cancel')}</ThemedText>
                         </Pressable>

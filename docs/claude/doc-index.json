@@ -31,5 +31,9 @@
   "src/modules/expo-onebox/android/src/main/java/expo/modules/onebox/oneoh/cloud/ExpoOneBoxModule.kt": ["docs/claude/bridge-signature.md", "docs/claude/config-fetch-policy.md"],
 
   "src/components/ui/profiles/rotating-border.tsx": ["docs/claude/comet-animation.md"],
-  "src/components/ui/home/connect-button.tsx": ["docs/claude/comet-animation.md"]
+  "src/components/ui/home/connect-button.tsx": ["docs/claude/comet-animation.md"],
+
+  "app.config.ts": ["docs/claude/terminology-exceptions.md"],
+  "src/lang": ["docs/claude/terminology-exceptions.md"],
+  "src/database/sqlite3.tsx": ["docs/claude/terminology-exceptions.md"]
 }

@@ -24,7 +24,7 @@ export default function AppTabs() {
             </NativeTabs.Trigger>
 
             <NativeTabs.Trigger name="profile">
-                <NativeTabs.Trigger.Label>{i18n.t('tab_subscriptions')}</NativeTabs.Trigger.Label>
+                <NativeTabs.Trigger.Label>{i18n.t('tab_profiles')}</NativeTabs.Trigger.Label>
                 <NativeTabs.Trigger.Icon sf="rectangle.stack.fill" md="layers" />
             </NativeTabs.Trigger>
 

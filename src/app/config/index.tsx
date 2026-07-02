@@ -750,7 +750,7 @@ export default function ConfigScreen() {
                         fontFamily: Fonts?.sans,
                     }}
                 >
-                    {i18n.t('import_subscription')}
+                    {i18n.t('import_profile')}
                 </Text>
                 {/* Spacer to balance back button */}
                 <View style={{ width: 44 }} />

@@ -208,7 +208,7 @@ export function ImportRow({
                         lineHeight: 22,
                     }}
                 >
-                    {i18n.t('import_subscription')}
+                    {i18n.t('import_profile')}
                 </Text>
             </View>
         </Pressable>

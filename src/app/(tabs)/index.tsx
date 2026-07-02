@@ -273,7 +273,7 @@ export default function HomeScreen() {
             >
                 <View style={{ flex: 1, gap: 4 }}>
                     <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.3, opacity: 0.7, color: theme.textSecondary, fontFamily: Fonts?.sans }}>
-                        {i18n.t('import_subscription').toUpperCase()}
+                        {i18n.t('import_profile').toUpperCase()}
                     </Text>
                     <Text style={{ fontSize: 19, fontWeight: '600', letterSpacing: -0.4, color: theme.text, fontFamily: Fonts?.rounded }}>
                         {i18n.t('import_url')}

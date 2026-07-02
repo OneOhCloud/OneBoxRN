@@ -94,7 +94,7 @@ export function subscribeLogSink(listener: (entry: LogEntry) => void): () => voi
 // ── React hook ──────────────────────────────────────────────
 
 /**
- * React subscription is debounced — sing-box core can emit dozens of
+ * React listener notification is debounced — sing-box core can emit dozens of
  * lines per second; notifying React once per line would force a full
  * render of the Logs viewer for each one, which VirtualizedList flags
  * as slow (`dt: 2907ms`). The underlying buffer still updates

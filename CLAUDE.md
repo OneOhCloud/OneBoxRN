@@ -70,6 +70,8 @@ Machine-style docs under `docs/claude/`. Load them per `docs/claude/doc-index.js
 | [vpn-context.md](docs/claude/vpn-context.md) | VpnContext as sole mutator, read-only exceptions |
 | [comet-animation.md](docs/claude/comet-animation.md) | layer stack, geometry, Android `elevation` pitfall, opacity vs thickness gradient |
 | [dev-screens.md](docs/claude/dev-screens.md) | dev-smoke + config/dev i18n exemption, flex column rule, smoke-entries convention |
+| [config-fetch-policy.md](docs/claude/config-fetch-policy.md) | canonical fetch/fallback policy table, trust rules, CONFIG_LOAD tokens, refresh persistence contract, log redaction |
+| [terminology-exceptions.md](docs/claude/terminology-exceptions.md) | sanctioned exceptions to the terminology ban (bridge names, protocol header, frozen SQL), acceptance grep |
 
 ---
 

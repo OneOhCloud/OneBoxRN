@@ -155,7 +155,7 @@ export function EmptyState({ onImportUrl }: EmptyStateProps) {
                     ]}
                 >
                     <Text style={styles.ctaLabel}>
-                        {i18n.t('import_subscription_link')}
+                        {i18n.t('import_config_url')}
                     </Text>
                 </Pressable>
             </Animated.View>

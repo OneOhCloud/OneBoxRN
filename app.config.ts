@@ -15,8 +15,8 @@ const versionJson = JSON.parse(readFileSync(join(__dirname, 'version.json'), 'ut
  * Version is the single source of truth from version.json.
  *
  * Build-time env var loaded from .env:
- *   accelerateUrl  – base URL of the subscription accelerator proxy.
- *                    Add to .env to enable fallback loading for subscriptions.
+ *   accelerateUrl  – base URL of the config-URL accelerator proxy.
+ *                    Add to .env to enable fallback loading for remote configs.
  *                    Example: accelerateUrl=https://your-accelerator-host.example.com
  *                    Omit or leave blank to disable acceleration entirely.
  */
@@ -61,7 +61,6 @@ export default ({ config: _config }: ConfigContext): ExpoConfig => ({
       'android.permission.WAKE_LOCK',
       'android.permission.RECEIVE_BOOT_COMPLETED',
       'android.permission.CAMERA',
-      'android.permission.RECORD_AUDIO',
       'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
     ],
   },
@@ -83,8 +82,11 @@ export default ({ config: _config }: ConfigContext): ExpoConfig => ({
       'expo-camera',
       {
         cameraPermission:
-          'To scan QR codes for importing subscription links and managing network configurations.',
-        recordAudioAndroid: true,
+          'To scan QR codes for importing profile config URLs and managing network configurations.',
+        // QR scanning only — no audio/video capture anywhere in the app.
+        // false strips NSMicrophoneUsageDescription and Android RECORD_AUDIO.
+        microphonePermission: false,
+        recordAudioAndroid: false,
       },
     ],
     [
