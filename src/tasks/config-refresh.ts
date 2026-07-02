@@ -25,11 +25,29 @@ export const CONFIG_REFRESH_TASK = 'config-refresh';
 // ─── Initialization ───────────────────────────────────────────────────────────
 
 /**
+ * Mirror the refresh options into the native background worker's shared
+ * store (AppGroup UserDefaults / SharedPreferences). The worker must never
+ * read the JS-owned SQLite database directly — a second SQLite library on
+ * the same WAL file breaks in-process POSIX locking and crashes with SIGBUS.
+ */
+async function pushRefreshOptionsToNative(): Promise<void> {
+    await ExpoOneBox.setBackgroundConfigRefreshOptions({
+        accelerateUrl: ACCELERATE_URL ?? '',
+        testPrimaryUrlUnavailable: getTestPrimaryUrlUnavailable(),
+    });
+}
+
+/**
  * Initialize config refresh system on app startup.
- * Fetches and caches domain verification data.
+ * Pushes refresh options to native, then fetches and caches domain
+ * verification data.
  */
 export async function initializeConfigRefresh(): Promise<void> {
-    kvSet(CONFIG_REFRESH_KEYS.ACCELERATE_URL, ACCELERATE_URL ?? '');
+    try {
+        await pushRefreshOptionsToNative();
+    } catch (e) {
+        console.warn('[ConfigRefresh] refresh options mirror push error:', e);
+    }
     try {
         await initializeVerificationData();
     } catch (e) {
@@ -45,6 +63,8 @@ export function getTestPrimaryUrlUnavailable(): boolean {
 
 export function setTestPrimaryUrlUnavailable(enabled: boolean): void {
     kvSet(CONFIG_REFRESH_KEYS.TEST_PRIMARY_URL_UNAVAILABLE, enabled ? 'true' : 'false');
+    pushRefreshOptionsToNative().catch((e) =>
+        console.warn('[ConfigRefresh] refresh options mirror push error:', e));
 }
 
 // ─── Registration ─────────────────────────────────────────────────────────────
@@ -52,7 +72,7 @@ export function setTestPrimaryUrlUnavailable(enabled: boolean): void {
 /**
  * Register (or update) the native periodic background config refresh.
  * No-ops if no config URL is stored yet.
- * Native reads accelerate URL from kv_store (`config:accelerate-url`).
+ * Native reads the accelerate URL from the JS-pushed shared options.
  * Native tries primary first; on network-level error (not HTTP error), if the
  * domain is on the SHA256 allowlist, it retries via the accelerate URL.
  * See ios/core/BackgroundConfigRefresh.swift + android/.../BackgroundConfigWorker.kt.
@@ -91,7 +111,7 @@ export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null
     }
 
     const testMode = getTestPrimaryUrlUnavailable();
-    const testModeMsg = testMode ? ' [TEST MODE: primary unavailable, native reads kv_store]' : '';
+    const testModeMsg = testMode ? ' [TEST MODE: primary unavailable, native reads shared options]' : '';
     console.log(`[ConfigRefresh] executing foreground refresh…${testModeMsg}`);
 
     const result = await ExpoOneBox.executeConfigRefreshNow(url, getSingBoxUserAgent());

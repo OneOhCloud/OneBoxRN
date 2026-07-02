@@ -11,5 +11,4 @@ export const DOMAIN_VERIFICATION_KEYS = {
 
 export const CONFIG_REFRESH_KEYS = {
     TEST_PRIMARY_URL_UNAVAILABLE: 'dev:test-primary-url-unavailable',
-    ACCELERATE_URL: 'config:accelerate-url',
 } as const;
