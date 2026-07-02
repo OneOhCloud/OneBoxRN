@@ -1,5 +1,6 @@
 import { configType } from '@/definition';
 import { urlFilename, urlHostname } from '@/utils';
+import { djb2Hash } from '@/utils/log-redact';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { Platform } from 'react-native';
 import {
@@ -255,20 +256,13 @@ export interface TaskLogEntry {
     records: TaskRecord[];
 }
 
-/** Simple string → short hash (djb2) */
-function hashUrl(url: string): string {
-    let h = 5381;
-    for (let i = 0; i < url.length; i++) {
-        h = ((h << 5) + h + url.charCodeAt(i)) >>> 0;
-    }
-    return h.toString(36);
-}
-
 const MAX_RECORDS = 100;
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
+// djb2Hash matches the historical private hashUrl byte-for-byte (guarded
+// by log-redact.test.ts), so existing task_log_* KV keys stay valid.
 function taskLogKey(url: string): string {
-    return `task_log_${hashUrl(url)}`;
+    return `task_log_${djb2Hash(url)}`;
 }
 
 function emptyLog(): TaskLogEntry {
