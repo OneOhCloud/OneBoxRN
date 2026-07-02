@@ -1,0 +1,71 @@
+# Audit Exceptions & Dependency Decisions — 2026-07-02
+
+Companion to `2026-07-02-engineering-audit.md`. Records F-07 dependency decisions and
+standing exceptions referenced by the audit's acceptance criteria.
+
+## F-07 npm audit
+
+Status after overrides: **0 open advisories** — both `npm audit --omit=dev --audit-level=moderate`
+(the audit gate) and full `npm audit` (dev included).
+
+Verification performed: `npm install` → both audits 0 → `npm ls` spot check →
+`npx tsc --noEmit` → `npm test` (66 pass) → `npx expo-doctor` 20/20 →
+`npx expo install --check` aligned → `make prebuild` succeeds (proves `xcode`+`uuid@11`) →
+node smoke: `i18n-js` translates with `lodash@4.18.1`.
+
+### Rejected remediations
+
+- `npm audit fix --force` — would downgrade `expo` 57→46 and `expo-splash-screen` 57→55.
+  Destructive; forbidden.
+- Upgrading `expo` majors solely for transitive advisories — not needed; every advisory
+  roots at an overridable leaf.
+
+### Override decisions (risk log)
+
+All entries in `package.json` `overrides`. "exposure" = where the vulnerable code could run.
+
+| package | from → to | parent(s) | exposure | risk note |
+|---|---|---|---|---|
+| shell-quote | 1.8.3 → 1.8.4 | react-native → react-devtools-core | dev-time (devtools) | critical advisory; parent range `^1.6.1` satisfied |
+| @xmldom/xmldom | 0.8.11 → 0.8.13 | @expo/plist, plist (via config-plugins) | prebuild-time | clears 5 high advisories + entire expo-chain xmldom branch |
+| lodash | 4.17.23 → 4.18.1 | i18n-js | **production JS bundle** | only runtime-shipped override; node i18n smoke passed; device boot smoke in manual checklist |
+| picomatch@^2.0.0 | 2.3.1 → 2.3.2 | micromatch, jest-util (metro chain) | build-time | range-scoped; picomatch@4 instances untouched |
+| undici | 6.25.0 → 6.27.0 | @bugsnag/cli | build-time (sourcemap upload) | not the runtime Bugsnag SDK |
+| ws@^7.0.0 | 7.5.10 → 7.5.11 | react-native, react-devtools-core, metro | dev-time (dev server) | range-scoped; ws@8.21.0 untouched |
+| @babel/core | 7.29.0 → 7.29.7 | expo tooling | build-time | low severity |
+| brace-expansion@^5.0.0 | 5.0.4 → 5.0.7 | config-plugins glob chain | build-time | range-scoped |
+| brace-expansion@^1.0.0 | 1.1.12 → 1.1.13 | minimatch@3 (eslint chain) | dev-time | added beyond audit baseline (full-audit hygiene) |
+| flatted | 3.3.4 → 3.4.2 | flat-cache (eslint chain) | dev-time | added beyond audit baseline (full-audit hygiene) |
+| js-yaml@^4.0.0 | 4.1.1 → 4.2.0 | @expo/xcpretty, @eslint/eslintrc | build/dev-time | range-scoped |
+| uuid (scoped under `xcode`) | 7.0.3 → 11.1.1 | xcode@3.0.1 | prebuild-time | major jump; xcode uses only CJS `uuid.v4()`, present in v11; `make prebuild` proof-gate passed |
+
+### Open exceptions
+
+(none — every advisory resolved without version-major risk to direct deps)
+
+Template for future rows: advisory · package · exposure class
+[build-time | dev-only | production JS | native runtime] · rationale · revisit-by date.
+
+### Known non-issues (pre-existing, unrelated to overrides)
+
+- `@bugsnag/expo` declares peer `expo ^55`, installed `expo 57` — pre-existing peer-range
+  lag; `expo-doctor` passes; revisit when Bugsnag publishes an SDK-57 line.
+- `npm ls ws` shows `@expo/ws-tunnel` (wants `^8.0.0`) deduped onto the v7 instance and
+  flagged `invalid` — pre-existing hoisting quirk (present before overrides, then at
+  7.5.10); `ws@8.21.0` also present in tree; dev-tunnel only.
+
+### Maintenance rule
+
+`expo lint` and `expo install --fix` can rewrite `package.json` and silently drop the
+`overrides` block. Lint via `npx eslint`; after running any expo tooling, check
+`git diff package.json`.
+
+## F-08 legacy tables decision
+
+`subscriptions` / `subscription_configs` (created by the v0→1 SQLite migration) are kept
+**migration-frozen**: shipped migration steps are not rewritten, and the tables are provably
+empty on every install (`git log -S` shows no shipped writer ever existed; the only
+reader/writer, `use-profiles.ts`, was dead code deleted in this remediation). Runtime
+profile CRUD lives exclusively in `ProfileStore` (`src/database/kv.ts`). See comments in
+`src/database/sqlite3.tsx`. Table names are a documented terminology exemption
+(`docs/claude/terminology-exceptions.md`).
