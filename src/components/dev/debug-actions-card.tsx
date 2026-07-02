@@ -1,5 +1,6 @@
 import { mediumImpact } from '@/components/ui/haptics';
 import { BugsnagCrashTestFlags, type BugsnagCrashTestKind } from '@/database/kv';
+import ExpoOneBox from '@/modules/expo-onebox';
 import { executeConfigRefresh, registerConfigRefreshTask } from '@/tasks/config-refresh';
 import { Alert, Platform } from 'react-native';
 import { Card } from './card';
@@ -40,6 +41,45 @@ export function DebugActionsCard({ onExecuted, index }: DebugActionsCardProps) {
         }
     };
 
+    // F-02 parity probe: a manual foreground refresh must never land in the
+    // native last-result slot (reserved for true background runs). PASS =
+    // getLastConfigRefreshResult() returns null right after a manual run.
+    // Destructive: clear-on-read consumes any pending background result.
+    const handleRefreshParityProbe = () => {
+        Alert.alert(
+            'Refresh Parity Probe',
+            'Runs a manual refresh, then asserts the native last-result slot is empty.\n\nDestructive: consumes any pending background result.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Run',
+                    onPress: async () => {
+                        mediumImpact();
+                        try {
+                            // Drain anything a background run left behind first, so the
+                            // assertion only sees what the manual run just did.
+                            ExpoOneBox.getLastConfigRefreshResult();
+                            const result = await executeConfigRefresh();
+                            if (!result) {
+                                Alert.alert('Parity Probe', 'SKIPPED — no config URL set.');
+                                return;
+                            }
+                            const leaked = ExpoOneBox.getLastConfigRefreshResult();
+                            if (leaked === null) {
+                                Alert.alert('Parity Probe', 'PASS — manual result was not persisted.');
+                            } else {
+                                Alert.alert('Parity Probe', `FAIL — slot contains a result (timestamp=${leaked.timestamp}). Manual refreshes must not persist.`);
+                            }
+                            onExecuted();
+                        } catch (e) {
+                            Alert.alert('Parity Probe Error', e instanceof Error ? e.message : String(e));
+                        }
+                    },
+                },
+            ],
+        );
+    };
+
     const armCrashOnNextLaunch = (kind: BugsnagCrashTestKind) => {
         const title = kind === 'js' ? 'Arm JS Crash' : 'Arm Android Native Crash';
         const message = kind === 'js'
@@ -75,6 +115,14 @@ export function DebugActionsCard({ onExecuted, index }: DebugActionsCardProps) {
                 label="Re-register Task"
                 caption="Cancel and re-schedule the periodic worker."
                 onPress={handleReregister}
+                isLast={false}
+            />
+            <Row
+                iconName="git-compare-outline"
+                iconColor="#34C759"
+                label="Refresh Parity Probe"
+                caption="Manual refresh must not persist to the background slot (F-02)."
+                onPress={handleRefreshParityProbe}
                 isLast={false}
             />
             <Row
