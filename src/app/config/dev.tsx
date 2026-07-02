@@ -49,35 +49,51 @@ export default function DevScreen() {
     const [templateCache, setTemplateCache] = useState<TemplateCacheInfo[] | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const load = useCallback(async () => {
-        setLoading(true);
+    // Pure reads, zero setState — safe to invoke from the mount effect
+    // without tripping react-hooks/set-state-in-effect.
+    const readDevSnapshot = useCallback(async () => {
         // Sync any background task results into JS state before reading KV,
         // so WorkerRunLog entries are immediately reflected in ExecutionHistory.
         Task.syncNativeResultToJS();
         const isRegistered = await ExpoOneBox.isBackgroundConfigRefreshRegistered().catch(() => false);
-        setTaskInfo({ isRegistered });
-
         const link = SBConfig.getConfigLink();
-        setConfig({
-            link,
-            contentLength: SBConfig.getConfigContent().length,
-            usedTraffic: SBConfig.getUsedTraffic(),
-            totalTraffic: SBConfig.getTotalTraffic(),
-            expireTime: SBConfig.getExpireTime(),
-        });
-
-        if (link) {
-            setTaskLog(TaskLog.get(link));
-        } else {
-            setTaskLog(null);
-        }
-
-        setTemplateCache(await inspectConfigTemplateCache().catch(() => []));
-
-        setLoading(false);
+        return {
+            taskInfo: { isRegistered },
+            config: {
+                link,
+                contentLength: SBConfig.getConfigContent().length,
+                usedTraffic: SBConfig.getUsedTraffic(),
+                totalTraffic: SBConfig.getTotalTraffic(),
+                expireTime: SBConfig.getExpireTime(),
+            },
+            taskLog: link ? TaskLog.get(link) : null,
+            templateCache: await inspectConfigTemplateCache().catch(() => [] as TemplateCacheInfo[]),
+        };
     }, []);
 
-    useEffect(() => { load(); }, [load]);
+    const load = useCallback(async () => {
+        setLoading(true);
+        const s = await readDevSnapshot();
+        setTaskInfo(s.taskInfo);
+        setConfig(s.config);
+        setTaskLog(s.taskLog);
+        setTemplateCache(s.templateCache);
+        setLoading(false);
+    }, [readDevSnapshot]);
+
+    useEffect(() => {
+        let cancelled = false;
+        // `loading` starts true, so the mount path only clears it when done.
+        readDevSnapshot().then((s) => {
+            if (cancelled) return;
+            setTaskInfo(s.taskInfo);
+            setConfig(s.config);
+            setTaskLog(s.taskLog);
+            setTemplateCache(s.templateCache);
+            setLoading(false);
+        });
+        return () => { cancelled = true; };
+    }, [readDevSnapshot]);
 
     return (
         <View

@@ -281,7 +281,9 @@ export default function ViewConfigScreen() {
     const safeAreaInsets = useSafeAreaInsets();
 
     const [tab, setTab] = React.useState<Tab>('imported');
-    const [rawImported, setRawImported] = React.useState<string | null>(null);
+    // Sync KV read — lazy init makes the content available at first render,
+    // so no loading state and no post-mount setState are needed.
+    const [rawImported] = React.useState<string>(() => SBConfig.getConfigContent() ?? '');
     const [mergedState, setMergedState] = React.useState<
         | { kind: 'idle' }
         | { kind: 'loading' }
@@ -292,13 +294,6 @@ export default function ViewConfigScreen() {
     const mode = React.useMemo(() => SBConfig.getMode(), []);
     const version = React.useMemo(() => getSingBoxMajorVersion(), []);
     const { status, getStartConfig } = useVpn();
-
-    React.useEffect(() => {
-        const start = Date.now();
-        const raw = SBConfig.getConfigContent();
-        setRawImported(raw ?? '');
-        console.log(`Config content loaded in ${Date.now() - start}ms`);
-    }, []);
 
     const importedPretty = React.useMemo(
         () => rawImported ? prettyJson(rawImported) : '',
@@ -312,7 +307,7 @@ export default function ViewConfigScreen() {
             const startCfg = isRunning ? getStartConfig() : '';
             const result = isRunning ? startCfg : await getProcessedConfig();
             const pretty = prettyJson(result);
-            const meta = computeMergedMeta(rawImported ?? '', result);
+            const meta = computeMergedMeta(rawImported, result);
             setMergedState({ kind: 'ready', content: pretty, meta });
         } catch (e) {
             setMergedState({ kind: 'error', message: (e as Error)?.message || String(e) });
@@ -320,22 +315,28 @@ export default function ViewConfigScreen() {
     }, [rawImported, status, getStartConfig]);
 
     React.useEffect(() => {
-        if (tab !== 'merged') return;
+        if (tab !== 'merged' || !rawImported) return;
         if (mergedState.kind === 'idle' || mergedState.kind === 'error') {
-            if (rawImported === null) return;
-            if (!rawImported) {
-                setMergedState({ kind: 'error', message: i18n.t('view_config_empty_title') });
-                return;
-            }
             void loadMerged();
         }
     }, [tab, rawImported, mergedState.kind, loadMerged]);
 
+    // An empty imported config never loads a merge; derive the error
+    // presentation at render instead of writing it back as state. The
+    // 'idle' guard keeps a user-initiated retry ('loading') visible.
+    const effectiveMerged = React.useMemo<typeof mergedState>(
+        () =>
+            tab === 'merged' && !rawImported && mergedState.kind === 'idle'
+                ? { kind: 'error', message: i18n.t('view_config_empty_title') }
+                : mergedState,
+        [tab, rawImported, mergedState],
+    );
+
     const currentText: string | null = React.useMemo(() => {
         if (tab === 'imported') return rawImported ? importedPretty : null;
-        if (mergedState.kind === 'ready') return mergedState.content;
+        if (effectiveMerged.kind === 'ready') return effectiveMerged.content;
         return null;
-    }, [tab, rawImported, importedPretty, mergedState]);
+    }, [tab, rawImported, importedPretty, effectiveMerged]);
 
     const currentLines = React.useMemo(
         () => (currentText ? currentText.split('\n') : []),
@@ -352,7 +353,7 @@ export default function ViewConfigScreen() {
     };
 
     const showCopy = currentText !== null && currentText.length > 0;
-    const mergedMeta = tab === 'merged' && mergedState.kind === 'ready' ? mergedState.meta : null;
+    const mergedMeta = tab === 'merged' && effectiveMerged.kind === 'ready' ? effectiveMerged.meta : null;
 
     return (
         <View
@@ -454,26 +455,24 @@ export default function ViewConfigScreen() {
                 }}
             >
                 {tab === 'imported'
-                    ? rawImported === null
-                        ? <LoadingPanel label={i18n.t('loading')} theme={theme} />
-                        : rawImported === ''
-                            ? <EmptyPanel
-                                title={i18n.t('view_config_empty_title')}
-                                subtitle={i18n.t('view_config_empty_desc')}
-                                theme={theme}
-                            />
-                            : <ConfigBody lines={currentLines} theme={theme} />
-                    : mergedState.kind === 'loading'
+                    ? rawImported === ''
+                        ? <EmptyPanel
+                            title={i18n.t('view_config_empty_title')}
+                            subtitle={i18n.t('view_config_empty_desc')}
+                            theme={theme}
+                        />
+                        : <ConfigBody lines={currentLines} theme={theme} />
+                    : effectiveMerged.kind === 'loading'
                         ? <LoadingPanel label={i18n.t('view_config_loading')} theme={theme} />
-                        : mergedState.kind === 'error'
+                        : effectiveMerged.kind === 'error'
                             ? <ErrorPanel
                                 title={i18n.t('view_config_error_title')}
-                                detail={mergedState.message}
+                                detail={effectiveMerged.message}
                                 retryLabel={i18n.t('view_config_retry')}
                                 onRetry={loadMerged}
                                 theme={theme}
                             />
-                            : mergedState.kind === 'ready'
+                            : effectiveMerged.kind === 'ready'
                                 ? <ConfigBody lines={currentLines} theme={theme} />
                                 : null}
             </View>

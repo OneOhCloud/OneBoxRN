@@ -1,5 +1,5 @@
 import { lightImpact } from '@/components/ui/haptics';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Switch } from 'react-native';
 import { Card } from './card';
 import { Row } from './row';
@@ -27,11 +27,9 @@ export function ToggleSettingCard({
     colorScheme = 'green',
     index,
 }: ToggleSettingCardProps) {
+    // Lazy init covers the mount read; callers pass module-level getters with
+    // stable identity, so the removed [getValue] effect only ever re-ran it.
     const [enabled, setEnabled] = useState(() => getValue());
-
-    useEffect(() => {
-        setEnabled(getValue());
-    }, [getValue]);
 
     const handleToggle = (value: boolean) => {
         lightImpact();

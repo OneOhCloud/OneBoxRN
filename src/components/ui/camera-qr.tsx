@@ -57,22 +57,25 @@ type CameraQRProps = {
 export default function CameraQR({ onHandleClose, onBeforeNavigate }: CameraQRProps) {
     const [facing] = useState<CameraType>('back');
     const [permission, requestPermission] = useCameraPermissions();
-    const [requestedOnce, setRequestedOnce] = useState(false);
+    // Never rendered — only guards the one-shot auto-request, so a ref
+    // (not state) is the right home; no re-render is wanted when it flips.
+    const requestedOnceRef = useRef(false);
     const scannedRef = useRef(false);
 
     useEffect(() => {
-        if (!permission && !requestedOnce) {
+        if (requestedOnceRef.current) return;
+        if (!permission) {
             jsLog.debug('[QR] permission undefined on mount, invoking requestPermission');
             requestPermission();
-            setRequestedOnce(true);
+            requestedOnceRef.current = true;
             return;
         }
-        if (permission && !permission.granted && permission.canAskAgain && !requestedOnce) {
+        if (!permission.granted && permission.canAskAgain) {
             jsLog.debug(`[QR] permission denied but askable, retry: canAskAgain=${permission.canAskAgain}`);
             requestPermission();
-            setRequestedOnce(true);
+            requestedOnceRef.current = true;
         }
-    }, [permission, requestPermission, requestedOnce]);
+    }, [permission, requestPermission]);
 
     useEffect(() => {
         if (!permission) return;

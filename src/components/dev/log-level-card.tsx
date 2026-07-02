@@ -4,7 +4,7 @@ import { SBConfig, SingBoxLogLevel } from '@/database/kv';
 import ExpoOneBox from '@/modules/expo-onebox';
 import { requestVpnRestart } from '@/utils/vpn-restart';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Card } from './card';
 import { LogLevelSheet } from './log-level-sheet';
 import { Row } from './row';
@@ -16,13 +16,10 @@ interface LogLevelCardProps {
 }
 
 export function LogLevelCard({ index, onChanged }: LogLevelCardProps) {
+    // Lazy init reads the store at first render; migration runs in RootLayout
+    // before this dev screen can mount, so no post-mount re-read is needed.
     const [level, setLevel] = useState<SingBoxLogLevel>(() => SBConfig.getLogLevel());
     const sheetRef = useRef<BottomSheetModal>(null);
-
-    useEffect(() => {
-        // Pick up any out-of-band change (e.g. migration).
-        setLevel(SBConfig.getLogLevel());
-    }, []);
 
     const openSheet = useCallback(() => {
         lightImpact();
