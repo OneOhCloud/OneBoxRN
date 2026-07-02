@@ -15,7 +15,7 @@ import { Fonts, TabularNums } from '@/constants/theme';
 import { Profile } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { LayoutChangeEvent, Pressable, Text, View, useColorScheme } from 'react-native';
 
 function usageColor(pct: number, isDark: boolean): string {
@@ -102,10 +102,16 @@ export function ActiveProfileCard({
     const fillColor = hasTraffic ? usageColor(pct, isDark) : theme.textSecondary;
     const trackColor = isDark ? SILVER_DARK : SILVER_LIGHT;
 
-    // Mount snapshot keeps render pure (react-hooks/purity). Day-granularity
-    // value; the card remounts on profile switch, so staleness across a
-    // midnight while mounted is acceptable.
-    const [now] = useState(() => Date.now());
+    // Lazy init keeps render pure (react-hooks/purity); the card stays
+    // mounted across profile switches (unkeyed in the Profiles header), so a
+    // timer-callback effect re-snapshots the clock whenever the profile data
+    // changes — matching the old recompute-on-re-render behavior for every
+    // path that can alter daysLeft (switch, refresh, import).
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        const timer = setTimeout(() => setNow(Date.now()), 0);
+        return () => clearTimeout(timer);
+    }, [sub.id, sub.expireTime, sub.usedTraffic, sub.totalTraffic]);
     const daysLeft =
         sub.expireTime > 0
             ? Math.max(0, Math.ceil((sub.expireTime * 1000 - now) / 86400000))

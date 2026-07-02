@@ -112,7 +112,15 @@ export function createVpnActions(deps: VpnActionDeps): VpnActions {
         const fail = (failure: StartFailure): StartResult => ({ ok: false, failure });
         if (options?.signal?.aborted) return fail({ kind: 'aborted' });
 
-        const permitted = await ensureVpnPermission();
+        // The permission bridge itself can reject (e.g. VpnService.prepare
+        // throwing SecurityException under lockdown/restricted profiles) —
+        // map that to a typed failure so start() never rejects.
+        let permitted: boolean;
+        try {
+            permitted = await ensureVpnPermission();
+        } catch (e) {
+            return fail({ kind: 'native-error', message: errorMessage(e) });
+        }
         if (!permitted) return fail({ kind: 'permission-denied' });
         if (options?.signal?.aborted) return fail({ kind: 'aborted' });
 

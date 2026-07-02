@@ -125,6 +125,19 @@ describe('createVpnActions.start', () => {
         assert.ok(!bridge.calls.some((c) => c.startsWith('start:')));
     });
 
+    it('a rejecting permission bridge maps to native-error instead of throwing', async () => {
+        const timers = createFakeTimers();
+        const bridge = createFakeBridge(VPN_STATUS.STOPPED);
+        bridge.behaviors.checkVpnPermission = () =>
+            Promise.reject(new Error('SecurityException: lockdown VPN enabled'));
+        const actions = createVpnActions(makeDeps(bridge, timers, { platform: 'android' }));
+        assert.deepEqual(await actions.start(), {
+            ok: false,
+            failure: { kind: 'native-error', message: 'SecurityException: lockdown VPN enabled' },
+        });
+        assert.ok(!bridge.calls.some((c) => c.startsWith('start:')));
+    });
+
     it('android: granted-on-request proceeds to native start', async () => {
         const timers = createFakeTimers();
         const bridge = createFakeBridge(VPN_STATUS.STOPPED);
