@@ -15,8 +15,20 @@ import { Fonts, TabularNums } from '@/constants/theme';
 import { Profile } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
-import { LayoutChangeEvent, Pressable, Text, View, useColorScheme } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import { AppState, LayoutChangeEvent, Pressable, Text, View, useColorScheme } from 'react-native';
+
+const DAY_MS = 86400000;
+const EXPIRY_TICK_GRACE_MS = 1000;
+
+function getNextExpiryTickDelay(expireTime: number, currentNow: number): number | null {
+    const msLeft = expireTime * 1000 - currentNow;
+    if (msLeft <= 0) return null;
+
+    const msUntilBoundary = msLeft % DAY_MS || DAY_MS;
+    return Math.max(EXPIRY_TICK_GRACE_MS, msUntilBoundary + EXPIRY_TICK_GRACE_MS);
+}
 
 function usageColor(pct: number, isDark: boolean): string {
     if (pct >= 85) return ALERT;
@@ -102,19 +114,48 @@ export function ActiveProfileCard({
     const fillColor = hasTraffic ? usageColor(pct, isDark) : theme.textSecondary;
     const trackColor = isDark ? SILVER_DARK : SILVER_LIGHT;
 
-    // Lazy init keeps render pure (react-hooks/purity); the card stays
-    // mounted across profile switches (unkeyed in the Profiles header), so a
-    // timer-callback effect re-snapshots the clock whenever the profile data
-    // changes — matching the old recompute-on-re-render behavior for every
-    // path that can alter daysLeft (switch, refresh, import).
     const [now, setNow] = useState(() => Date.now());
+    const refreshNow = useCallback(() => {
+        setNow(Date.now());
+    }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            refreshNow();
+        }, [refreshNow])
+    );
+
     useEffect(() => {
-        const timer = setTimeout(() => setNow(Date.now()), 0);
-        return () => clearTimeout(timer);
-    }, [sub.id, sub.expireTime, sub.usedTraffic, sub.totalTraffic]);
+        const appStateSub = AppState.addEventListener('change', (nextState) => {
+            if (nextState === 'active') refreshNow();
+        });
+        return () => appStateSub.remove();
+    }, [refreshNow]);
+
+    useEffect(() => {
+        const refreshTimer = setTimeout(refreshNow, 0);
+        let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const scheduleNextTick = () => {
+            const delay = getNextExpiryTickDelay(sub.expireTime, Date.now());
+            if (delay === null) return;
+
+            expiryTimer = setTimeout(() => {
+                refreshNow();
+                scheduleNextTick();
+            }, delay);
+        };
+
+        scheduleNextTick();
+
+        return () => {
+            clearTimeout(refreshTimer);
+            if (expiryTimer !== null) clearTimeout(expiryTimer);
+        };
+    }, [refreshNow, sub.id, sub.expireTime, sub.usedTraffic, sub.totalTraffic]);
     const daysLeft =
         sub.expireTime > 0
-            ? Math.max(0, Math.ceil((sub.expireTime * 1000 - now) / 86400000))
+            ? Math.max(0, Math.ceil((sub.expireTime * 1000 - now) / DAY_MS))
             : null;
     const daysColor = daysLeft !== null && daysLeft < 30 ? ALERT : theme.textSecondary;
 
@@ -266,4 +307,3 @@ export function ActiveProfileCard({
         </View>
     );
 }
-
