@@ -11,6 +11,10 @@ import { ProfileStore } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox from '@/modules/expo-onebox';
 import { fmtBytes, getRemoteNameByContentDisposition, getSingBoxUserAgent, urlFilename, urlHostname } from '@/utils';
+import { classifyFetchError, errorCodeOf } from '@/utils/config-fetch-policy';
+import { newFlowId } from '@/utils/flow-events';
+import { logFlowEvent, recordFlowFailure } from '@/utils/flow-log';
+import { djb2Hash } from '@/utils/log-redact';
 import { jsLog } from '@/utils/log-sink';
 import { parseProfileUserinfo } from '@/utils/profile-info';
 import { verifyHostname } from '@/utils/domain-verification';
@@ -21,7 +25,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─── Download Hook ──────────────────────────────────────────
-function useDownloadConfig(url: string | undefined) {
+function useDownloadConfig(url: string | undefined, flowId: string) {
     const [data, setData] = useState<string | null>(null);
     const [error, setError] = useState<Error | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -49,6 +53,7 @@ function useDownloadConfig(url: string | undefined) {
             return;
         }
         jsLog.info(`[Config] download start: host=${urlHostname(url, '(unparseable)')}`);
+        logFlowEvent({ event: 'config_import', flowId, phase: 'download', status: 'start' });
 
         const controller = new AbortController();
         const { signal } = controller;
@@ -65,6 +70,11 @@ function useDownloadConfig(url: string | undefined) {
                 if (response.statusCode < 200 || response.statusCode >= 300) {
                     const err = new Error(i18n.t('config_error_status', { code: response.statusCode }));
                     jsLog.warn(`[Config] download HTTP failure: status=${response.statusCode}`);
+                    recordFlowFailure({
+                        event: 'config_import', flowId, phase: 'download', status: 'fail',
+                        errorCode: errorCodeOf('http', response.statusCode),
+                        durationMs: Date.now() - startedAt,
+                    });
                     setError(err);
                     notifyError();
                     return;
@@ -99,6 +109,14 @@ function useDownloadConfig(url: string | undefined) {
                 setExtraInfo({ upload, download, total, expire });
                 notifySuccess();
                 jsLog.info(`[Config] download success: bytes=${content.length}, name=${JSON.stringify(name)}, hasTraffic=${total > 0}, hasExpire=${expire > 0}, elapsedMs=${Date.now() - startedAt}`);
+                logFlowEvent({
+                    event: 'config_import', flowId, phase: 'download', status: 'ok',
+                    durationMs: Date.now() - startedAt,
+                });
+                logFlowEvent({
+                    event: 'config_import', flowId, phase: 'store', status: 'ok',
+                    profileIdHash: djb2Hash(url),
+                });
             })
             .catch((fetchError: Error) => {
                 if (signal.aborted) {
@@ -106,6 +124,11 @@ function useDownloadConfig(url: string | undefined) {
                     return;
                 }
                 jsLog.warn(`[Config] download network error: name=${fetchError.name}, msg=${fetchError.message}, elapsedMs=${Date.now() - startedAt}`);
+                recordFlowFailure({
+                    event: 'config_import', flowId, phase: 'download', status: 'fail',
+                    errorCode: errorCodeOf(classifyFetchError(fetchError)),
+                    durationMs: Date.now() - startedAt,
+                });
                 setError(fetchError);
                 notifyError();
             })
@@ -122,7 +145,7 @@ function useDownloadConfig(url: string | undefined) {
             jsLog.debug('[Config] useDownloadConfig cleanup → controller.abort()');
             controller.abort();
         };
-    }, [url]);
+    }, [url, flowId]);
 
     return { data, error, isLoading, extraInfo };
 }
@@ -415,6 +438,11 @@ export default function ConfigScreen() {
 
     const { start, stop } = useVpn();
 
+    // One flow id traces this import end-to-end (capture → verify → stop →
+    // download → store → process → start → apply); grep the Logs viewer for
+    // `flow=<id>`. Lazy init keeps render pure.
+    const [importFlowId] = useState(() => newFlowId());
+
     // Mount log — emitted once per mount (ref-guarded effect; refs are legal
     // there). Captures the exact param shape the screen was handed, which is
     // the starting point for every stuck-import trace.
@@ -428,6 +456,11 @@ export default function ConfigScreen() {
         if (decodeError) {
             jsLog.warn(`[Config] mount: deep link payload rejected → ${decodeError}`);
         }
+        logFlowEvent({
+            event: 'config_import', flowId: importFlowId, phase: 'capture',
+            status: decodeError ? 'fail' : 'start',
+            detail: `apply=${requestedApply} hasUrl=${!!decodedUrl}`,
+        });
     });
 
     // Errors that arise outside the download hook (verify, apply) are kept
@@ -473,6 +506,11 @@ export default function ConfigScreen() {
             if (!verified) {
                 jsLog.warn('[Config] apply=1 domain not on allowlist, downgrading to manual import');
             }
+            logFlowEvent({
+                event: 'config_import', flowId: importFlowId, phase: 'verify',
+                status: 'ok', durationMs: Date.now() - startedAt,
+                detail: `verified=${verified}`,
+            });
             setShouldApply(verified);
         })().catch((err) => {
             // Any rejection here (e.g. `crypto.subtle` missing on RN, remote
@@ -482,6 +520,10 @@ export default function ConfigScreen() {
             if (cancelled) return;
             const e = err instanceof Error ? err : new Error(String(err));
             jsLog.error(`[Config] verify failed → ${e.message}`);
+            recordFlowFailure({
+                event: 'config_import', flowId: importFlowId, phase: 'verify',
+                status: 'fail', errorCode: errorCodeOf(classifyFetchError(e)),
+            });
             setApplyError(new Error(i18n.t('config_verify_failed', { message: e.message })));
         });
         return () => {
@@ -540,6 +582,11 @@ export default function ConfigScreen() {
                 return;
             }
             jsLog.info(`[Config] stop→download handoff: outcome=${result.outcome}, elapsedMs=${Date.now() - stopStartedAt}`);
+            logFlowEvent({
+                event: 'config_import', flowId: importFlowId, phase: 'stop',
+                status: 'ok', durationMs: Date.now() - stopStartedAt,
+                detail: `outcome=${result.outcome}`,
+            });
             setDownloadUrl(decodedUrl);
         });
 
@@ -552,7 +599,7 @@ export default function ConfigScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [shouldApply]);
 
-    const { data, error, isLoading, extraInfo } = useDownloadConfig(downloadUrl);
+    const { data, error, isLoading, extraInfo } = useDownloadConfig(downloadUrl, importFlowId);
 
     const [isApplying, setIsApplying] = useState(false);
     const appliedRef = useRef(false);
@@ -582,6 +629,7 @@ export default function ConfigScreen() {
                 // tunnel in an intermediate state) all live inside the
                 // context action now.
                 jsLog.info('[Config] apply: calling context start({ timeoutMs: 20000 })');
+                logFlowEvent({ event: 'config_import', flowId: importFlowId, phase: 'start', status: 'start' });
                 const startInvokedAt = Date.now();
                 const result = await start({ timeoutMs: 20_000, signal: controller.signal });
                 if (cancelled) {
@@ -596,8 +644,13 @@ export default function ConfigScreen() {
                     throw new Error(mapStartFailureMessage(result.failure));
                 }
                 jsLog.info(`[Config] apply: start resolved ok, startElapsedMs=${Date.now() - startInvokedAt}, totalElapsedMs=${Date.now() - startedAt}`);
+                logFlowEvent({
+                    event: 'config_import', flowId: importFlowId, phase: 'start',
+                    status: 'ok', durationMs: Date.now() - startInvokedAt,
+                });
 
                 jsLog.info('[Config] apply: success → router.dismissTo("/")');
+                logFlowEvent({ event: 'config_import', flowId: importFlowId, phase: 'apply', status: 'ok' });
                 router.dismissTo('/');
             } catch (e: unknown) {
                 if (cancelled) {
@@ -606,6 +659,12 @@ export default function ConfigScreen() {
                 }
                 const raw = e instanceof Error ? e.message : String(e);
                 jsLog.error(`[Config] apply: threw → ${raw}`);
+                recordFlowFailure({
+                    event: 'config_import', flowId: importFlowId, phase: 'start',
+                    status: 'fail',
+                    errorCode: errorCodeOf(classifyFetchError(e instanceof Error ? e : new Error(raw))),
+                    durationMs: Date.now() - startedAt,
+                });
                 // Surface every apply-path failure via the shared ErrorView.
                 // Going through `applyError` + ErrorView (instead of an
                 // Alert) guarantees the screen exits LoadingView — the

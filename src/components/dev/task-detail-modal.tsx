@@ -171,74 +171,28 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
 
                     {/* Timing & Flags */}
                     <DetailSection index={1}>
-                        <DetailRow label={i18n.t('task_config_updated')} value={record.contentChanged ? i18n.t('task_yes') : i18n.t('task_no')} isLast />
+                        <DetailRow label={i18n.t('task_config_updated')} value={record.contentChanged ? i18n.t('task_yes') : i18n.t('task_no')} isLast={!record.flowId} />
+                        {record.flowId && (
+                            <DetailRow label="Flow ID" value={record.flowId} isLast />
+                        )}
                     </DetailSection>
 
-                    {/* URLs */}
-                    {(record.primaryUrl || record.acceleratedUrl) && (
+                    {/* Accelerated URL (redacted form only — raw URLs never persist) */}
+                    {record.acceleratedUrlRedacted && (
                         <DetailSection title={i18n.t('task_request_urls')} index={2}>
-                            {record.primaryUrl && (
-                                <URLRow
-                                    label={i18n.t('task_primary_url')}
-                                    url={record.primaryUrl}
-                                    onCopy={() => copyToClipboard(record.primaryUrl!, i18n.t('task_primary_url'))}
-                                    isLast={!record.acceleratedUrl}
-                                    color="#34C759"
-                                />
-                            )}
-                            {record.acceleratedUrl && (
-                                <URLRow
-                                    label={i18n.t('task_accelerated_url')}
-                                    url={record.acceleratedUrl}
-                                    onCopy={() => copyToClipboard(record.acceleratedUrl!, i18n.t('task_accelerated_url'))}
-                                    isLast
-                                    color="#FF9500"
-                                />
-                            )}
+                            <URLRow
+                                label={i18n.t('task_accelerated_url')}
+                                url={record.acceleratedUrlRedacted}
+                                onCopy={() => copyToClipboard(record.acceleratedUrlRedacted!, i18n.t('task_accelerated_url'))}
+                                isLast
+                                color="#FF9500"
+                            />
                         </DetailSection>
                     )}
 
-                    {/* Profile Info — raw header + traffic */}
-                    {record.status === 'success' && (record.userinfoHeader || record.total > 0) && (
+                    {/* Profile Info — parsed traffic (raw header never persists) */}
+                    {record.status === 'success' && record.total > 0 && (
                         <DetailSection title={i18n.t('task_config_info')} index={3}>
-                            {record.userinfoHeader && (
-                                <Pressable
-                                    onPress={() => copyToClipboard(record.userinfoHeader!, i18n.t('task_raw_header'))}
-                                    style={({ pressed }) => ({
-                                        paddingHorizontal: 16,
-                                        paddingVertical: 12,
-                                        borderBottomWidth: StyleSheet.hairlineWidth,
-                                        borderBottomColor: hairline,
-                                        opacity: pressed ? 0.55 : 1,
-                                    })}
-                                >
-                                    <Text style={{
-                                        fontSize: 11,
-                                        color: theme.textSecondary,
-                                        fontFamily: Fonts?.sans,
-                                        fontWeight: '600',
-                                        marginBottom: 6,
-                                        textTransform: 'uppercase',
-                                        letterSpacing: 0.4,
-                                    }}>
-                                        {i18n.t('task_raw_header')} · {i18n.t('task_tap_to_copy')}
-                                    </Text>
-                                    <View style={{
-                                        backgroundColor: theme.backgroundElement,
-                                        padding: 10,
-                                        borderRadius: 10,
-                                    }}>
-                                        <Text style={{
-                                            fontSize: 11,
-                                            color: theme.text,
-                                            fontFamily: Fonts?.mono,
-                                            lineHeight: 16,
-                                        }}>
-                                            {record.userinfoHeader}
-                                        </Text>
-                                    </View>
-                                </Pressable>
-                            )}
                             <DetailRow label={i18n.t('task_upload')} value={formatBytes(record.upload)} />
                             <DetailRow label={i18n.t('task_download')} value={formatBytes(record.download)} />
                             <DetailRow label={i18n.t('task_total')} value={formatBytes(record.total)} />

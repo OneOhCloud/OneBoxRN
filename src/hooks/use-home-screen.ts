@@ -4,6 +4,8 @@ import { useVpn } from '@/contexts/vpn-context';
 import type { StartFailure } from '@/contexts/vpn/types';
 import { ProfileStore } from '@/database/kv';
 import { VPN_STATUS } from '@/modules/expo-onebox';
+import { newFlowId } from '@/utils/flow-events';
+import { logFlowEvent, recordFlowFailure } from '@/utils/flow-log';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
@@ -75,17 +77,32 @@ export function useHomeScreen() {
     const handleToggleConnect = useCallback(async () => {
         if (loading) return;
         setLocalLoading(true);
+        const flowId = newFlowId();
+        const phase = connected ? 'stop' : 'start';
+        logFlowEvent({ event: 'vpn_toggle', flowId, phase, status: 'start' });
         try {
             if (connected) {
                 // Resolves on the STOPPED event (≤10 s) — the derived
                 // `loading` already covers the STOPPING span either way.
                 const result = await stop();
                 if (result.outcome === 'stop-rejected') {
+                    recordFlowFailure({ event: 'vpn_toggle', flowId, phase, status: 'fail', errorCode: 'UNKNOWN' });
                     presentToggleError(result.message || i18n.t('operation_failed'));
+                } else {
+                    logFlowEvent({ event: 'vpn_toggle', flowId, phase, status: 'ok', detail: `outcome=${result.outcome}` });
                 }
             } else {
                 const result = await start();
-                if (!result.ok) presentStartFailure(result.failure);
+                if (!result.ok) {
+                    recordFlowFailure({
+                        event: 'vpn_toggle', flowId, phase, status: 'fail',
+                        errorCode: result.failure.kind === 'permission-denied' ? 'PERMISSION_DENIED' : 'UNKNOWN',
+                        detail: `kind=${result.failure.kind}`,
+                    });
+                    presentStartFailure(result.failure);
+                } else {
+                    logFlowEvent({ event: 'vpn_toggle', flowId, phase, status: 'ok' });
+                }
             }
         } finally {
             setLocalLoading(false);

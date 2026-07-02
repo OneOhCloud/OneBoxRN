@@ -1,5 +1,6 @@
 import { configType } from '@/definition';
 import { ExpoOneBox } from '@/modules/expo-onebox';
+import { classifyFetchError, errorCodeOf } from '@/utils/config-fetch-policy';
 import { jsLog } from '@/utils/log-sink';
 import { buildTemplateCacheKey, parseSingBoxVersion, resolveVersionPath } from '@/utils/sing-box-template-path';
 import { getSingBoxMajorVersion, getSingBoxVersion } from '@/utils/sing-box-version';
@@ -186,11 +187,10 @@ async function fetchRemoteTemplate(mode: configType): Promise<string | null> {
     } catch (e) {
         clearTimeout(timer);
         const elapsed = Date.now() - startMs;
-        if ((e as Error).name === 'AbortError') {
-            jsLog.warn(`[Template] Remote fetch timed out for "${mode}" after ${elapsed}ms (limit=${REMOTE_FETCH_TIMEOUT_MS}ms) url=${url}`);
-        } else {
-            jsLog.warn(`[Template] Remote fetch error for "${mode}" after ${elapsed}ms url=${url}`, e);
-        }
+        // Shared errorCode vocabulary (config-fetch-policy). The full URL is a
+        // documented exemption: compile-time app-owned host, not user data.
+        const code = errorCodeOf(classifyFetchError(e as Error));
+        jsLog.warn(`[Template] Remote fetch failed for "${mode}": errorCode=${code} after ${elapsed}ms (limit=${REMOTE_FETCH_TIMEOUT_MS}ms) url=${url}`, e);
         return null;
     }
 }

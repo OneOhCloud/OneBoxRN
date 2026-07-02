@@ -1,6 +1,6 @@
 import { configType } from '@/definition';
 import { urlFilename, urlHostname } from '@/utils';
-import { djb2Hash } from '@/utils/log-redact';
+import { djb2Hash, redactUrl } from '@/utils/log-redact';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { Platform } from 'react-native';
 import {
@@ -235,18 +235,40 @@ export interface TaskRecord {
     contentChanged: boolean;
     error?: string;
 
-    // ── URLs used ────────────────────────────────────────────────────────────
-    primaryUrl?: string;
-    acceleratedUrl?: string;
+    // ── Redacted accelerator URL (log-redact redactUrl) ──────────────────────
+    // The primary URL is not stored: TaskLog is already keyed by it and
+    // ProfileStore persists it by design. Raw URLs / raw userinfo headers
+    // never enter durable storage (config-fetch-policy § log redaction).
+    acceleratedUrlRedacted?: string;
+
+    // ── Correlates with [EVT] flow=<id> log lines ────────────────────────────
+    flowId?: string;
 
     // ── Traffic (directly from native — no JS re-parsing) ────────────────────
     upload: number;
     download: number;
     total: number;
     expire: number;
+}
 
-    // ── Raw header for debugging ─────────────────────────────────────────────
+/** Shape that may still exist in KV from records persisted pre-redaction. */
+type StoredTaskRecord = TaskRecord & {
+    primaryUrl?: string;
+    acceleratedUrl?: string;
     userinfoHeader?: string;
+};
+
+// Scrub-on-read: display is fixed immediately; storage self-heals via the
+// 30-day retention window without a migration.
+function sanitizeRecord(raw: StoredTaskRecord): TaskRecord {
+    const record = { ...raw };
+    if (record.acceleratedUrl && !record.acceleratedUrlRedacted) {
+        record.acceleratedUrlRedacted = redactUrl(record.acceleratedUrl);
+    }
+    delete record.primaryUrl;
+    delete record.acceleratedUrl;
+    delete record.userinfoHeader;
+    return record;
 }
 
 export interface TaskLogEntry {
@@ -273,7 +295,12 @@ export const TaskLog = {
     get(url: string): TaskLogEntry {
         const raw = kvGet(taskLogKey(url));
         if (!raw) return emptyLog();
-        try { return JSON.parse(raw) as TaskLogEntry; } catch { return emptyLog(); }
+        try {
+            const parsed = JSON.parse(raw) as TaskLogEntry;
+            return { ...parsed, records: parsed.records.map(sanitizeRecord) };
+        } catch {
+            return emptyLog();
+        }
     },
 
     append(url: string, record: TaskRecord): void {
@@ -293,6 +320,39 @@ export const TaskLog = {
 
     clear(url: string): void {
         kvSet(taskLogKey(url), JSON.stringify(emptyLog()));
+    },
+};
+
+// ─── Durable latest failure ──────────────────────────────────────────────────
+
+export interface LastFailureSummary {
+    flowId: string;
+    event: string;
+    time: string;
+    platform: string;
+    phase?: string;
+    errorCode?: string;
+    /** Pre-redacted free text — never raw URLs/tokens/headers. */
+    detail?: string;
+}
+
+const LAST_FAILURE_KEY = 'last_failure_summary';
+
+/**
+ * Latest failed flow, persisted independently of the in-memory log ring —
+ * clearing the Logs screen must not erase the summary support needs.
+ */
+export const LastFailure = {
+    get(): LastFailureSummary | null {
+        const raw = kvGet(LAST_FAILURE_KEY);
+        if (!raw) return null;
+        try { return JSON.parse(raw) as LastFailureSummary; } catch { return null; }
+    },
+    set(summary: LastFailureSummary): void {
+        kvSet(LAST_FAILURE_KEY, JSON.stringify(summary));
+    },
+    clear(): void {
+        kvDelete(LAST_FAILURE_KEY);
     },
 };
 

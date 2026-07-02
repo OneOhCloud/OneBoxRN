@@ -14,7 +14,11 @@ import Constants from 'expo-constants';
 import ExpoOneBox from '@/modules/expo-onebox';
 import { SBConfig, TaskLog, kvGet, kvSet } from '@/database/kv';
 import { getSingBoxUserAgent } from '@/utils';
+import { classifyFetchError, errorCodeOf } from '@/utils/config-fetch-policy';
 import { initializeVerificationData } from '@/utils/domain-verification';
+import { newFlowId } from '@/utils/flow-events';
+import { logFlowEvent, recordFlowFailure } from '@/utils/flow-log';
+import { djb2Hash, redactUrl } from '@/utils/log-redact';
 import { CONFIG_REFRESH_KEYS } from '@/constants/cache-keys';
 
 const ACCELERATE_URL: string | null =
@@ -114,8 +118,10 @@ export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null
     const testModeMsg = testMode ? ' [TEST MODE: primary unavailable, native reads shared options]' : '';
     console.log(`[ConfigRefresh] executing foreground refresh…${testModeMsg}`);
 
+    const flowId = newFlowId();
+    logFlowEvent({ event: 'config_refresh', flowId, phase: 'refresh', status: 'start' });
     const result = await ExpoOneBox.executeConfigRefreshNow(url, getSingBoxUserAgent());
-    applyResultToSBConfig(result, url, 'manual-direct');
+    applyResultToSBConfig(result, url, 'manual-direct', flowId);
     return result;
 }
 
@@ -132,7 +138,9 @@ export function syncNativeResultToJS(): void {
         if (!result) return;
         const url = SBConfig.getConfigLink();
         if (url) {
-            applyResultToSBConfig(result, url, 'auto');
+            const flowId = newFlowId();
+            logFlowEvent({ event: 'config_refresh', flowId, phase: 'sync', status: 'start' });
+            applyResultToSBConfig(result, url, 'auto', flowId);
         }
     } catch (e) {
         console.warn('[ConfigRefresh] syncNativeResultToJS error:', e);
@@ -141,10 +149,19 @@ export function syncNativeResultToJS(): void {
 
 // ─── Internal ─────────────────────────────────────────────────────────────────
 
+/** Native refresh error strings → shared errorCode vocabulary. */
+function refreshErrorCode(error: string | undefined): string | undefined {
+    if (!error) return undefined;
+    const kind = classifyFetchError({ message: error });
+    const httpMatch = error.match(/HTTP\s+(\d{3})/i);
+    return errorCodeOf(kind, httpMatch ? Number(httpMatch[1]) : undefined);
+}
+
 function applyResultToSBConfig(
     result: ConfigRefreshResult,
     url: string,
     trigger: 'auto' | 'manual-direct',
+    flowId: string,
 ): void {
     let contentChanged = false;
     if (result.status === 'success') {
@@ -165,14 +182,28 @@ function applyResultToSBConfig(
         method: result.method ?? 'primary',
         contentChanged,
         error: result.error,
-        primaryUrl: url,
-        acceleratedUrl: result.actualUrl,
+        acceleratedUrlRedacted: result.actualUrl ? redactUrl(result.actualUrl) : undefined,
+        flowId,
         upload: result.subscriptionUpload,
         download: result.subscriptionDownload,
         total: result.subscriptionTotal,
         expire: result.subscriptionExpire,
-        userinfoHeader: result.subscriptionUserinfoHeader,
     });
 
-    console.log(`[ConfigRefresh] applied: status=${result.status}, method=${result.method ?? 'primary'}, duration=${result.durationMs}ms`);
+    const event = {
+        event: 'config_refresh' as const,
+        flowId,
+        phase: 'refresh' as const,
+        status: result.status === 'success' ? ('ok' as const) : result.status === 'skipped' ? ('skip' as const) : ('fail' as const),
+        method: result.method ?? 'primary',
+        durationMs: result.durationMs,
+        errorCode: refreshErrorCode(result.error),
+        profileIdHash: djb2Hash(url),
+        detail: `trigger=${trigger} contentChanged=${contentChanged}`,
+    };
+    if (event.status === 'fail') {
+        recordFlowFailure(event);
+    } else {
+        logFlowEvent(event);
+    }
 }
