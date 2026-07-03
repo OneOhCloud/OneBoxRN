@@ -1,6 +1,6 @@
 import { mediumImpact } from '@/components/ui/haptics';
 import { Fonts } from '@/constants/theme';
-import { SBConfig } from '@/database/kv';
+import { ProfileConfig } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox from '@/modules/expo-onebox';
 import { getSingBoxUserAgent } from '@/utils';
@@ -50,7 +50,7 @@ export function TlsTrustProbeCard() {
     const runValidSniProbe = async () => {
         if (busy) return;
         mediumImpact();
-        const url = SBConfig.getConfigLink();
+        const url = ProfileConfig.getConfigLink();
         if (!url) {
             Alert.alert('Valid-host probe', 'SKIPPED — no active profile URL to fetch.');
             return;

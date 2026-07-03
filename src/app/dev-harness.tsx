@@ -12,7 +12,7 @@
  * dispatches. Never ships user-visible (dev-screens i18n exemption applies).
  */
 import { useVpn } from '@/contexts/vpn-context';
-import { SBConfig } from '@/database/kv';
+import { ProfileConfig } from '@/database/kv';
 import ExpoOneBox from '@/modules/expo-onebox';
 import { getSingBoxUserAgent } from '@/utils';
 import { jsLog } from '@/utils/log-sink';
@@ -47,7 +47,7 @@ export default function DevHarnessScreen() {
                     case 'status':
                         mark(op, 'done', {
                             status: vpn.status,
-                            hasActiveProfile: !!SBConfig.getConfigLink(),
+                            hasActiveProfile: !!ProfileConfig.getConfigLink(),
                             up: vpn.traffic?.uplinkTotal ?? 0,
                             down: vpn.traffic?.downlinkTotal ?? 0,
                         });

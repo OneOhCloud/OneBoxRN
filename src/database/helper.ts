@@ -7,7 +7,7 @@ import {
     type ConfigMergeDeps,
 } from './config-merge-core';
 import { getConfigTemplate } from './config-template';
-import { SBConfig } from './kv';
+import { ProfileConfig } from './kv';
 import { getAllCustomRuleSets, setStoreValue } from './store';
 
 export { extractSystemDns } from './config-merge-core';
@@ -67,14 +67,14 @@ const mergeDeps: ConfigMergeDeps = {
     getTemplate: getConfigTemplate,
     getCustomRuleSets: getAllCustomRuleSets,
     resolveDirectDns: refreshDirectDns,
-    getLogLevel: SBConfig.getLogLevel,
+    getLogLevel: ProfileConfig.getLogLevel,
     applyTunExclusions: applyPlatformTunExclusions,
     log: jsLog,
 };
 
 export async function getProcessedConfig(): Promise<string> {
-    const mode = SBConfig.getMode();
-    const configContent = SBConfig.getConfigContent();
+    const mode = ProfileConfig.getMode();
+    const configContent = ProfileConfig.getConfigContent();
     if (!configContent) throw new Error('No config content found');
     if (mode !== 'tun-rules' && mode !== 'tun-global') {
         throw new Error(`Unsupported config type: ${mode}`);

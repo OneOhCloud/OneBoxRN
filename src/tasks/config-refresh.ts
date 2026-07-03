@@ -6,13 +6,13 @@
  *   Android: WorkManager CoroutineWorker (BackgroundConfigWorker.kt)
  *
  * This module provides the JS-facing API to register/unregister the native task,
- * trigger a foreground refresh, and sync native results into SBConfig when
+ * trigger a foreground refresh, and sync native results into ProfileConfig when
  * the app foregrounds.
  */
 import type { ConfigRefreshResult } from '@/modules/expo-onebox/src/ExpoOneBox.types';
 import Constants from 'expo-constants';
 import ExpoOneBox from '@/modules/expo-onebox';
-import { SBConfig, TaskLog, kvGet, kvSet } from '@/database/kv';
+import { ProfileConfig, TaskLog, kvGet, kvSet } from '@/database/kv';
 import { getSingBoxUserAgent } from '@/utils';
 import { initializeVerificationData } from '@/utils/domain-verification';
 import { newFlowId } from '@/utils/flow-events';
@@ -80,7 +80,7 @@ export function setTestPrimaryUrlUnavailable(enabled: boolean): void {
  * See ios/core/BackgroundConfigRefresh.swift + android/.../BackgroundConfigWorker.kt.
  */
 export async function registerConfigRefreshTask(): Promise<void> {
-    const url = SBConfig.getConfigLink();
+    const url = ProfileConfig.getConfigLink();
     if (!url) {
         console.log('[ConfigRefresh] no config URL set, skipping registration');
         return;
@@ -106,7 +106,7 @@ export async function registerConfigRefreshTask(): Promise<void> {
  * Test mode: simulates primary URL unavailable to test fallback path.
  */
 export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null> {
-    const url = SBConfig.getConfigLink();
+    const url = ProfileConfig.getConfigLink();
     if (!url) {
         console.log('[ConfigRefresh] no config URL, skipping');
         return null;
@@ -127,14 +127,14 @@ export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null
 
 /**
  * Read and clear the last result stored by the native background task, then
- * apply it to SBConfig. Call this whenever the app returns to foreground
+ * apply it to ProfileConfig. Call this whenever the app returns to foreground
  * so UI state reflects background-executed refreshes.
  */
 export function syncNativeResultToJS(): void {
     try {
         const result = ExpoOneBox.getLastConfigRefreshResult();
         if (!result) return;
-        const url = SBConfig.getConfigLink();
+        const url = ProfileConfig.getConfigLink();
         if (url) {
             const flowId = newFlowId();
             logFlowEvent({ event: 'config_refresh', flowId, phase: 'sync', status: 'start' });
@@ -150,7 +150,7 @@ export function syncNativeResultToJS(): void {
 // Apply logic lives in config-refresh-core.ts (pure, node:test covered);
 // this is its one production wiring point.
 const refreshApplyDeps: RefreshApplyDeps = {
-    sbConfig: SBConfig,
+    sbConfig: ProfileConfig,
     taskLog: TaskLog,
     logFlowEvent,
     recordFlowFailure,

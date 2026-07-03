@@ -14,7 +14,7 @@ import { lightImpact, selectionChanged } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
 import { Spacing } from '@/constants/theme';
 import { getProcessedConfig } from '@/database/helper';
-import { SBConfig } from '@/database/kv';
+import { ProfileConfig } from '@/database/kv';
 import { useVpn } from '@/contexts/vpn-context';
 import { VPN_STATUS } from '@/modules/expo-onebox';
 import { useTheme } from '@/hooks/use-theme';
@@ -283,7 +283,7 @@ export default function ViewConfigScreen() {
     const [tab, setTab] = React.useState<Tab>('imported');
     // Sync KV read — lazy init makes the content available at first render,
     // so no loading state and no post-mount setState are needed.
-    const [rawImported] = React.useState<string>(() => SBConfig.getConfigContent() ?? '');
+    const [rawImported] = React.useState<string>(() => ProfileConfig.getConfigContent() ?? '');
     const [mergedState, setMergedState] = React.useState<
         | { kind: 'idle' }
         | { kind: 'loading' }
@@ -291,7 +291,7 @@ export default function ViewConfigScreen() {
         | { kind: 'error'; message: string }
     >({ kind: 'idle' });
 
-    const mode = React.useMemo(() => SBConfig.getMode(), []);
+    const mode = React.useMemo(() => ProfileConfig.getMode(), []);
     const version = React.useMemo(() => getSingBoxMajorVersion(), []);
     const { status, getStartConfig } = useVpn();
 

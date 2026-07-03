@@ -2,7 +2,7 @@
  * Config-refresh result applier — pure core with injected dependencies.
  *
  * Verbatim port of the former `applyResultToSBConfig` in config-refresh.ts:
- * the SBConfig / TaskLog / flow-log globals became injected deps and the four
+ * the ProfileConfig / TaskLog / flow-log globals became injected deps and the four
  * positional parameters became the `RefreshApplyInput` envelope, so the
  * apply-side of a refresh (KV writes, TaskRecord append, [EVT] emission) is
  * node:test coverable. The native fetch/registration surface stays in
@@ -20,7 +20,7 @@ import type { FlowEvent } from '../utils/flow-events.ts';
 import { djb2Hash, redactUrl } from '../utils/log-redact.ts';
 
 export interface RefreshApplyDeps {
-    /** SBConfig satisfies this structurally — pass it as-is. */
+    /** ProfileConfig satisfies this structurally — pass it as-is. */
     sbConfig: {
         getConfigContent(): string;
         setConfigContent(content: string): void;

@@ -20,7 +20,7 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { inspectConfigTemplateCache, type TemplateCacheInfo } from '@/database/config-template';
 import type { TaskLogEntry } from '@/database/kv';
-import { SBConfig, TaskLog } from '@/database/kv';
+import { ProfileConfig, TaskLog } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import ExpoOneBox from '@/modules/expo-onebox';
 import * as Task from '@/tasks/config-refresh';
@@ -58,15 +58,15 @@ export default function DevScreen() {
         // so WorkerRunLog entries are immediately reflected in ExecutionHistory.
         Task.syncNativeResultToJS();
         const isRegistered = await ExpoOneBox.isBackgroundConfigRefreshRegistered().catch(() => false);
-        const link = SBConfig.getConfigLink();
+        const link = ProfileConfig.getConfigLink();
         return {
             taskInfo: { isRegistered },
             config: {
                 link,
-                contentLength: SBConfig.getConfigContent().length,
-                usedTraffic: SBConfig.getUsedTraffic(),
-                totalTraffic: SBConfig.getTotalTraffic(),
-                expireTime: SBConfig.getExpireTime(),
+                contentLength: ProfileConfig.getConfigContent().length,
+                usedTraffic: ProfileConfig.getUsedTraffic(),
+                totalTraffic: ProfileConfig.getTotalTraffic(),
+                expireTime: ProfileConfig.getExpireTime(),
             },
             taskLog: link ? TaskLog.get(link) : null,
             templateCache: await inspectConfigTemplateCache().catch(() => [] as TemplateCacheInfo[]),

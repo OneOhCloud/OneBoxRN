@@ -161,13 +161,13 @@ export function migrateV1ProfileToMulti(): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SBConfig — compat shim over the active profile
+// ProfileConfig — compat shim over the active profile
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MODE_KEY = 'mode';
 const LOG_LEVEL_KEY = 'sing_box_log_level';
 
-export const SBConfig = {
+export const ProfileConfig = {
     getConfigLink: (): string | null => ProfileStore.getActive()?.url ?? null,
 
     getUsedTraffic: (): number => ProfileStore.getActive()?.usedTraffic ?? 0,

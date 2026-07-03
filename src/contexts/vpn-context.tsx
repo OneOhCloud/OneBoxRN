@@ -1,7 +1,7 @@
 import { StartupFailureModal, type StartupFailureInfo } from '@/components/ui/startup-failure-modal';
 import i18n from '@/constants/language';
 import { getProcessedConfig, refreshDirectDns } from '@/database/helper';
-import { SBConfig } from '@/database/kv';
+import { ProfileConfig } from '@/database/kv';
 import { getStoreValue } from '@/database/store';
 import { ConfigType } from '@/definition';
 import { emitLog, jsLog } from '@/utils/log-sink';
@@ -94,7 +94,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     const [status, setStatus] = useState(() => ExpoOneBox.getStatus());
     const connected = status === VPN_STATUS.STARTED || status === VPN_STATUS.STARTING;
     const [traffic, setTraffic] = useState<TrafficUpdateEventPayload | null>(null);
-    const [mode, setModeState] = useState<ConfigType>(() => SBConfig.getMode());
+    const [mode, setModeState] = useState<ConfigType>(() => ProfileConfig.getMode());
     const [directDns, setDirectDns] = useState<string>('—');
     const [startupFailure, setStartupFailure] = useState<StartupFailureInfo | null>(null);
 
@@ -133,7 +133,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
 
     const setMode = useCallback((m: ConfigType) => {
         setModeState(m);
-        SBConfig.setMode(m);
+        ProfileConfig.setMode(m);
         // Debounced + in-flight-guarded restart.
         requestRestart();
     }, []);
@@ -179,13 +179,13 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         // it takes effect on the next CommandServer log entry — without
         // needing to restart the tunnel. See `setCoreLogLevel` in the
         // Kotlin / Swift modules and the parser comment in vpn/core-log.ts.
-        ExpoOneBox.setCoreLogLevel(SBConfig.getLogLevel());
+        ExpoOneBox.setCoreLogLevel(ProfileConfig.getLogLevel());
         // Status was lazily initialized at first render; re-sync from a
         // zero-delay timer to close the render→subscribe race without a
         // synchronous setState in the effect body.
         const initialSyncTimer = setTimeout(syncStatus, 0);
 
-        jsLog.info(`[App] VpnProvider ready, status=${ExpoOneBox.getStatus()}, mode=${SBConfig.getMode()}, logLevel=${SBConfig.getLogLevel()}`);
+        jsLog.info(`[App] VpnProvider ready, status=${ExpoOneBox.getStatus()}, mode=${ProfileConfig.getMode()}, logLevel=${ProfileConfig.getLogLevel()}`);
 
         // isStartingUp: JS 侧独立的启动标记。
         // 不依赖 prevStatus，因为 NEVPNStatus 可能走 connecting→disconnecting→disconnected，

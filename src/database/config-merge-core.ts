@@ -82,7 +82,7 @@ export interface ConfigMergeDeps {
      * impure shell, shared with the Settings UI.
      */
     resolveDirectDns(fallback: string): Promise<string>;
-    /** sing-box core log level preference (SBConfig.getLogLevel). */
+    /** sing-box core log level preference (ProfileConfig.getLogLevel). */
     getLogLevel(): string;
     /** Platform-split TUN bypass merge (apply-tun-exclusions.{ios,android}). */
     applyTunExclusions(userConfig: TunConfigLike, templateConfig: TunConfigLike): void;
@@ -91,7 +91,7 @@ export interface ConfigMergeDeps {
 
 export interface ConfigMergeInput {
     mode: ConfigType;
-    /** The user's imported profile JSON string (SBConfig.getConfigContent). */
+    /** The user's imported profile JSON string (ProfileConfig.getConfigContent). */
     userConfigContent: string;
 }
 
