@@ -49,10 +49,24 @@ export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
         expect(typeof status === 'number', 'getStatus must return a number');
     }),
 
+    // ── Crash reporting (native) ─────────────────────────────────────────────
+    smoke('bugsnag-expo', '@bugsnag/expo', async (ctx) => {
+        const Bugsnag = (await import('@bugsnag/expo')).default;
+        // Read-only shape check — never call start()/notify() in a smoke probe.
+        ctx.log(`notify is function=${typeof Bugsnag.notify === 'function'}`);
+        expect(typeof Bugsnag.notify === 'function', 'Bugsnag.notify must exist');
+    }),
+
     // ── Expo native modules ──────────────────────────────────────────────────
     smoke('expo-application', 'expo-application', async (ctx) => {
         const Application = await import('expo-application');
         ctx.log(`nativeApplicationVersion=${Application.nativeApplicationVersion}`);
+    }),
+
+    smoke('expo-asset', 'expo-asset', async (ctx) => {
+        const mod = await import('expo-asset');
+        ctx.log(`Asset defined=${!!mod.Asset}`);
+        expect(!!mod.Asset, 'Asset export must exist');
     }),
 
     smoke('expo-camera', 'expo-camera', async (ctx) => {
@@ -96,12 +110,6 @@ export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
         const Font = await import('expo-font');
         const loaded = Font.isLoaded('smoke-nonexistent-font-key');
         ctx.log(`isLoaded('nonexistent')=${loaded}`);
-    }),
-
-    smoke('expo-glass-effect', 'expo-glass-effect', async (ctx) => {
-        const mod = await import('expo-glass-effect');
-        ctx.log(`exports=${Object.keys(mod).slice(0, 6).join(',')}`);
-        expect(Object.keys(mod).length > 0, 'module must export at least one symbol');
     }),
 
     smoke('expo-haptics', 'expo-haptics', async (ctx) => {
@@ -168,12 +176,6 @@ export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
         const mod = await import('expo-status-bar');
         ctx.log(`StatusBar is defined=${!!mod.StatusBar}`);
         expect(!!mod.StatusBar, 'StatusBar export must exist');
-    }),
-
-    smoke('expo-symbols', 'expo-symbols', async (ctx) => {
-        const mod = await import('expo-symbols');
-        ctx.log(`exports=${Object.keys(mod).slice(0, 6).join(',')}`);
-        expect(Object.keys(mod).length > 0, 'module must export at least one symbol');
     }),
 
     smoke('expo-system-ui', 'expo-system-ui', async (ctx) => {

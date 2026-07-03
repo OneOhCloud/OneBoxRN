@@ -50,7 +50,7 @@ const REPO = 'OneOhCloud/conf-template';
 const BRANCH = process.env.CONF_TEMPLATE_BRANCH ?? 'stable';
 
 /**
- * OneBoxRN only ships TUN modes. Keep in sync with `configType` in
+ * OneBoxRN only ships TUN modes. Keep in sync with `ConfigType` in
  * `src/definition.ts`.
  */
 const MODE_TO_FILE: Record<string, string> = {
@@ -175,16 +175,7 @@ function emitGeneratedFile(
 // Built:   ${new Date().toISOString()}
 // sing-box: ${version.tag} (from modules/expo-onebox/helper/Makefile:SING_BOX_TAG)
 
-import type { configType } from '@/definition';
-
-export const BUILD_TIME_TEMPLATE_SOURCE = {
-    repo: '${REPO}',
-    branch: '${BRANCH}',
-    commit: '${commitSha}',
-    versionPath: '${versionPath}',
-    singBoxVersion: '${version.tag}',
-    generatedAt: '${new Date().toISOString()}',
-} as const;
+import type { ConfigType } from '@/definition';
 
 ${constants}
 
@@ -199,7 +190,7 @@ ${constants}
  * \`prefetchConfigTemplates()\`, so this snapshot is the floor, not the
  * ceiling — its age matches the app binary's ship date.
  */
-export const BUILT_IN_TEMPLATE_OBJECTS: Record<configType, unknown> = {
+export const BUILT_IN_TEMPLATE_OBJECTS: Record<ConfigType, unknown> = {
 ${mapEntries}
 };
 `;

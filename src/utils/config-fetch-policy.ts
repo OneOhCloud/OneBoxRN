@@ -20,32 +20,55 @@ export type FetchErrorKind =
     | 'cancelled'
     | 'unknown';
 
+/** Captures any 3-digit HTTP status from free text, e.g. "HTTP 403 from primary" → "403". */
+export const HTTP_STATUS_PATTERN = /http\s+(\d{3})/i;
+
+/**
+ * Ordered free-text signatures for the native/fetch error surface.
+ *
+ * WHY substring/regex sniffing: some errors reach JS only as a native-bridge
+ * rejection string — there is no structured error code across the
+ * Kotlin/Swift → JS bridge, and adding one is a bridge-signature change out of
+ * this module's scope. This table is the single, centralized home for that
+ * fragile matching: add new native error phrasings here (never inline) so
+ * classification stays auditable and the test suite can lock every branch.
+ *
+ * Order is significant — a message may match several rows (e.g. a DNS lookup
+ * that timed out), and the first matching row wins. All `substrings` are
+ * lowercase and matched against the lowercased message; `names` are matched
+ * against the error's `name` (WinterCG/XHR surface: AbortError/TypeError).
+ */
+const ERROR_SIGNATURES: readonly {
+    kind: FetchErrorKind;
+    names?: readonly string[];
+    substrings?: readonly string[];
+    pattern?: RegExp;
+}[] = [
+    { kind: 'cancelled', substrings: ['cancelled', 'canceled'] },
+    { kind: 'timeout', names: ['AbortError'], substrings: ['timed out', 'timeout'] },
+    { kind: 'dns', substrings: ['dns', 'resolution', 'resolve'] },
+    { kind: 'tls', substrings: ['certificate', 'trust', 'tls', 'ssl handshake'] },
+    // Only 4xx/5xx count as an "http" fault; a reachable server answered.
+    { kind: 'http', pattern: /http\s+[45]\d\d/ },
+    { kind: 'network', names: ['TypeError'], substrings: ['network'] },
+];
+
 /**
  * Best-effort classification of a fetch-layer error. Name checks cover
  * the WinterCG/XHR surface (AbortError/TypeError); message checks cover
- * native bridge rejections whose text is the only signal.
+ * native bridge rejections whose text is the only signal. See
+ * `ERROR_SIGNATURES` for the centralized match table.
  */
 export function classifyFetchError(err: { name?: string; message?: string }): FetchErrorKind {
     const name = err.name ?? '';
     const message = (err.message ?? '').toLowerCase();
 
-    if (message.includes('cancelled') || message.includes('canceled')) return 'cancelled';
-    if (name === 'AbortError' || message.includes('timed out') || message.includes('timeout')) {
-        return 'timeout';
+    for (const signature of ERROR_SIGNATURES) {
+        const nameMatch = signature.names?.includes(name) ?? false;
+        const substringMatch = signature.substrings?.some((needle) => message.includes(needle)) ?? false;
+        const patternMatch = signature.pattern?.test(message) ?? false;
+        if (nameMatch || substringMatch || patternMatch) return signature.kind;
     }
-    if (message.includes('dns') || message.includes('resolution') || message.includes('resolve')) {
-        return 'dns';
-    }
-    if (
-        message.includes('certificate') ||
-        message.includes('trust') ||
-        message.includes('tls') ||
-        message.includes('ssl handshake')
-    ) {
-        return 'tls';
-    }
-    if (message.match(/http\s+[45]\d\d/)) return 'http';
-    if (name === 'TypeError' || message.includes('network')) return 'network';
     return 'unknown';
 }
 
@@ -78,7 +101,7 @@ export function errorCodeOf(kind: FetchErrorKind, httpStatus?: number): string {
 export function errorCodeFromMessage(message: string | undefined): string | undefined {
     if (!message) return undefined;
     const kind = classifyFetchError({ message });
-    const httpStatus = message.match(/http\s+(\d{3})/i);
+    const httpStatus = message.match(HTTP_STATUS_PATTERN);
     return errorCodeOf(kind, httpStatus ? Number(httpStatus[1]) : undefined);
 }
 

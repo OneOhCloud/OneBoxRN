@@ -3,11 +3,11 @@ import i18n from '@/constants/language';
 import { getProcessedConfig, refreshDirectDns } from '@/database/helper';
 import { SBConfig } from '@/database/kv';
 import { getStoreValue } from '@/database/store';
-import { configType } from '@/definition';
+import { ConfigType } from '@/definition';
 import { emitLog, jsLog } from '@/utils/log-sink';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
-import ExpoOneBox, { ErrorEventPayload, StatusChangeEventPayload, TrafficUpdateEventPayload, VPN_STATUS } from '../modules/expo-onebox';
+import ExpoOneBox, { ErrorEventPayload, GroupUpdateEventPayload, StatusChangeEventPayload, TrafficUpdateEventPayload, VPN_STATUS } from '@/modules/expo-onebox';
 import { createVpnActions, stopAndAwaitStopped } from './vpn/actions';
 import { expoOneBoxBridge } from './vpn/bridge';
 import { parseCoreLineLevel, sbLevelToEntryLevel } from './vpn/core-log';
@@ -57,8 +57,8 @@ export interface VpnState {
     connected: boolean;
     status: number;
     traffic: TrafficUpdateEventPayload | null;
-    mode: configType;
-    setMode: (m: configType) => void;
+    mode: ConfigType;
+    setMode: (m: ConfigType) => void;
     directDns: string;
     getStartConfig: () => string;
     refreshDirectDns: (fallback?: string) => Promise<string>;
@@ -93,7 +93,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     const [status, setStatus] = useState(() => ExpoOneBox.getStatus());
     const connected = status === VPN_STATUS.STARTED || status === VPN_STATUS.STARTING;
     const [traffic, setTraffic] = useState<TrafficUpdateEventPayload | null>(null);
-    const [mode, setModeState] = useState<configType>(() => SBConfig.getMode());
+    const [mode, setModeState] = useState<ConfigType>(() => SBConfig.getMode());
     const [directDns, setDirectDns] = useState<string>('—');
     const [startupFailure, setStartupFailure] = useState<StartupFailureInfo | null>(null);
 
@@ -130,7 +130,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             .catch((e: unknown) => jsLog.warn('[VpnContext] KV hydration for directDNS failed:', e));
     }, []);
 
-    const setMode = useCallback((m: configType) => {
+    const setMode = useCallback((m: ConfigType) => {
         setModeState(m);
         SBConfig.setMode(m);
         // Debounced + in-flight-guarded restart.
@@ -294,7 +294,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         // subscription in the app (docs/claude/vpn-context.md): it feeds
         // the node store (read via useProxyNodeState) and surfaces a
         // native-origin log line for the Logs viewer.
-        const groupSub = ExpoOneBox.addListener('onGroupUpdate', (event: { all: { tag: string; delay: number }[]; now: string; autoNow?: string }) => {
+        const groupSub = ExpoOneBox.addListener('onGroupUpdate', (event: GroupUpdateEventPayload) => {
             nodeStore.applyGroupUpdate(event);
             emitLog({
                 source: 'native',

@@ -11,17 +11,35 @@ import {
 } from './config-fetch-policy.ts';
 
 describe('classifyFetchError', () => {
+    // One row per signature branch in ERROR_SIGNATURES, so every substring /
+    // name / regex signal is locked against silent drift.
     const cases: [{ name?: string; message?: string }, FetchErrorKind][] = [
-        [{ name: 'AbortError' }, 'timeout'],
-        [{ message: 'Request timed out' }, 'timeout'],
-        [{ name: 'TypeError', message: 'Network request failed' }, 'network'],
-        [{ message: 'DNS resolution failed: no servers' }, 'dns'],
-        [{ message: 'could not resolve host' }, 'dns'],
-        [{ message: 'certificate chain validation failed' }, 'tls'],
-        [{ message: 'Trust anchor for certification path not found' }, 'tls'],
-        [{ message: 'HTTP 502' }, 'http'],
+        // cancelled — both spellings
         [{ message: 'CANCELLED' }, 'cancelled'],
         [{ message: 'Job was cancelled' }, 'cancelled'],
+        [{ message: 'operation was canceled' }, 'cancelled'],
+        // timeout — name signal + both substrings
+        [{ name: 'AbortError' }, 'timeout'],
+        [{ message: 'Request timed out' }, 'timeout'],
+        [{ message: 'connect timeout elapsed' }, 'timeout'],
+        // dns — each substring in isolation
+        [{ message: 'DNS server unreachable' }, 'dns'],
+        [{ message: 'name resolution error' }, 'dns'],
+        [{ message: 'could not resolve host' }, 'dns'],
+        // tls — each substring in isolation
+        [{ message: 'certificate chain validation failed' }, 'tls'],
+        [{ message: 'Trust anchor for certification path not found' }, 'tls'],
+        [{ message: 'tls alert received' }, 'tls'],
+        [{ message: 'SSL handshake aborted' }, 'tls'],
+        // http — only 4xx/5xx match the kind regex
+        [{ message: 'HTTP 502' }, 'http'],
+        [{ message: 'server returned HTTP 404' }, 'http'],
+        [{ message: 'HTTP 302 redirect' }, 'unknown'],
+        // network — name signal and substring, each in isolation
+        [{ name: 'TypeError', message: 'Network request failed' }, 'network'],
+        [{ name: 'TypeError', message: 'boom' }, 'network'],
+        [{ message: 'network is unreachable' }, 'network'],
+        // fallthrough
         [{ message: 'something else entirely' }, 'unknown'],
         [{}, 'unknown'],
     ];

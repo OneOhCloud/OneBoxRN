@@ -1,4 +1,4 @@
-import { configType } from '@/definition';
+import { ConfigType } from '@/definition';
 import { deriveProfileNameFromUrl } from '@/utils';
 import { djb2Hash, redactUrl } from '@/utils/log-redact';
 import type { SQLiteDatabase } from 'expo-sqlite';
@@ -159,6 +159,9 @@ export function migrateV1ProfileToMulti(): void {
 // SBConfig — compat shim over the active profile
 // ─────────────────────────────────────────────────────────────────────────────
 
+const MODE_KEY = 'mode';
+const LOG_LEVEL_KEY = 'sing_box_log_level';
+
 export const SBConfig = {
     getConfigLink: (): string | null => ProfileStore.getActive()?.url ?? null,
 
@@ -186,16 +189,16 @@ export const SBConfig = {
         if (a) ProfileStore.update(a.id, { configContent: content });
     },
 
-    setMode: (mode: configType) => kvSet('mode', mode),
-    getMode: (): configType    => (kvGet('mode') as configType) ?? 'tun-rules',
+    setMode: (mode: ConfigType) => kvSet(MODE_KEY, mode),
+    getMode: (): ConfigType    => (kvGet(MODE_KEY) as ConfigType) ?? 'tun-rules',
 
     // sing-box core log level. Injected into `log.level` by rewriteConfig()
     // at the moment we hand the config to the engine. The built-in template
     // ships with `debug`; we default to `info` here to avoid flooding the
     // log viewer during normal operation. Takes effect on next VPN restart.
     getLogLevel: (): SingBoxLogLevel =>
-        (kvGet('sing_box_log_level') as SingBoxLogLevel | null) ?? 'info',
-    setLogLevel: (level: SingBoxLogLevel) => kvSet('sing_box_log_level', level),
+        (kvGet(LOG_LEVEL_KEY) as SingBoxLogLevel | null) ?? 'info',
+    setLogLevel: (level: SingBoxLogLevel) => kvSet(LOG_LEVEL_KEY, level),
 };
 
 // sing-box documented levels (see `Log level` in sing-box reference).
@@ -349,9 +352,11 @@ export const LastFailure = {
  * - Android: 申请通知权限、电池优化豁免
  * - iOS:     触发网络权限弹窗
  */
+const FIRST_LAUNCH_DONE_KEY = 'firstLaunchDone';
+
 export const AppLaunchFlags = {
-    isFirstLaunch: (): boolean  => kvGet('firstLaunchDone') !== 'true',
-    markFirstLaunchDone: (): void => kvSet('firstLaunchDone', 'true'),
+    isFirstLaunch: (): boolean  => kvGet(FIRST_LAUNCH_DONE_KEY) !== 'true',
+    markFirstLaunchDone: (): void => kvSet(FIRST_LAUNCH_DONE_KEY, 'true'),
 };
 
 // ─── Bugsnag Crash Test Flags ────────────────────────────────────────────────

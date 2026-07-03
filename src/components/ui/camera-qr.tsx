@@ -11,43 +11,12 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, Text, View } from 'react-native';
 
-const SCHEME = 'oneoh-networktools://config';
+import { resolveQRData } from './qr-data';
 
-/**
- * Parse QR data into a route-compatible payload.
- * Logs the decision branch and any parse failure so a stuck import flow
- * can be traced back to the recognition step (scheme match vs. https
- * fallback vs. rejection).
- *
- * Exported so the developer-tools import-flow test panel can exercise
- * the exact recognition branch the scanner uses, without having to
- * reinvent the matching rules.
- */
-export function resolveQRData(raw: string): { data: string; apply?: string } | null {
-    jsLog.debug(`[QR] resolveQRData: bytes=${raw.length}, prefix=${JSON.stringify(raw.slice(0, 48))}`);
-    if (raw.startsWith(SCHEME)) {
-        try {
-            const url = new URL(raw);
-            const data = url.searchParams.get('data');
-            if (data) {
-                const apply = url.searchParams.get('apply') ?? undefined;
-                jsLog.info(`[QR] resolveQRData: scheme match, dataBytes=${data.length}, apply=${apply ?? '(none)'}`);
-                return { data, apply };
-            }
-            jsLog.warn('[QR] resolveQRData: scheme match but data param missing');
-        } catch (e) {
-            jsLog.warn(`[QR] resolveQRData: URL parse failed for scheme payload: ${(e as Error).message}`);
-        }
-        return null;
-    }
-    if (raw.startsWith('https://')) {
-        const data = btoa(raw);
-        jsLog.info(`[QR] resolveQRData: plain https URL, encoded bytes=${data.length}`);
-        return { data };
-    }
-    jsLog.info('[QR] resolveQRData: unrecognized payload, neither scheme nor https');
-    return null;
-}
+// Re-exported so the developer-tools import-flow test panel can exercise the
+// exact recognition branch the scanner uses. The parser itself lives in the
+// dependency-free `./qr-data` module so it can be unit-tested off-device.
+export { resolveQRData } from './qr-data';
 
 type CameraQRProps = {
     onHandleClose: () => void;
@@ -150,7 +119,7 @@ export default function CameraQR({ onHandleClose, onBeforeNavigate }: CameraQRPr
 
         jsLog.info(`[QR] barcode captured: type=${result.type}, bytes=${result.data.length}`);
 
-        const resolved = resolveQRData(result.data);
+        const resolved = resolveQRData(result.data, jsLog);
         if (resolved) {
             const applyParam = resolved.apply ? `&apply=${resolved.apply}` : '';
             const encodedData = encodeURIComponent(resolved.data);

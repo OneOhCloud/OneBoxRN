@@ -16,7 +16,7 @@
  * the sibling test directly.
  */
 
-import type { configType } from '@/definition';
+import type { ConfigType } from '@/definition';
 import { injectCustomRules, type RuleAction, type RuleSet } from './custom-rules.ts';
 import type { TunConfigLike } from './tun-exclusions.ts';
 
@@ -73,7 +73,7 @@ export interface ConfigMergeDeps {
      * graph per call — the pipeline mutates it in place (see
      * template-cache.ts for the supply-side contract).
      */
-    getTemplate(mode: configType): Promise<SingBoxConfigLike>;
+    getTemplate(mode: ConfigType): Promise<SingBoxConfigLike>;
     /** Custom routing rule sets (store getAllCustomRuleSets). Only invoked for 'tun-rules'. */
     getCustomRuleSets(): Promise<Record<RuleAction, RuleSet>>;
     /**
@@ -90,7 +90,7 @@ export interface ConfigMergeDeps {
 }
 
 export interface ConfigMergeInput {
-    mode: configType;
+    mode: ConfigType;
     /** The user's imported profile JSON string (SBConfig.getConfigContent). */
     userConfigContent: string;
 }

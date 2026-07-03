@@ -1,1 +1,1 @@
-export type configType = 'tun-rules' | 'tun-global';
+export type ConfigType = 'tun-rules' | 'tun-global';

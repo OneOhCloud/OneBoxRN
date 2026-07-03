@@ -8,7 +8,7 @@
  * `mode` is this module's domain parameter — every entry point varies on it.
  */
 
-import { configType } from '@/definition';
+import { ConfigType } from '@/definition';
 import { classifyFetchError, errorCodeOf } from '@/utils/config-fetch-policy';
 import { jsLog } from '@/utils/log-sink';
 import { buildTemplateCacheKey, parseSingBoxVersion, resolveVersionPath } from '@/utils/sing-box-template-path';
@@ -28,7 +28,7 @@ import { templateMemoryCache } from './template-cache';
 // every release rotates the template cache key (see buildTemplateCacheKey).
 const APP_VERSION = Constants.expoConfig?.version ?? 'unknown';
 
-export function getConfigTemplateCacheKey(mode: configType): string {
+export function getConfigTemplateCacheKey(mode: ConfigType): string {
     return buildTemplateCacheKey(APP_VERSION, getSingBoxMajorVersion(), mode);
 }
 
@@ -41,7 +41,7 @@ export function getConfigTemplateCacheKey(mode: configType): string {
  * time by `scripts/sync-templates.ts` against `SING_BOX_TAG` in
  * `modules/expo-onebox/helper/Makefile`.
  */
-export function getDefaultConfigTemplate(mode: configType, majorVersion: string): string {
+export function getDefaultConfigTemplate(mode: ConfigType, majorVersion: string): string {
     if (majorVersion === '1.12' || majorVersion === '1.13') {
         const tpl = BUILT_IN_TEMPLATE_OBJECTS[mode];
         if (!tpl) throw new Error(`Unsupported config type: ${mode}`);
@@ -52,11 +52,11 @@ export function getDefaultConfigTemplate(mode: configType, majorVersion: string)
 
 // ─── Remote template URLs ─────────────────────────────────────────────────────
 
-const TEMPLATE_MODES: configType[] = ['tun-rules', 'tun-global'];
+const TEMPLATE_MODES: ConfigType[] = ['tun-rules', 'tun-global'];
 
 const REMOTE_TEMPLATE_BASE = 'https://onebox-updater.oneoh.cloud/conf-template/raw/refs/heads/main/conf';
 
-function getRemoteTemplateUrl(mode: configType): string {
+function getRemoteTemplateUrl(mode: ConfigType): string {
     const versionPath = resolveVersionPath(parseSingBoxVersion(getSingBoxVersion()));
     return `${REMOTE_TEMPLATE_BASE}/${versionPath}/zh-cn/${mode}.jsonc`;
 }
@@ -64,7 +64,7 @@ function getRemoteTemplateUrl(mode: configType): string {
 const REMOTE_FETCH_TIMEOUT_MS = 15000;
 const TEMPLATE_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-function getTemplateCacheTimestampKey(mode: configType): string {
+function getTemplateCacheTimestampKey(mode: ConfigType): string {
     return `${getConfigTemplateCacheKey(mode)}-ts`;
 }
 
@@ -72,7 +72,7 @@ function getTemplateCacheTimestampKey(mode: configType): string {
 // Stored as serialized JSON so every `get` returns an independent object
 // graph — see that module's comment for the mutation-safety rationale.
 
-async function fetchRemoteTemplate(mode: configType): Promise<string | null> {
+async function fetchRemoteTemplate(mode: ConfigType): Promise<string | null> {
     let url: string;
     try {
         url = getRemoteTemplateUrl(mode);
@@ -105,7 +105,7 @@ async function fetchRemoteTemplate(mode: configType): Promise<string | null> {
     }
 }
 
-export async function getConfigTemplate(mode: configType): Promise<SingBoxConfigLike> {
+export async function getConfigTemplate(mode: ConfigType): Promise<SingBoxConfigLike> {
     // All three paths return a fresh object graph — the merge pipeline
     // (config-merge-core buildSingBoxConfig) mutates it in place (pushes
     // server nodes into `outbounds` / selector / urltest). A shared
@@ -190,7 +190,7 @@ export async function clearConfigTemplateCache(): Promise<void> {
 }
 
 export interface TemplateCacheInfo {
-    mode: configType;
+    mode: ConfigType;
     /** A remote snapshot is persisted in KV (vs. falling back to built-in). */
     cached: boolean;
     /** Age of the cached snapshot in ms, or null when not cached. */

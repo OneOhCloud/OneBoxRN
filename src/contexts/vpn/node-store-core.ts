@@ -41,10 +41,16 @@ export interface NodeStoreState {
     isLoading: boolean;
 }
 
+/**
+ * Mirror of `GroupUpdateEventPayload` (src/modules/expo-onebox/src/ExpoOneBox.types.ts) —
+ * a local, native-import-free copy so this pure core stays resolvable by node's
+ * type-stripping test runner. Shape matches the canonical (all three platforms
+ * always emit `autoNow`; the reducer maps its empty string to null).
+ */
 export interface GroupUpdate {
     all: { tag: string; delay: number }[];
     now: string;
-    autoNow?: string;
+    autoNow: string;
 }
 
 export const EMPTY_NODE_STATE: NodeStoreState = {

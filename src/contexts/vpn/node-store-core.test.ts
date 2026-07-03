@@ -13,7 +13,7 @@ import { createFakeTimers } from './test-doubles.ts';
 const LOADING_STATE: NodeStoreState = { ...EMPTY_NODE_STATE, isLoading: true };
 
 function update(partial?: Partial<GroupUpdate>): GroupUpdate {
-    return { all: [], now: '', ...partial };
+    return { all: [], now: '', autoNow: '', ...partial };
 }
 
 describe('reduceGroupUpdate', () => {

@@ -67,26 +67,40 @@ describe('stopAndAwaitStopped', () => {
         assert.equal(bridge.listenerCount(), 0);
     });
 
-    it('stop() rejection resolves stop-rejected after the grace window', async () => {
+    it('stop() rejection logs the warning and arms the 300 ms grace window', async () => {
         const timers = createFakeTimers();
         const bridge = createFakeBridge(VPN_STATUS.STARTED);
         bridge.behaviors.stop = () => Promise.reject(new Error('busy'));
         const log = createLogger();
-        const promise = stopAndAwaitStopped({ bridge, log, timers: timers.host }, 10_000);
+        void stopAndAwaitStopped({ bridge, log, timers: timers.host }, 10_000);
         await flushMicrotasks();
 
-        // Two timers pending: the 10 s timeout and the 300 ms grace.
-        assert.deepEqual(timers.pendingDelays().sort((a, b) => a - b), [300, 10_000]);
-        timers.fireNext(); // fires the 10s timeout? map order: timeout first
-        timers.fireAll();
-        const result = await promise;
-        // Whichever fires first settles; with insertion order the timeout
-        // timer was armed before the grace timer, so outcome is 'timeout'
-        // only if it fired first — assert it settled to one of the two
-        // legal outcomes and cleaned up.
-        assert.ok(result.outcome === 'timeout' || result.outcome === 'stop-rejected');
-        assert.equal(bridge.listenerCount(), 0);
         assert.ok(log.lines.some((l) => l.includes('stop() rejected')));
+        // The reject handler schedules the grace fallback alongside the
+        // still-pending outer timeout — two timers, one per bound.
+        assert.deepEqual(timers.pendingDelays().sort((a, b) => a - b), [300, 10_000]);
+    });
+
+    it('a rejected stop() with no STOPPED still settles and tears down the listener', async () => {
+        const timers = createFakeTimers();
+        const bridge = createFakeBridge(VPN_STATUS.STARTED);
+        bridge.behaviors.stop = () => Promise.reject(new Error('busy'));
+        const promise = stopAndAwaitStopped(
+            { bridge, log: createLogger(), timers: timers.host },
+            10_000,
+        );
+        await flushMicrotasks();
+
+        // The fake scheduler fires timers oldest-first; the outer timeout was
+        // armed before the grace window, so it deterministically settles the
+        // wait. (Under real delay-ordered timers the 300 ms grace fires first
+        // and yields 'stop-rejected'; that path is unreachable with an
+        // insertion-order fake.) The guarantee under test: the wait always
+        // settles and unsubscribes rather than hanging on a rejected stop().
+        timers.fireAll();
+        assert.deepEqual(await promise, { outcome: 'timeout' });
+        assert.equal(bridge.listenerCount(), 0);
+        assert.equal(timers.pendingCount(), 0);
     });
 
     it('STOPPED arriving during the reject grace window wins', async () => {
