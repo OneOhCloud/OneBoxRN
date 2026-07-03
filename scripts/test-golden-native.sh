@@ -27,5 +27,10 @@ swiftc -parse-as-library \
   "$MOD/ios/tests/Sha256GoldenCheck.swift" \
   -o "$TMP/sha256-golden"
 "$TMP/sha256-golden" "$MOD/golden/sha256.json"
+swiftc -parse-as-library \
+  "$MOD/ios/core/DnsParse.swift" \
+  "$MOD/ios/tests/DnsParseGoldenCheck.swift" \
+  -o "$TMP/dns-golden"
+"$TMP/dns-golden" "$MOD/golden/dns-arecord.json"
 
 echo "✅ native golden runners passed"
