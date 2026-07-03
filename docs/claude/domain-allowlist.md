@@ -1,27 +1,27 @@
 ---
 applies-to: src/utils/domain-verification.ts, src/utils/domain-suffix.ts, src/modules/expo-onebox/android/**/BackgroundConfigWorker.kt, src/modules/expo-onebox/ios/core/BackgroundConfigRefresh.swift
-loaded-when: reviewer flags plaintext domain in any Claude-facing file; investigator touches apply=1 / accelerator fallback / BG refresh; implementer adds new auto-apply path
+loaded-when: 审查者在任何面向 Claude 的文件中标记出明文域名；调查者触及 apply=1 / 加速器回落 / BG 刷新；实现者新增自动应用路径
 updated-on: new-convention
 ---
 
 # domain-allowlist
 
-## rule
-`DEFAULT_KNOWN_DOMAIN_SHA256_LIST` (TS, `src/utils/domain-verification.ts`) + Kotlin + Swift mirrors hold sha256 digests of trusted domains/suffixes. **The pre-image (plaintext hostname) MUST NOT appear** in any source file, comment, test fixture, commit, PR description, log line, i18n string, or `CHANGELOG.md` — in this repo or the next-door OneBox Tauri repo.
+## 规则
+`DEFAULT_KNOWN_DOMAIN_SHA256_LIST`（TS，`src/utils/domain-verification.ts`）+ Kotlin + Swift 镜像保存受信域名/后缀的 sha256 摘要。**预映像（明文主机名）绝不能出现**在任何源文件、注释、测试夹具、提交、PR 描述、日志行、i18n 字符串或 `CHANGELOG.md` 中——无论是在本仓库还是隔壁的 OneBox Tauri 仓库。
 
-## why
+## 为什么
 category: bug (security).
-failure: pre-image leak turns the hash check into a publicly-documented string comparison. the allowlist plus the remote list from `sing-box.net` is the only gate between an attacker with an OneBoxRN build and the set of domains trusted enough to auto-apply (`apply=1` deep links, accelerator fallback).
-constraint: hex digests are the entire public surface. reviewer flags any plaintext hint — variable name, test fixture, comment, commit body, CHANGELOG line — as a blocker.
+failure: 预映像泄露会把 hash 校验降级成一次公开可查的字符串比较。allowlist 加上来自 `sing-box.net` 的远程列表，是拥有 OneBoxRN 构建的攻击者与"受信到足以自动应用的域名集合"（`apply=1` 深链接、加速器回落）之间唯一的关卡。
+constraint: 十六进制摘要就是全部的公开表面。审查者会把任何明文线索——变量名、测试夹具、注释、提交正文、CHANGELOG 行——都标为 blocker。
 
-## how to add a new trusted domain/suffix
-1. compute sha256 offline (never in-session output, never "sha256 of X is Y" recipes in chat or commit bodies)
-2. add hex digest to `DEFAULT_KNOWN_DOMAIN_SHA256_LIST` + both native mirrors (Kotlin, Swift)
-3. commit message describes as "expanded supported servers" — no hostname
-4. update this doc's `updated-on` with reason category if the convention shifts
+## 如何添加新的受信域名/后缀
+1. 离线计算 sha256（绝不在会话中输出，绝不在聊天或提交正文里写"X 的 sha256 是 Y"这类配方）
+2. 把十六进制摘要加入 `DEFAULT_KNOWN_DOMAIN_SHA256_LIST` + 两个原生镜像（Kotlin、Swift）
+3. 提交信息描述为 "expanded supported servers"——不含主机名
+4. 若约定发生变化，用原因类别更新本文档的 `updated-on`
 
-## suffix matching
-`hostnameMatchesAllowlist` / `hostnameMatchesAnyAllowlist` approve the entire subtree when a parent-suffix hash is listed. order: shortest-suffix-first. contract: `src/utils/domain-suffix.test.ts`.
+## 后缀匹配
+当某个父后缀的 hash 在列表中时，`hostnameMatchesAllowlist` / `hostnameMatchesAnyAllowlist` 会放行整棵子树。顺序：最短后缀优先。契约：`src/utils/domain-suffix.test.ts`。
 
-## pre-commit hook
-if you catch yourself typing `// sha256("example.com")` in a comment or log — strip before saving. the hash self-documents its function; which subtree it approves is intentionally opaque.
+## 提交前钩子
+如果你发现自己正在注释或日志里敲 `// sha256("example.com")`——保存前删掉。hash 会自我说明其功能；它放行的是哪棵子树，是刻意保持不透明的。

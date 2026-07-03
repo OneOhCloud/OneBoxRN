@@ -44,7 +44,7 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
             onRequestClose={onClose}
         >
             <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-                {/* Header */}
+                {/* 头部 */}
                 <Animated.View
                     entering={FadeIn.duration(220)}
                     style={{
@@ -92,7 +92,7 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
                     </Pressable>
                 </Animated.View>
 
-                {/* Content */}
+                {/* 内容 */}
                 <ScrollView
                     style={{ flex: 1 }}
                     contentContainerStyle={{
@@ -102,7 +102,7 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
                     }}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Status banner */}
+                    {/* 状态横幅 */}
                     <Animated.View
                         entering={FadeInDown.duration(320).delay(60)}
                         style={{
@@ -171,7 +171,7 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
                         </View>
                     </Animated.View>
 
-                    {/* Timing & Flags */}
+                    {/* 时间与标志 */}
                     <DetailSection index={1}>
                         <DetailRow label={i18n.t('task_config_updated')} value={record.contentChanged ? i18n.t('task_yes') : i18n.t('task_no')} isLast={!record.flowId} />
                         {record.flowId && (
@@ -179,7 +179,7 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
                         )}
                     </DetailSection>
 
-                    {/* Accelerated URL (redacted form only — raw URLs never persist) */}
+                    {/* 加速 URL（仅脱敏形式 —— 原始 URL 从不持久化） */}
                     {record.acceleratedUrlRedacted && (
                         <DetailSection title={i18n.t('task_request_urls')} index={2}>
                             <URLRow
@@ -192,7 +192,7 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
                         </DetailSection>
                     )}
 
-                    {/* Profile Info — parsed traffic (raw header never persists) */}
+                    {/* 配置信息 —— 解析出的流量（原始 header 从不持久化） */}
                     {record.status === 'success' && record.total > 0 && (
                         <DetailSection title={i18n.t('task_config_info')} index={3}>
                             <DetailRow label={i18n.t('task_upload')} value={formatBytes(record.upload)} />
@@ -202,7 +202,7 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
                         </DetailSection>
                     )}
 
-                    {/* Error Info */}
+                    {/* 错误信息 */}
                     {record.error && record.status === 'failed' && (
                         <DetailSection title={i18n.t('task_error_info')} index={4}>
                             <Pressable
@@ -248,7 +248,7 @@ export function TaskDetailModal({ record, visible, onClose }: TaskDetailModalPro
     );
 }
 
-// ─── Helper Components ───────────────────────────────────────────────────────
+// ─── 辅助组件 ───────────────────────────────────────────────────────
 
 function DetailSection({ title, children, index = 0 }: { title?: string; children: React.ReactNode; index?: number }) {
     const theme = useTheme();
@@ -386,7 +386,7 @@ function URLRow({ label, url, onCopy, color, isLast }: {
     );
 }
 
-// ─── Utilities ───────────────────────────────────────────────────────────────
+// ─── 工具函数 ───────────────────────────────────────────────────────────────
 
 function formatTime(timestamp: string): string {
     try {

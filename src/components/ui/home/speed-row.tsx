@@ -5,11 +5,10 @@ import { Platform, View } from 'react-native';
 
 const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
-/** Real-time uplink/downlink speed display */
+/** 实时上/下行速度显示 */
 export function SpeedRow() {
     const { traffic } = useVpn();
-    // Format from raw with the shared formatter, not the divergent native
-    // *Display strings (audit C10).
+    // 用共享 formatter 从原始字节格式化，而非各平台不一致的原生 *Display 字符串。
     const uplink = traffic ? formatBytes(traffic.uplink) + '/s' : '0 B/s';
     const downlink = traffic ? formatBytes(traffic.downlink) + '/s' : '0 B/s';
     return (

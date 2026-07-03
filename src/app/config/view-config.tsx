@@ -1,14 +1,13 @@
 /**
- * Config Viewer — read-only inspection of the active config.
+ * 配置查看器 — 只读地查看当前生效的配置。
  *
- * Apple-style: iOS UISegmentedControl-like tab, grouped rounded card,
- * SF Pro / Menlo typography, iOS system colors, hairline separators.
+ * Apple 风格：类似 iOS UISegmentedControl 的分段、分组圆角卡片、
+ * SF Pro / Menlo 字体、iOS 系统色、hairline 分隔线。
  *
- * Two representations:
- *   Imported — raw content imported from the active profile's source URL.
- *   Merged   — the config actually passed to sing-box: template for the
- *              current mode with the user's outbounds injected and DNS
- *              rewritten. Computed on-demand via getProcessedConfig().
+ * 两种表示：
+ *   Imported — 从当前配置文件源 URL 导入的原始内容。
+ *   Merged   — 实际传给 sing-box 的配置：当前模式的模板，注入用户的
+ *              outbound 并重写 DNS。通过 getProcessedConfig() 按需计算。
  */
 import { lightImpact, selectionChanged } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
@@ -82,14 +81,12 @@ function computeMergedMeta(rawImported: string, merged: string): MergedMeta | nu
     }
 }
 
-// ─── iOS-style Segmented Control ────────────────────────────
+// ─── iOS 风格分段控件 ────────────────────────────
 
 /**
- * Matches the iOS 13+ UISegmentedControl appearance: rounded track with
- * a white "thumb" under the selected segment that slides between
- * positions with a spring. On iOS we layer a subtle shadow on the thumb;
- * on Android we substitute a hairline border (project rule — no
- * `elevation` on animated views).
+ * 复刻 iOS 13+ UISegmentedControl 外观：圆角轨道，选中分段下方有一个白色
+ * "thumb"，用 spring 在各位置间滑动。iOS 上给 thumb 叠一层淡阴影；
+ * Android 上改用 hairline 边框（项目规则 —— 动画视图上禁用 `elevation`）。
  */
 function Segmented({ value, onChange }: { value: Tab; onChange: (v: Tab) => void }) {
     const theme = useTheme();
@@ -196,7 +193,7 @@ function Segmented({ value, onChange }: { value: Tab; onChange: (v: Tab) => void
     );
 }
 
-// ─── Nav bar ────────────────────────────────────────────────
+// ─── 导航栏 ────────────────────────────────────────────────
 
 interface NavBarProps {
     title: string;
@@ -206,10 +203,9 @@ interface NavBarProps {
 }
 
 /**
- * iOS-style nav bar. Title is centred and non-interactive
- * (`pointerEvents="none"`) so it never eats taps meant for the back or
- * right buttons — which was the regression the prior iteration shipped.
- * Buttons have generous hitSlop (44pt minimum tap target).
+ * iOS 风格导航栏。标题居中且不可交互（`pointerEvents="none"`），
+ * 因此绝不会抢走本该落在返回或右侧按钮上的点击。
+ * 按钮有充足的 hitSlop（44pt 最小点击目标）。
  */
 function NavBar({ title, onBack, right, theme }: NavBarProps) {
     return (
@@ -274,15 +270,15 @@ function NavBar({ title, onBack, right, theme }: NavBarProps) {
     );
 }
 
-// ─── Screen ─────────────────────────────────────────────────
+// ─── 屏幕 ─────────────────────────────────────────────────
 
 export default function ViewConfigScreen() {
     const theme = useTheme();
     const safeAreaInsets = useSafeAreaInsets();
 
     const [tab, setTab] = React.useState<Tab>('imported');
-    // Sync KV read — lazy init makes the content available at first render,
-    // so no loading state and no post-mount setState are needed.
+    // 同步 KV 读取 —— 惰性初始化让内容在首帧即可用，
+    // 因此无需 loading 状态，也无需挂载后 setState。
     const [rawImported] = React.useState<string>(() => ProfileConfig.getConfigContent() ?? '');
     const [mergedState, setMergedState] = React.useState<
         | { kind: 'idle' }
@@ -300,8 +296,8 @@ export default function ViewConfigScreen() {
         [rawImported]
     );
 
-    // Zero-setState reader: computes the next merged state without touching
-    // React, so the auto-load effect never sets state synchronously.
+    // 零 setState 的 reader：不触碰 React 就算出下一个 merged 状态，
+    // 使自动加载 effect 从不同步地设置状态。
     const runMerge = React.useCallback(async (): Promise<typeof mergedState> => {
         try {
             const isRunning = status === VPN_STATUS.STARTED || status === VPN_STATUS.STARTING;
@@ -315,15 +311,14 @@ export default function ViewConfigScreen() {
         }
     }, [rawImported, status, getStartConfig]);
 
-    // Retry button handler — event context, synchronous setState is fine here.
+    // 重试按钮处理器 —— 事件上下文，这里同步 setState 没问题。
     const loadMerged = React.useCallback(() => {
         setMergedState({ kind: 'loading' });
         void runMerge().then(setMergedState);
     }, [runMerge]);
 
-    // Auto-load runs only from 'idle': a failed load stays on the error panel
-    // until the user retries, instead of the previous error↔loading effect
-    // cycle that auto-retried a persistent failure forever.
+    // 自动加载只在 'idle' 时运行：加载失败会停留在错误面板，直到用户手动重试，
+    // 避免对持续性失败无限自动重试。
     React.useEffect(() => {
         if (tab !== 'merged' || !rawImported || mergedState.kind !== 'idle') return;
         let cancelled = false;
@@ -333,9 +328,9 @@ export default function ViewConfigScreen() {
         return () => { cancelled = true; };
     }, [tab, rawImported, mergedState.kind, runMerge]);
 
-    // 'idle' on the merged tab is derived at render: the auto-load is in
-    // flight (→ loading panel), or the imported config is empty and can
-    // never load (→ error panel). Nothing is written back as state.
+    // merged 标签页上的 'idle' 在渲染时推导：要么自动加载正在进行（→ loading
+    // 面板），要么导入的配置为空、永远无法加载（→ error 面板）。不会有任何
+    // 状态被写回。
     const effectiveMerged = React.useMemo<typeof mergedState>(() => {
         if (tab !== 'merged' || mergedState.kind !== 'idle') return mergedState;
         return rawImported
@@ -405,7 +400,7 @@ export default function ViewConfigScreen() {
                 <Segmented value={tab} onChange={setTab} />
             </View>
 
-            {/* Meta caption row */}
+            {/* 元信息说明行 */}
             <View
                 style={{
                     flexDirection: 'row',
@@ -441,7 +436,7 @@ export default function ViewConfigScreen() {
                 ) : null}
             </View>
 
-            {/* Config card */}
+            {/* 配置卡片 */}
             <View
                 style={{
                     flex: 1,
@@ -491,7 +486,7 @@ export default function ViewConfigScreen() {
     );
 }
 
-// ─── Content bodies ─────────────────────────────────────────
+// ─── 内容主体 ─────────────────────────────────────────────
 
 function ConfigBody({ lines, theme }: { lines: string[]; theme: ReturnType<typeof useTheme> }) {
     const isDark = theme.text === '#ffffff';

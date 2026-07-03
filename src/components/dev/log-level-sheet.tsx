@@ -14,7 +14,7 @@ import { ForwardedRef, forwardRef, memo, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// ─── Per-level metadata ──────────────────────────────────────
+// ─── 各级别元数据 ──────────────────────────────────────
 
 const LEVEL_DESC_KEY: Record<SingBoxLogLevel, string> = {
     trace: 'dev_log_level_desc_trace',
@@ -26,7 +26,7 @@ const LEVEL_DESC_KEY: Record<SingBoxLogLevel, string> = {
     panic: 'dev_log_level_desc_panic',
 };
 
-/** Accent per level — mirrors the semantic palette used elsewhere. */
+/** 各级别的强调色 —— 与别处使用的语义色板保持一致。 */
 const LEVEL_COLOR: Record<SingBoxLogLevel, string> = {
     trace: '#8E8E93', // systemGray
     debug: '#5AC8FA', // systemTeal

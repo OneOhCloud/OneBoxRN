@@ -1,15 +1,15 @@
 /**
- * DEV-ONLY automation harness. Reached via deep link
+ * 仅供开发的自动化 harness。经 deep link 进入
  *   oneoh-networktools://dev-harness?op=<op>&tag=<tag>
- * fired over adb (`adb shell am start -a android.intent.action.VIEW -d '<url>'`).
+ * 通过 adb 触发（`adb shell am start -a android.intent.action.VIEW -d '<url>'`）。
  *
- * Drives VpnContext actions without touching production UI and emits a single
- * machine-parseable line per action to logcat (tag `ReactNativeJS`):
+ * 在不触碰生产 UI 的情况下驱动 VpnContext 动作，并为每个动作向 logcat
+ * 输出一行机器可解析日志（tag `ReactNativeJS`）：
  *   [[HARNESS]] op=<op> phase=<start|done|error> key=value …
- * so acceptance can be driven and asserted from logs alone — no blind spots.
+ * 使验收可仅凭日志驱动与断言 —— 没有盲区。
  *
- * Guarded by __DEV__: in a release build the screen renders nothing and never
- * dispatches. Never ships user-visible (dev-screens i18n exemption applies).
+ * 受 __DEV__ 门控：release 构建下本屏什么都不渲染、也从不派发。
+ * 从不作为用户可见内容发布（适用 dev-screens 的 i18n 豁免）。
  */
 import { useVpn } from '@/contexts/vpn-context';
 import { ProfileConfig } from '@/database/kv';
@@ -35,7 +35,7 @@ export default function DevHarnessScreen() {
     useEffect(() => {
         if (!__DEV__) return;
         const op = String(params.op ?? 'status');
-        // De-dupe StrictMode double-mount + re-fires for the same op instance.
+        // 对同一 op 实例去重 StrictMode 的双重挂载与重复触发。
         const runKey = `${op}:${params.tag ?? ''}`;
         if (ranRef.current === runKey) return;
         ranRef.current = runKey;
@@ -73,9 +73,9 @@ export default function DevHarnessScreen() {
                         mark(op, 'done', {});
                         break;
                     case 'fetch': {
-                        // Verifies the renamed bridge method resolves at runtime.
-                        // A network error is fine — it proves the method exists
-                        // (vs "fetchProfileConfig is not a function").
+                        // 验证该 bridge 方法在运行时可解析。
+                        // 网络错误没关系 —— 它证明方法存在
+                        //（而非 "fetchProfileConfig is not a function"）。
                         const url = String(params.tag ?? 'https://example.invalid/config');
                         const r = await ExpoOneBox.fetchProfileConfig(url, getSingBoxUserAgent());
                         mark(op, 'done', { status: r.statusCode, bytes: r.body?.length ?? 0 });

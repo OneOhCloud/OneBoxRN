@@ -4,9 +4,9 @@ import { useColorScheme as useRNColorScheme } from 'react-native';
 const emptySubscribe = () => () => {};
 
 /**
- * To support static rendering, this value needs to be re-calculated on the client side for web.
- * `useSyncExternalStore` returns the server snapshot ('light') during SSR/hydration and the
- * client snapshot on every client render — no post-mount setState needed.
+ * 为支持静态渲染，web 上该值需在客户端重新计算。`useSyncExternalStore` 在
+ * SSR/hydration 期间返回 server 快照（'light'），在每次客户端渲染返回客户端
+ * 快照 —— 无需挂载后 setState。
  */
 export function useColorScheme() {
   const hasHydrated = useSyncExternalStore(

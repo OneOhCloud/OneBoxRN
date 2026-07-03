@@ -5,15 +5,15 @@ updated-on: new-convention
 last-consolidated: null
 ---
 
-## recurring mistakes (auto-load — skip retriever)
+## 反复出现的错误（auto-load — skip retriever）
 
-(empty — no recurring investigator mistakes recorded yet. single occurrence = normal priority, not auto-loaded)
+(empty — 尚未记录反复出现的 investigator 错误。单次出现 = 普通优先级，不自动加载)
 
-## known-hard areas (retriever matches tags)
+## 已知的困难区域（retriever matches tags）
 
 - [tag:flex-layout,scroll-sibling,platform-diff] → concrete/layout/flex-sibling-squeeze.md (calls:0 helpful:0)
-  summary: two shrinkable ScrollView siblings in a flex column fight for height; lower drives upper.
+  summary: 一个 flex 列中两个可收缩的 ScrollView 兄弟节点争抢高度；下方驱动上方。
 
-## consolidation trigger
+## 整合触发条件
 
-concrete count ≥ 20 OR 60 days since last consolidation — claude-expert Audit 6.
+concrete 条目数 ≥ 20 或 距上次整合满 60 天 — claude-expert Audit 6。

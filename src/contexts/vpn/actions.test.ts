@@ -76,8 +76,8 @@ describe('stopAndAwaitStopped', () => {
         await flushMicrotasks();
 
         assert.ok(log.lines.some((l) => l.includes('stop() rejected')));
-        // The reject handler schedules the grace fallback alongside the
-        // still-pending outer timeout — two timers, one per bound.
+        // reject handler 在仍待执行的外层超时之外再安排宽限 fallback ——
+        // 两个 timer，各守一个边界。
         assert.deepEqual(timers.pendingDelays().sort((a, b) => a - b), [300, 10_000]);
     });
 
@@ -91,12 +91,10 @@ describe('stopAndAwaitStopped', () => {
         );
         await flushMicrotasks();
 
-        // The fake scheduler fires timers oldest-first; the outer timeout was
-        // armed before the grace window, so it deterministically settles the
-        // wait. (Under real delay-ordered timers the 300 ms grace fires first
-        // and yields 'stop-rejected'; that path is unreachable with an
-        // insertion-order fake.) The guarantee under test: the wait always
-        // settles and unsubscribes rather than hanging on a rejected stop().
+        // fake 调度器按最旧优先触发 timer；外层超时在宽限窗口之前装载，因此
+        // 它会确定性地 settle 这次等待。（在真实按 delay 排序的 timer 下，300ms
+        // 宽限会先触发并产出 'stop-rejected'；该路径在按插入序的 fake 下不可达。）
+        // 被测保证：等待总会 settle 并退订，而非在被 reject 的 stop() 上挂起。
         timers.fireAll();
         assert.deepEqual(await promise, { outcome: 'timeout' });
         assert.equal(bridge.listenerCount(), 0);
@@ -211,7 +209,7 @@ describe('createVpnActions.start', () => {
     it('timeout race: slow native start resolves timeout; timer cleared on success', async () => {
         const timers = createFakeTimers();
         const bridge = createFakeBridge(VPN_STATUS.STOPPED);
-        bridge.behaviors.start = () => new Promise(() => {}); // never settles
+        bridge.behaviors.start = () => new Promise(() => {}); // 永不 settle
         const actions = createVpnActions(makeDeps(bridge, timers));
         const promise = actions.start({ timeoutMs: 20_000 });
         await flushMicrotasks();
@@ -221,7 +219,7 @@ describe('createVpnActions.start', () => {
             failure: { kind: 'timeout', timeoutMs: 20_000 },
         });
 
-        // Fast path clears the racing timer.
+        // 快速路径会清掉赛跑的 timer。
         bridge.behaviors.start = () => Promise.resolve();
         assert.deepEqual(await actions.start({ timeoutMs: 20_000 }), { ok: true });
         assert.equal(timers.pendingCount(), 0);
@@ -247,7 +245,7 @@ describe('createVpnActions.start', () => {
         const actions = createVpnActions(
             makeDeps(bridge, timers, {
                 getProcessedConfig: () => {
-                    controller.abort(); // aborted while producing the config
+                    controller.abort(); // 生成配置期间中止
                     return Promise.resolve('{}');
                 },
             }),

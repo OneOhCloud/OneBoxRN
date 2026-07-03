@@ -1,6 +1,6 @@
 /**
- * Centralized cache key constants for KV store operations.
- * Prevents key duplication and typos across the codebase.
+ * KV 存储操作用的集中式缓存 key 常量。
+ * 避免全代码库里 key 的重复与拼写错误。
  */
 
 export const DOMAIN_VERIFICATION_KEYS = {

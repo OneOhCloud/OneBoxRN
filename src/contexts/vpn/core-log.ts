@@ -1,22 +1,16 @@
 /**
- * sing-box core log-level parsing — pure helpers moved out of
- * vpn-context.tsx.
+ * sing-box 核心日志级别解析 —— 纯辅助函数。
  *
- * Filtering by the user's preferred level is done on the native side
- * (`ExpoOneBox.setCoreLogLevel(...)` → Kotlin/Swift filter at the
- * CommandClient handler, before entries cross into JS). Background:
- * sing-box's `log.level` config only gates stdout and the observable
- * sink — the platform writer feeding our CommandServer stream is
- * unconditional (see `sing-box/log/observable.go:112-143` and
- * `daemon/instance.go:109` in the vendored tree). Client-side
- * filtering is the documented path.
+ * 按用户偏好级别过滤在原生侧完成（`ExpoOneBox.setCoreLogLevel(...)` →
+ * Kotlin/Swift 在 CommandClient handler 处过滤，早于日志进入 JS）。背景：
+ * sing-box 的 `log.level` 配置只约束 stdout 和 observable sink —— 向我们
+ * CommandServer 流供数的 platform writer 是无条件的，因此客户端过滤才是
+ * 既定路径。
  *
- * Here we keep only a small prefix parser so the Logs viewer can
- * colour rows by level (error red, warn amber). The format is fixed
- * by sing-box's `log/format.go:24`: `strings.ToUpper(FormatLevel(
- * level))`, i.e. `TRACE[0000] …`, `INFO[0000] …`, etc. ANSI colour
- * codes may wrap the level token because sing-box's platform
- * formatter has `DisableColors: false`, so we strip them first.
+ * 这里只保留一个小的前缀解析器，让日志查看器能按级别给行着色（error 红、
+ * warn 琥珀色）。sing-box 固定的格式为 `strings.ToUpper(FormatLevel(level))`，
+ * 即 `TRACE[0000] …`、`INFO[0000] …` 等。ANSI 颜色码可能包裹级别 token
+ *（因为 sing-box 的 platform formatter `DisableColors: false`），所以先剥离它们。
  */
 
 import type { SingBoxLogLevel } from '../../database/kv.ts';

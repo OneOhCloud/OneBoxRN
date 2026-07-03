@@ -28,16 +28,15 @@ const PULSE_DURATION = 3200;
 const RING_SIZE = 168;
 
 /**
- * "Quiet signal" onboarding — the app icon sits at the center of a slow radar
- * pulse, suggesting a tunnel waiting to be established. Staggered entry reveal
- * on mount; continuous ring pulses afterwards.
+ * "静默信号" 引导页——app 图标居于缓慢雷达脉冲中心，暗示一条待建立的隧道。
+ * 挂载时错峰入场揭示，之后环形脉冲持续循环。
  */
 export function EmptyState({ onImportUrl }: EmptyStateProps) {
     const theme = useTheme();
     const accentBlue = useAccentBlue();
 
-    // Three rings share the same animation curve but start at different phases
-    // so the viewer always sees at least one ring mid-expansion.
+    // 三个环共用同一条动画曲线，但起始相位不同，确保任意时刻都至少有一个环
+    // 处于扩张中。
     const ring1 = useSharedValue(0);
     const ring2 = useSharedValue(0);
     const ring3 = useSharedValue(0);
@@ -79,8 +78,7 @@ export function EmptyState({ onImportUrl }: EmptyStateProps) {
             transform: [{ scale: 0.7 + sv.value * 0.9 }],
         }));
 
-    // Three calls in fixed order — order is stable, so the rules-of-hooks
-    // disable above is safe here.
+    // 三次调用顺序固定——顺序稳定，因此上面的 rules-of-hooks disable 是安全的。
     const ring1Style = ringStyleFromSV(ring1);
     const ring2Style = ringStyleFromSV(ring2);
     const ring3Style = ringStyleFromSV(ring3);

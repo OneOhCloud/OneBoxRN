@@ -1,7 +1,6 @@
 /**
- * iOS 26 shared section primitives. Every tab renders headers with identical
- * metrics so cross-tab transitions don't shift vertical layout — keep changes
- * here synchronized.
+ * iOS 26 共享的 section 基元。每个 tab 都用完全一致的度量渲染 header，
+ * 使跨 tab 转场不会造成垂直布局位移 — 这里的改动需保持同步。
  */
 import { mediumImpact } from '@/components/ui/haptics';
 import { useAccentBlue, useQuietChrome } from '@/constants/ios26-palette';

@@ -3,12 +3,10 @@ import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { shouldFallbackToAccelerator, type FetchErrorKind } from './config-fetch-policy.ts';
 
-// Cross-platform golden lock for the fetch → accelerator-fallback decision
-// (audit C4 / D3c-01). shouldFallbackToAccelerator is the JS spec mirror of the
-// policy the native state machines implement inline; this asserts it against the
-// language-agnostic golden/fetch-fallback-decision.json, so the contract is one
-// source a decision predicate extracted from the native fetchers can also assert
-// against (the native drift-lock's shared reference).
+// fetch → 加速代理回落决策的跨平台 golden 锁。shouldFallbackToAccelerator 是原生
+// 状态机内联实现的那套策略的 JS 规范镜像；这里把它对与语言无关的
+// golden/fetch-fallback-decision.json 做断言，使这份契约成为单一来源 —— 从原生
+// fetcher 里抽取的决策谓词也能对它断言（即原生防漂移锁的共享参考）。
 
 const golden = JSON.parse(
     readFileSync(new URL('../modules/expo-onebox/golden/fetch-fallback-decision.json', import.meta.url), 'utf8'),

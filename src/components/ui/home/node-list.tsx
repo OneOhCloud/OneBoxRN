@@ -11,7 +11,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 export type { NodeItem } from '@/hooks/use-proxy-nodes';
 
-// How long (ms) to keep showing the last node name after disconnection
+// 断开后继续显示上一个节点名的时长（毫秒）
 const NODE_LABEL_LINGER_MS = 1000;
 
 interface NodeListProps {
@@ -31,10 +31,9 @@ export function NodeList({
     const accent = useAccentBlue();
     const { connected } = useVpn();
 
-    // Delay clearing the node label so it doesn't snap to "—" the instant VPN
-    // stops. The rising edge is adjusted during render (guarded setState, per
-    // React's "adjusting state when props change"); only the falling edge needs
-    // the linger timer.
+    // 延迟清空节点标签，避免 VPN 一停就瞬间跳到 "—"。上升沿在渲染期调整
+    // （guarded setState，即 React 的 "adjusting state when props change"）；
+    // 只有下降沿需要 linger 定时器。
     const [displayConnected, setDisplayConnected] = useState(connected);
     if (connected && !displayConnected) {
         setDisplayConnected(true);
@@ -53,7 +52,7 @@ export function NodeList({
 
     const currentItem = nodes.find(n => n.tag === currentNode);
 
-    // Compute the live name only when we have real data
+    // 只有拿到真实数据时才计算实时名称
     const liveName = (() => {
         if (isLoading || !currentItem) return null;
         if (nodes.length === 0) return null;
@@ -61,9 +60,9 @@ export function NodeList({
         return currentItem.tag;
     })();
 
-    // Freeze the last known name so it lingers after disconnection — state
-    // adjusted during render (React's "storing information from previous
-    // renders"), not a ref, so render never touches a mutable cell.
+    // 冻结最后已知的名称，使其在断开后仍保留一会儿——用渲染期调整的 state
+    // （React 的 "storing information from previous renders"）而非 ref，
+    // 因此渲染过程从不触碰可变单元。
     const [lastName, setLastName] = useState<string | null>(null);
     if (connected && liveName !== null && liveName !== lastName) {
         setLastName(liveName);
@@ -71,7 +70,7 @@ export function NodeList({
 
     const displayName = (() => {
         if (!displayConnected) return i18n.t('no_expire_info');
-        // During linger period: show frozen name if live data is gone
+        // linger 期间：实时数据消失时显示冻结的名称
         if (liveName !== null) return liveName;
         if (lastName !== null) return lastName;
         if (isLoading) return i18n.t('loading');
@@ -79,7 +78,7 @@ export function NodeList({
     })();
 
     const interactive = connected && nodes.length > 0;
-    // Show caret during linger period even though interaction is disabled
+    // linger 期间即便交互已禁用也显示 caret
     const showCaret = interactive || (displayConnected && lastName !== null);
 
     return (

@@ -1,7 +1,6 @@
 /**
- * Hand-rolled fakes shared by the vpn pure-core test suites.
- * No mocking library — matches repo test conventions. Imported only
- * by *.test.ts files; never by app code.
+ * vpn 纯核心测试套件共享的手写 fake。不使用 mock 库 —— 遵循仓库测试约定。
+ * 仅由 *.test.ts 文件 import；绝不由应用代码 import。
  */
 
 import type { TimerHost, VpnBridge, VpnLogger } from './types.ts';
@@ -10,9 +9,9 @@ import type { TimerHost, VpnBridge, VpnLogger } from './types.ts';
 
 export interface FakeTimers {
     host: TimerHost;
-    /** Fires the oldest pending timer. Returns false when none pending. */
+    /** 触发最旧的待执行 timer。无待执行时返回 false。 */
     fireNext(): boolean;
-    /** Fires until the queue drains (new timers scheduled mid-run included). */
+    /** 一直触发直到队列排空（含运行中新安排的 timer）。 */
     fireAll(): void;
     pendingCount(): number;
     pendingDelays(): number[];
@@ -43,7 +42,7 @@ export function createFakeTimers(): FakeTimers {
         },
         fireAll() {
             while (timers.fireNext()) {
-                // drain, including timers scheduled by fired callbacks
+                // 排空，含被已触发回调安排的 timer
             }
         },
         pendingCount: () => pending.size,
@@ -75,12 +74,12 @@ export function createLogger(): CapturingLogger {
 // ─── Fake bridge ─────────────────────────────────────────────
 
 export interface FakeBridge extends VpnBridge {
-    /** Mutable current status returned by getStatus(). */
+    /** getStatus() 返回的可变当前状态。 */
     status: number;
-    /** Emit a native status-change event to all live listeners. */
+    /** 向所有存活监听器发出一次原生状态变更事件。 */
     emitStatus(status: number): void;
     calls: string[];
-    /** Overridable behaviors; default resolve. */
+    /** 可覆盖的行为；默认 resolve。 */
     behaviors: {
         stop: () => Promise<void>;
         start: (config: string) => Promise<void>;
@@ -149,7 +148,7 @@ export function createFakeBridge(initialStatus: number): FakeBridge {
     return bridge;
 }
 
-/** Lets async chains (then/finally) settle between fake-timer fires. */
+/** 让异步链（then/finally）在 fake-timer 触发之间 settle。 */
 export async function flushMicrotasks(rounds = 20): Promise<void> {
     for (let i = 0; i < rounds; i++) {
         await Promise.resolve();

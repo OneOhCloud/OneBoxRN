@@ -1,6 +1,6 @@
 /**
- * Home Screen — VPN control hub.
- * Primary user tasks: connect/disconnect, select proxy node, import profile.
+ * 主页屏幕 — VPN 控制中枢。
+ * 用户主要操作：连接/断开、选择代理节点、导入配置文件。
  */
 import { ThemedView } from '@/components/themed-view';
 import { ConnectButton } from '@/components/ui/home/connect-button';
@@ -35,16 +35,16 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 /**
- * Left-to-right wipe transition between two children.
- * Must stay mounted across parent re-renders for the animation to play.
+ * 两个子节点之间从左到右的擦除过渡。
+ * 必须在父组件重渲染期间保持挂载，动画才能播放。
  *
- * A ghost element (normal flow) holds height. Two absolutely-positioned
- * overflow:hidden clips drive the wipe: new grows left→right, old shrinks left→right.
- * widthShared is a Reanimated shared value so worklets can read it on the UI thread.
+ * 一个 ghost 元素（正常文档流）撑起高度。两个绝对定位的 overflow:hidden
+ * 裁剪层驱动擦除：新内容从左向右生长，旧内容从左向右收缩。
+ * widthShared 是 Reanimated shared value，好让 worklet 在 UI 线程读取它。
  */
 const HAZE_W = 72;
 const CARD_RADIUS = 22;
-// Opacity ramps for the frosted-glass haze strip. LTR: dense at right edge (near glow line). RTL: reversed.
+// 磨砂玻璃雾化条的不透明度梯度。LTR：右缘（靠近辉光线）最浓。RTL：反向。
 const HAZE_LTR = [0.01, 0.02, 0.06, 0.12, 0.20, 0.32, 0.46, 0.60];
 const HAZE_RTL = [0.60, 0.46, 0.32, 0.20, 0.12, 0.06, 0.02, 0.01];
 
@@ -70,7 +70,7 @@ function WipeSlot({
     useEffect(() => {
         if (isFirstMount.current) {
             isFirstMount.current = false;
-            // No animation on mount — jump to settled state
+            // 挂载时不做动画 —— 直接跳到稳定状态
             progress.value = showSecond ? 1 : 0;
             return;
         }
@@ -83,30 +83,28 @@ function WipeSlot({
         });
     }, [showSecond, progress]);
 
-    // Layout-prop animation exemption (audit F-09, docs/claude/
-    // terminology-exceptions.md → animation exemptions): this wipe reveal is
-    // intrinsically a clip animation — width/left ARE the effect. It runs only
-    // on rare state flips (config presence / connected wipe, ~1.4 s), is
-    // driven by Reanimated on the UI thread, and a transform-only rework would
-    // need nested counter-translations for both layers plus re-deriving the
-    // pixel-aligned glow/haze `left` tracking. Measured-safe; keep as-is.
+    // 布局属性动画豁免（见 docs/claude/terminology-exceptions.md → animation
+    // exemptions）：这个擦除揭示本质上就是裁剪动画 —— width/left 本身就是效果。
+    // 它只在罕见的状态翻转时运行（配置有无 / 连接擦除，约 1.4s），由 Reanimated
+    // 在 UI 线程驱动；改成纯 transform 需要为两层做嵌套反向平移，还要重新推导
+    // 像素对齐的 glow/haze `left` 跟踪。保持现状。
     const newClipStyle = useAnimatedStyle(() => ({
         width: progress.value * widthShared.value,
     }));
     const oldClipStyle = useAnimatedStyle(() => ({
         width: (1 - progress.value) * widthShared.value,
     }));
-    // Glow line: tracks wipe edge, only rendered during transition
+    // 辉光线：跟踪擦除边缘，仅在过渡期间渲染
     const maskStyle = useAnimatedStyle(() => ({
         left: progress.value * widthShared.value - 1,
     }));
-    // Haze on NEW content side — full opacity while transitioning (visibility gated by {transitioning})
-    //   showSecond=true  → L→R → new content LEFT of glow line  → haze ends at glow line, extends left
-    //   showSecond=false → R→L → new content RIGHT of glow line → haze starts at glow line, extends right
+    // 新内容一侧的雾化 —— 过渡期间满不透明度（可见性由 {transitioning} 门控）
+    //   showSecond=true  → L→R → 新内容在辉光线左侧 → 雾化止于辉光线，向左延伸
+    //   showSecond=false → R→L → 新内容在辉光线右侧 → 雾化始于辉光线，向右延伸
     const hazeStyle = useAnimatedStyle(() => ({
         left: showSecond
-            ? progress.value * widthShared.value - HAZE_W   // left of glow line (new content side)
-            : progress.value * widthShared.value,            // right of glow line (new content side)
+            ? progress.value * widthShared.value - HAZE_W   // 辉光线左侧（新内容一侧）
+            : progress.value * widthShared.value,            // 辉光线右侧（新内容一侧）
     }));
 
     const onGhostLayout = (e: LayoutChangeEvent) => {
@@ -123,9 +121,9 @@ function WipeSlot({
     };
 
     return (
-        // overflow:hidden + borderRadius clips everything (including abs layers) to card shape
+        // overflow:hidden + borderRadius 把一切（含绝对定位层）裁剪成卡片形状
         <View style={{ borderRadius: CARD_RADIUS, overflow: 'hidden' }}>
-            {/* Ghost: normal-flow height anchor; visible until width is measured */}
+            {/* Ghost：正常文档流的高度锚点；宽度测量完成前一直可见 */}
             <View
                 style={{ opacity: ready ? 0 : 1, height: ready ? H : undefined }}
                 pointerEvents={ready ? 'none' : 'auto'}
@@ -136,7 +134,7 @@ function WipeSlot({
 
             {ready && (
                 <>
-                    {/* Old — right-anchored, shrinks leftward */}
+                    {/* 旧内容 —— 右侧锚定，向左收缩 */}
                     <Animated.View
                         style={[{ position: 'absolute', right: 0, top: 0, bottom: 0, overflow: 'hidden' }, oldClipStyle]}
                         pointerEvents={showSecond ? 'none' : 'auto'}
@@ -146,7 +144,7 @@ function WipeSlot({
                         </View>
                     </Animated.View>
 
-                    {/* New — left-anchored, grows rightward */}
+                    {/* 新内容 —— 左侧锚定，向右生长 */}
                     <Animated.View
                         style={[{ position: 'absolute', left: 0, top: 0, bottom: 0, overflow: 'hidden' }, newClipStyle]}
                         pointerEvents={showSecond ? 'auto' : 'none'}
@@ -156,11 +154,11 @@ function WipeSlot({
                         </View>
                     </Animated.View>
 
-                    {/* Haze + glow — only rendered while animation is active */}
+                    {/* 雾化 + 辉光 —— 仅在动画进行时渲染 */}
                     {transitioning && (
                         <>
-                            {/* Silver-gray haze on new content side — simulates frosted glass revealing.
-                                Dense at glow line, fades into the new content. */}
+                            {/* 新内容一侧的银灰色雾化 —— 模拟磨砂玻璃逐渐揭示。
+                                在辉光线处最浓，向新内容淡出。 */}
                             <Animated.View
                                 pointerEvents="none"
                                 style={[{
@@ -177,7 +175,7 @@ function WipeSlot({
                                 ))}
                             </Animated.View>
 
-                            {/* 1px glow line at exact wipe edge */}
+                            {/* 精确位于擦除边缘的 1px 辉光线 */}
                             <Animated.View
                                 pointerEvents="none"
                                 style={[{
@@ -309,7 +307,7 @@ export default function HomeScreen() {
                                 gap: 24,
                             }}
                         >
-                            {/* Button + speed row — always mounted, props vary by state */}
+                            {/* 按钮 + 速率行 —— 始终挂载，props 随状态变化 */}
                             <View style={{ alignItems: 'center', paddingTop: 24, paddingBottom: 4, gap: 18 }}>
                                 <ConnectButton
                                     connected={connected}
@@ -321,7 +319,7 @@ export default function HomeScreen() {
                                 </Animated.View>
                             </View>
 
-                            {/* Middle slot — WipeSlot stays mounted across connection changes */}
+                            {/* 中间槽位 —— WipeSlot 在连接状态变化期间保持挂载 */}
                             <WipeSlot
                                 first={importCard}
                                 second={nodeListCard}
@@ -329,7 +327,7 @@ export default function HomeScreen() {
                                 edgeColor={accent}
                             />
 
-                            {/* Profile card — always mounted, connected prop varies */}
+                            {/* 配置文件卡片 —— 始终挂载，connected prop 变化 */}
                             <ProfileSummaryCard
                                 info={profileQuota}
                                 name={profileName}

@@ -2,11 +2,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 
-// Cross-platform consistency lock for the DNS probe server list (audit C7 / D3c-07).
-// The same upstream DNS IPs are hardcoded in Kotlin (DnsTester.kt) and Swift
-// (DnsTester.swift); this reads both plus golden/dns-servers.json and asserts the
-// sets are identical, so a one-sided edit fails make test. No JS copy — JS resolves
-// via expo/fetch. Same file-reading pattern as domain-allowlist-sync.test.ts.
+// DNS 探测服务器列表的跨平台一致性锁。同一批上游 DNS IP 被硬编码在 Kotlin
+// (DnsTester.kt) 与 Swift (DnsTester.swift) 里；这里两个都读，外加
+// golden/dns-servers.json，断言两个集合一致，因此单边改动会让 make test 失败。
+// JS 无副本 —— JS 走 expo/fetch 解析。文件读取方式与 domain-allowlist-sync.test.ts 相同。
 
 function read(rel: string): string {
     return readFileSync(new URL(rel, import.meta.url), 'utf8');

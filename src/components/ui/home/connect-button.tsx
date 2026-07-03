@@ -4,12 +4,11 @@ import { ACCENT_LIGHT } from '@/constants/ios26-palette';
 import i18n from '@/constants/language';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-// Note: `spinStartRef` below is intentionally a SharedValue, not a useRef,
-// because the `withTiming` completion callback below is a worklet — once
-// it reads a JS ref, Reanimated takes a serializable clone and subsequent
-// JS-side mutations of `.current` emit the
+// 下方的 spinStart 刻意用 SharedValue 而非 useRef：withTiming 的完成回调是
+// worklet，一旦它读取 JS ref，Reanimated 会保存一份可序列化克隆，之后在 JS
+// 侧修改 `.current` 就会触发
 // "Tried to modify key 'current' of an object which has been already
-// passed to a worklet" warning.
+// passed to a worklet" 警告。
 import { AppState, AppStateStatus, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
     cancelAnimation,
@@ -63,12 +62,10 @@ export function ConnectButton({ connected, loading, onPress }: ConnectButtonProp
     const loadingProgress = useSharedValue(0);
     const arcOpacity = useSharedValue(0);
 
-    // We can't tie the arc to `loading` directly: the user wants it to keep
-    // spinning until at least one full 360° rotation has completed, even if
-    // loading flips false earlier. A three-phase machine models that tail:
-    // transitions are adjusted during render (guarded setState), 'winding'
-    // is only reachable from 'spinning', and the fade-out completion lands
-    // back in 'hidden'.
+    // 弧线不能直接绑定 loading：即便 loading 提前变为 false，也要让弧线至少
+    // 完整转满一圈 360° 再停。用三态机建模这段收尾：状态转移在渲染期完成
+    // （guarded setState），'winding' 只能从 'spinning' 进入，淡出结束后回到
+    // 'hidden'。
     type ArcPhase = 'hidden' | 'spinning' | 'winding';
     const [arcPhase, setArcPhase] = useState<ArcPhase>(loading ? 'spinning' : 'hidden');
     if (loading && arcPhase !== 'spinning') {
@@ -105,14 +102,13 @@ export function ConnectButton({ connected, loading, onPress }: ConnectButtonProp
             return;
         }
 
-        // Wind down after at least N full revolutions from start, then fade out.
+        // 从起点至少转满 N 圈后再收尾，然后淡出。
         const elapsed = Date.now() - spinStart.get();
         const remaining = Math.max(0, SPIN_MIN_MS - elapsed);
         hideTimerRef.current = setTimeout(() => {
             hideTimerRef.current = null;
             arcOpacity.set(withTiming(0, { duration: 600 }, (finished) => {
-                // Worklet completion callback (UI thread) — `.value` is the
-                // supported accessor here.
+                // worklet 完成回调（UI 线程）——此处 `.value` 才是受支持的访问方式。
                 if (finished) {
                     cancelAnimation(loadingProgress);
                     loadingProgress.value = 0;
@@ -141,16 +137,13 @@ export function ConnectButton({ connected, loading, onPress }: ConnectButtonProp
         fillProgress.set(withTiming(connected ? 1 : 0, { duration: 280 }));
     }, [connected, fillProgress]);
 
-    // Re-assert the connected fill when the app returns to the foreground.
-    // The blue overlay's fillOpacity lives only in Reanimated's UI-thread
-    // animatedProps; the system can drop the last-applied SVG prop across a
-    // background cycle (Android surface re-attach). Because `connected` is
-    // unchanged on resume, the effect above never re-pushes, stranding the
-    // overlay at fillOpacity 0 — the white base then shows through and the
-    // button renders white. Snap to the correct steady state on resume.
-    // modify(forceUpdate=true) bypasses Reanimated's same-value short-circuit
-    // (see valueSetter), so the native node is re-applied even when the value
-    // is unchanged; when it is already correct this is visually a no-op.
+    // 回到前台时重新断言 connected 填充。蓝色遮罩的 fillOpacity 只存在于
+    // Reanimated 的 UI 线程 animatedProps 中；经过一次后台周期后系统可能丢弃
+    // 最后应用的 SVG 属性（Android surface 重新挂载）。由于恢复时 connected
+    // 未变，上面的 effect 不会重新推送，遮罩被卡在 fillOpacity 0——白色底色
+    // 透出来，按钮渲染成白色。恢复时直接跳到正确的稳态。
+    // modify(forceUpdate=true) 会绕过 Reanimated 对相同值的短路（见 valueSetter），
+    // 即使值未变也会重新应用原生节点；若本就正确，则视觉上是 no-op。
     const appStateRef = useRef<AppStateStatus>(AppState.currentState);
     useEffect(() => {
         const sub = AppState.addEventListener('change', (next) => {
@@ -197,14 +190,14 @@ export function ConnectButton({ connected, loading, onPress }: ConnectButtonProp
                         />
                     )}
 
-                    {/* White base — always visible */}
+                    {/* 白色底色——始终可见 */}
                     <Circle
                         cx={CENTER}
                         cy={CENTER}
                         r={RADIUS}
                         fill={STANDBY_FILL}
                     />
-                    {/* Blue overlay — fades in when connected */}
+                    {/* 蓝色遮罩——connected 时淡入 */}
                     <AnimatedCircle
                         cx={CENTER}
                         cy={CENTER}

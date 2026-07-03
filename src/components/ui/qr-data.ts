@@ -1,16 +1,14 @@
 /**
- * QR payload recognition — pure parser extracted from camera-qr.tsx so it can
- * be unit-tested without the scanner's native imports (expo-camera / router /
- * the log-sink → react chain).
+ * 二维码载荷识别 — 从 camera-qr.tsx 抽出的纯 parser，可脱离扫描器的原生依赖
+ *（expo-camera / router / log-sink → react 链路）做单元测试。
  *
- * Recognises two shapes:
- *   - the app scheme `oneoh-networktools://config?data=…&apply=…`
- *   - a plain `https://…` URL, base64-encoded into the `data` field
+ * 识别两种形态：
+ *   - 应用 scheme `oneoh-networktools://config?data=…&apply=…`
+ *   - 纯 `https://…` URL，base64 编码后写入 `data` 字段
  *
- * The optional logger records the decision branch and any parse failure so a
- * stuck import flow can be traced back to the recognition step (scheme match
- * vs. https fallback vs. rejection). It defaults to a no-op, keeping this
- * module dependency-free for the pure test runner; the scanner passes `jsLog`.
+ * 可选 logger 记录判定分支与解析失败，便于把卡住的导入流程回溯到识别这一步
+ *（scheme 命中 vs. https 回落 vs. 拒绝）。默认 no-op，使本模块对纯测试 runner
+ * 保持无依赖；扫描器传入 `jsLog`。
  */
 
 export interface QRDataLogger {

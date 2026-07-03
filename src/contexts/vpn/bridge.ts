@@ -1,7 +1,6 @@
 /**
- * ExpoOneBox → VpnBridge adapter. The only file in src/contexts/vpn/
- * that touches the native module; everything else takes the injected
- * interface so the pure cores stay node-testable.
+ * ExpoOneBox → VpnBridge 适配器。src/contexts/vpn/ 下唯一触碰原生模块的
+ * 文件；其余都接收注入的接口，使纯核心保持可在 node 下测试。
  */
 
 import ExpoOneBox from '@/modules/expo-onebox';

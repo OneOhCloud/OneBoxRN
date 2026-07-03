@@ -6,15 +6,13 @@ import ExpoOneBox from '../modules/expo-onebox';
 const DATABASE_VERSION = 3;
 let initialized = false;
 
-// LEGACY (v0→1): `subscriptions` / `subscription_configs` were created for a
-// profile model that never shipped a UI writer (verified via git history,
-// 2026-07). Runtime profile CRUD lives exclusively in ProfileStore (kv.ts,
-// kv_store rows). The v0→1 CREATE below is migration-frozen — shipped steps are
-// never rewritten (devices exist at user_version 1/2). Since the data is
-// orphaned and empty on all installs, the v2→3 step drops the tables. Their
-// names remain a documented terminology exemption
-// (docs/claude/terminology-exceptions.md) because the frozen v0→1 text keeps
-// them; do not add readers or writers.
+// LEGACY (v0→1)：`subscriptions` / `subscription_configs` 是为一套从未附带 UI
+// 写入方的配置文件模型创建的。运行时的配置文件 CRUD 只存在于 ProfileStore
+// （kv.ts，kv_store 行）。下方 v0→1 的 CREATE 是迁移冻结的 —— 已发布的步骤绝不
+// 重写（现存设备停留在 user_version 1/2）。由于这些数据在所有安装上都是孤儿且
+// 为空，v2→3 步骤会 DROP 这两张表。它们的表名仍是一处已记录的 terminology 豁免
+// （docs/claude/terminology-exceptions.md），因为被冻结的 v0→1 文本保留了它们；
+// 请勿添加读取方或写入方。
 
 function migrateDbIfNeededSync(db: SQLiteDatabase) {
     const result = db.getFirstSync<{ user_version: number }>('PRAGMA user_version');
@@ -63,8 +61,8 @@ function migrateDbIfNeededSync(db: SQLiteDatabase) {
     }
 
     if (currentDbVersion === 2) {
-        // Drop the orphaned LEGACY tables — empty on every install, no readers
-        // or writers. All profile data lives in kv_store (unaffected).
+        // DROP 掉孤儿 LEGACY 表 —— 每个安装上都为空，无读取方或写入方。所有配置
+        // 文件数据都在 kv_store（不受影响）。
         db.execSync(`
             DROP TABLE IF EXISTS subscription_configs;
             DROP TABLE IF EXISTS subscriptions;
@@ -99,7 +97,7 @@ function initializeDatabaseSync() {
     }
 }
 
-// Web: see kv.ts for why we lazy-require expo-sqlite instead of importing it.
+// Web：为什么惰性 require expo-sqlite 而非直接 import，见 kv.ts。
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     initializeDatabaseSync();
     return <>{children}</>;

@@ -10,12 +10,11 @@ import {
 import { emptyRuleSet, type RuleAction, type RuleSet } from './custom-rules.ts';
 import { mergeUserTunField } from './tun-exclusions.ts';
 
-// ─── Fixtures ─────────────────────────────────────────────────────────────────
-// Synthetic — the real bundled template (template/generated.ts) is gitignored
-// and must never be imported here. The fixture mirrors its structural
-// contract: system/remote DNS servers, a tun inbound, [direct, selector@1,
-// urltest@2] outbound groups, one anchor route rule per action, and an
-// experimental section carrying clash_api.
+// ─── 测试数据 ─────────────────────────────────────────────────────────────────
+// 合成数据 —— 真正的内置模板（template/generated.ts）被 gitignore，绝不能在
+// 这里 import。此 fixture 复刻其结构契约：system/remote DNS server、一个 tun
+// inbound、[direct, selector@1, urltest@2] outbound 组、每个 action 一条锚点
+// route rule，以及一个携带 clash_api 的 experimental section。
 
 const TEMPLATE = {
     log: { disabled: false, level: 'debug', timestamp: false },
@@ -48,9 +47,9 @@ const TEMPLATE = {
     },
 };
 
-// User profile: two injectable nodes, one tag colliding with the template
-// ('auto'), all five excluded outbound types, and a tun inbound whose
-// route_exclude_address half-overlaps the template's defaults.
+// 用户配置文件：两个可注入节点、一个与模板冲突的 tag（'auto'）、全部五种被
+// 排除的 outbound 类型，以及一个 route_exclude_address 与模板默认值半重叠的
+// tun inbound。
 const USER_CONFIG_CONTENT = JSON.stringify({
     outbounds: [
         { tag: 'node-a', type: 'vless', server: 'a.example.invalid' },
@@ -79,22 +78,19 @@ function ruleSets(): Record<RuleAction, RuleSet> {
     };
 }
 
-// ─── Golden masters ───────────────────────────────────────────────────────────
-// Generated once from the verbatim-ported pipeline and hand-reviewed
-// transformation-by-transformation: log.level debug→info; system DNS server
-// rewritten to the resolver value with key order preserved; TUN exclusions
-// union-deduped (template defaults first); selector/urltest tag lists
-// extended; nodes appended with domain_resolver last in key order; the
-// duplicate 'auto' tag and all five excluded types dropped; custom rules
-// appended into the anchor rules (`??=` creates missing arrays, including
-// empty ones — locked current behavior); clash_api deleted with the
-// experimental section left in place.
+// ─── Golden 基准 ───────────────────────────────────────────────────────────────
+// 这些 golden 逐项锁定合并流水线的每步变换：log.level debug→info；system DNS
+// server 改写为 resolver 值且保持 key 顺序；TUN 排除项并集去重（模板默认值在
+// 前）；selector/urltest 的 tag 列表扩展；节点追加时 domain_resolver 排在 key
+// 顺序最后；重复的 'auto' tag 与全部五种被排除类型被丢弃；自定义规则追加进锚点
+// rule（`??=` 会创建缺失的数组，含空数组）；clash_api 被删除但 experimental
+// section 保留。
 
 const GOLDEN_TUN_RULES = '{"log":{"disabled":false,"level":"info","timestamp":false},"dns":{"servers":[{"tag":"system","type":"udp","server":"1.2.3.4","server_port":53,"connect_timeout":"5s"},{"tag":"remote","type":"fakeip","inet4_range":"198.18.0.0/15"}],"final":"remote"},"inbounds":[{"tag":"tun","type":"tun","stack":"gvisor","route_exclude_address":["10.0.0.0/8","192.168.50.0/24"]}],"outbounds":[{"tag":"direct","type":"direct"},{"tag":"ExitGateway","type":"selector","outbounds":["auto","node-a","node-b"]},{"tag":"auto","type":"urltest","outbounds":["node-a","node-b"]},{"tag":"node-a","type":"vless","server":"a.example.invalid","domain_resolver":"system"},{"tag":"node-b","type":"trojan","server":"b.example.invalid","domain_resolver":"system"}],"route":{"rules":[{"domain":["reject-tag.oneoh.cloud","ads.example.invalid"],"action":"reject","domain_suffix":[".track.invalid"],"ip_cidr":[]},{"domain":["direct-tag.oneoh.cloud"],"outbound":"direct"},{"domain":["proxy-tag.oneoh.cloud"],"outbound":"ExitGateway","domain_suffix":[],"ip_cidr":["203.0.113.0/24"]}],"final":"ExitGateway"},"experimental":{"cache_file":{"enabled":true}}}';
 
 const GOLDEN_TUN_GLOBAL = '{"log":{"disabled":false,"level":"info","timestamp":false},"dns":{"servers":[{"tag":"system","type":"udp","server":"1.2.3.4","server_port":53,"connect_timeout":"5s"},{"tag":"remote","type":"fakeip","inet4_range":"198.18.0.0/15"}],"final":"remote"},"inbounds":[{"tag":"tun","type":"tun","stack":"gvisor","route_exclude_address":["10.0.0.0/8","192.168.50.0/24"]}],"outbounds":[{"tag":"direct","type":"direct"},{"tag":"ExitGateway","type":"selector","outbounds":["auto","node-a","node-b"]},{"tag":"auto","type":"urltest","outbounds":["node-a","node-b"]},{"tag":"node-a","type":"vless","server":"a.example.invalid","domain_resolver":"system"},{"tag":"node-b","type":"trojan","server":"b.example.invalid","domain_resolver":"system"}],"route":{"rules":[{"domain":["reject-tag.oneoh.cloud"],"action":"reject"},{"domain":["direct-tag.oneoh.cloud"],"outbound":"direct"},{"domain":["proxy-tag.oneoh.cloud"],"outbound":"ExitGateway"}],"final":"ExitGateway"},"experimental":{"cache_file":{"enabled":true}}}';
 
-// ─── Harness ─────────────────────────────────────────────────────────────────
+// ─── 测试脚手架 ─────────────────────────────────────────────────────────────────
 
 interface Harness {
     deps: ConfigMergeDeps;
@@ -115,7 +111,7 @@ function makeHarness(overrides?: {
     const deps: ConfigMergeDeps = {
         getTemplate: overrides?.getTemplate ?? ((mode) => {
             calls.push(`getTemplate:${mode}`);
-            // Fresh object graph per call — mimics templateMemoryCache.
+            // 每次调用返回全新的对象图 —— 模仿 templateMemoryCache。
             return Promise.resolve(JSON.parse(JSON.stringify(template)) as SingBoxConfigLike);
         }),
         getCustomRuleSets: () => {
@@ -130,8 +126,8 @@ function makeHarness(overrides?: {
         getLogLevel: () => 'info',
         applyTunExclusions: (u, t) => {
             calls.push('applyTunExclusions');
-            // iOS-style field; the platform-split variants only differ by
-            // field name and are covered by tun-exclusions.test.ts.
+            // iOS 风格字段；按平台拆分的变体只是字段名不同，已由
+            // tun-exclusions.test.ts 覆盖。
             mergeUserTunField(u, t, 'route_exclude_address');
         },
         log: {
@@ -143,7 +139,7 @@ function makeHarness(overrides?: {
     return { deps, calls, logLines, resolveDirectDnsArgs };
 }
 
-// ─── Cases ────────────────────────────────────────────────────────────────────
+// ─── 用例 ────────────────────────────────────────────────────────────────────
 
 describe('buildSingBoxConfig', () => {
     it('tun-rules: golden master byte identity', async () => {
@@ -197,7 +193,7 @@ describe('buildSingBoxConfig', () => {
         );
         assert.deepEqual(
             h.logLines.filter(([level]) => level === 'error'),
-            [['error', ['[Config] 更新 DNS 配置失败:', boom]]],
+            [['error', ['[Config] failed to update DNS config:', boom]]],
         );
     });
 
@@ -215,7 +211,7 @@ describe('buildSingBoxConfig', () => {
         const h = makeHarness({ template });
         const out = JSON.parse(await buildSingBoxConfig(h.deps, { mode: 'tun-global', userConfigContent: USER_CONFIG_CONTENT }));
         assert.deepEqual(out.log, { level: 'info' });
-        // Created sections append after existing keys — structural, not golden.
+        // 新建的 section 追加在已有 key 之后 —— 结构断言，非 golden。
         assert.equal(Object.keys(out).at(-1), 'log');
     });
 
@@ -225,8 +221,8 @@ describe('buildSingBoxConfig', () => {
         assert.deepEqual(h.logLines, [
             ['info', ['[Config] Building tun-rules config']],
             ['info', ['[Config] TUN Stack:', 'gvisor']],
-            ['info', ['[Config] rewriteConfig: 注入 DNS，清理未用字段']],
-            ['info', ['[Config] 直连 DNS:', '1.2.3.4']],
+            ['info', ['[Config] rewriteConfig: inject DNS, strip unused fields']],
+            ['info', ['[Config] direct DNS:', '1.2.3.4']],
             ['info', ['[Config] core log level → info']],
             ['warn', ['[Config] Skipping server with duplicate tag: "auto"']],
         ]);
@@ -237,8 +233,8 @@ describe('buildSingBoxConfig', () => {
         await buildSingBoxConfig(h.deps, { mode: 'tun-global', userConfigContent: USER_CONFIG_CONTENT });
         assert.deepEqual(h.logLines, [
             ['info', ['[Config] Building tun-global config']],
-            ['info', ['[Config] rewriteConfig: 注入 DNS，清理未用字段']],
-            ['info', ['[Config] 直连 DNS:', '1.2.3.4']],
+            ['info', ['[Config] rewriteConfig: inject DNS, strip unused fields']],
+            ['info', ['[Config] direct DNS:', '1.2.3.4']],
             ['info', ['[Config] core log level → info']],
             ['warn', ['[Config] Skipping server with duplicate tag: "auto"']],
         ]);
@@ -256,10 +252,9 @@ describe('buildSingBoxConfig', () => {
     });
 
     it('mutation-in-place: a shared template reference accumulates custom rules across builds', async () => {
-        // Documents WHY deps.getTemplate must return a fresh graph per call
-        // (demand side of the template-cache.ts mutation-safety contract).
-        // Node injection is shielded by the duplicate-tag guard, but custom
-        // rules append into the anchor rule unconditionally.
+        // 说明为什么 deps.getTemplate 必须每次返回全新的对象图（template-cache.ts
+        // 变更安全契约的需求侧）。节点注入有重复 tag 卫语句兜底，但自定义规则
+        // 会无条件追加进锚点 rule。
         const shared = JSON.parse(JSON.stringify(TEMPLATE)) as SingBoxConfigLike;
         const h = makeHarness({ getTemplate: () => Promise.resolve(shared) });
         await buildSingBoxConfig(h.deps, { mode: 'tun-rules', userConfigContent: USER_CONFIG_CONTENT });

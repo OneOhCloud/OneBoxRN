@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// sync-version-android.js — Sync version from version.json to android/app/build.gradle
+// sync-version-android.js — 将 version.json 的版本号同步到 android/app/build.gradle
 //
-// Usage: node scripts/sync-version-android.js
+// 用法：node scripts/sync-version-android.js
 
 'use strict';
 

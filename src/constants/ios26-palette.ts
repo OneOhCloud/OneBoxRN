@@ -1,9 +1,8 @@
 import { Platform, useColorScheme } from 'react-native';
 
-// iOS 26 cool-chrome palette. Originally lived inside active-profile-card.tsx
-// but is now consumed by ~7 sibling components, so it's promoted to a shared
-// constants module. The file mixes raw constants and color-scheme-aware
-// hooks intentionally — they describe one cohesive design system.
+// iOS 26 冷色 chrome 配色。被约 7 个同级组件共用，故放在共享的 constants
+// 模块里。文件有意混放裸常量与随配色方案变化的 hook —— 它们共同描述一套
+// 内聚的设计系统。
 
 export const ACCENT        = '#0A84FF';
 export const ACCENT_LIGHT  = '#007AFF';
@@ -20,26 +19,25 @@ export function useSilver(): string {
     return useColorScheme() === 'dark' ? SILVER_DARK : SILVER_LIGHT;
 }
 
-// Hairline separator color used across every iOS 26 row component.
+// 所有 iOS 26 行组件共用的极细分隔线颜色。
 export function useHairlineColor(): string {
     return useColorScheme() === 'dark'
         ? 'rgba(255, 255, 255, 0.10)'
         : 'rgba(11, 13, 18, 0.09)';
 }
 
-// Quiet silver-tinted chrome for pill buttons and segmented-control tracks.
+// 用于胶囊按钮与分段控件轨道的安静银灰 chrome。
 export function useQuietChrome(): string {
     return useColorScheme() === 'dark'
         ? 'rgba(255, 255, 255, 0.10)'
         : 'rgba(11, 13, 18, 0.06)';
 }
 
-// Module-level frozen glass surfaces. Returning one of these from the hook
-// keeps style-prop identity stable across renders so React.memo'd children
-// can bail out when nothing else changed.
+// 模块级的冻结玻璃表面。hook 返回其中之一，可让 style prop 的引用在多次
+// 渲染间保持稳定，从而在别无变化时让 React.memo 的子组件跳过重渲染。
 //
-// iOS uses translucent frost + soft shadow; Android needs opaque bg because
-// `elevation` silently no-ops on any view with a non-opaque backgroundColor.
+// iOS 用半透明磨砂 + 柔和阴影；Android 需要不透明背景，因为对任何
+// backgroundColor 非不透明的视图，`elevation` 会静默失效。
 const GLASS_LIGHT = Platform.select({
     ios: {
         backgroundColor: 'rgba(255, 255, 255, 0.78)',

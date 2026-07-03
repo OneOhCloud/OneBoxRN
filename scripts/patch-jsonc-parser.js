@@ -1,26 +1,24 @@
 #!/usr/bin/env node
 /**
- * Makes jsonc-parser's UMD files compatible with Metro bundler.
+ * 让 jsonc-parser 的 UMD 文件兼容 Metro 打包器。
  *
- * Two problems exist in the UMD wrapper:
+ * UMD wrapper 存在两个问题：
  *
- * 1. AMD branch — Metro's static analyzer registers every string in
- *    define([...]) as a module dependency, causing "Requiring unknown module"
- *    at build time.
+ * 1. AMD 分支 —— Metro 的静态分析器会把 define([...]) 里的每个字符串都登记为
+ *    模块依赖，导致构建期报 "Requiring unknown module"。
  *
- * 2. require/exports parameter shadowing — the UMD wrapper calls:
+ * 2. require/exports 形参遮蔽 —— UMD wrapper 这样调用：
  *      factory(require, exports)
- *    with factory declared as:
+ *    而 factory 声明为：
  *      function (require, exports) { ... }
- *    Metro's Babel transform detects the shadow and does NOT replace
- *    require("./impl/format") with the dep-ID form. At runtime Metro's
- *    require only accepts dep IDs, not string paths → "Requiring unknown module".
+ *    Metro 的 Babel transform 检测到遮蔽，就不会把 require("./impl/format")
+ *    替换成 dep-ID 形式。运行期 Metro 的 require 只接受 dep ID 而非字符串路径
+ *    → "Requiring unknown module"。
  *
- * Fix: (a) remove the AMD branch, (b) drop the (require, exports) parameters
- * from the factory so Metro's Babel transform can replace require() calls with
- * dep IDs as expected.
+ * 修复：(a) 移除 AMD 分支，(b) 从 factory 去掉 (require, exports) 形参，让 Metro
+ * 的 Babel transform 能如常把 require() 调用替换为 dep ID。
  *
- * Run automatically via `postinstall` in package.json.
+ * 通过 package.json 的 postinstall 自动运行。
  */
 
 'use strict';
@@ -43,12 +41,12 @@ const targets = [
     ...implFiles.map(f => path.join(implDir, f)),
 ];
 
-// Remove AMD else-if branch.
+// 移除 AMD 的 else-if 分支。
 const AMD_BRANCH_RE =
     /\s*else if\s*\(typeof define\s*===\s*["']function["']\s*&&\s*define\.amd\s*\)\s*\{[\s\S]*?\}/g;
 
-// Strip (require, exports) parameters from the factory so Metro's Babel
-// transform can rewrite require() calls to dep-ID form.
+// 从 factory 去掉 (require, exports) 形参，让 Metro 的 Babel transform
+// 能把 require() 调用改写成 dep-ID 形式。
 const FACTORY_PARAMS_RE = /\}\)\s*\(function\s*\(require,\s*exports\)/g;
 
 let patched = 0;

@@ -1,6 +1,6 @@
 /**
- * Native tab bar — 3 tabs mapping to the core user tasks.
- * Uses expo-router NativeTabs for platform-native feel on iOS (UITabBarController).
+ * 原生 tab bar —— 3 个 tab 对应核心用户任务。
+ * 使用 expo-router NativeTabs，在 iOS 上获得平台原生观感（UITabBarController）。
  */
 import i18n from '@/constants/language';
 import { Colors } from '@/constants/theme';

@@ -1,7 +1,7 @@
 /**
- * Domain verification data management.
- * Fetches and caches the known domain SHA256 and verified domains list.
- * JS layer manages the cache, native layer uses the data for validation during fallback.
+ * 域名验证数据管理。
+ * 拉取并缓存已知域名 sha256 与已验证域名列表。
+ * JS 层负责管理缓存，原生层在回落时用这些数据做校验。
  */
 
 import { DOMAIN_VERIFICATION_KEYS } from '@/constants/cache-keys';
@@ -10,16 +10,15 @@ import ExpoOneBox from '@/modules/expo-onebox';
 import { fetchWithTimeout } from '@/utils';
 import { hostnameMatchesAnyAllowlist } from '@/utils/domain-suffix';
 
-// Remote verification list URL
+// 远程验证列表 URL
 const VERIFIED_LIST_URL = 'https://www.sing-box.net/verified_subscriptions_sha256.txt';
 
-// Cache TTL: 24 hours
+// 缓存 TTL：24 小时
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-// Compile-time defaults. Each entry is the SHA256 of an approved suffix
-// label; the consumer hashes every progressive suffix of the target
-// hostname (shortest first) and returns true on the first match. Never
-// record the pre-image here or in any comment.
+// 编译期默认值。每一项是某个受信后缀标签的 sha256；消费方会对目标
+// hostname 的每一级渐进后缀（从最短开始）做哈希，命中即返回 true。
+// 严禁在此处或任何注释里记录其明文原像。
 const DEFAULT_KNOWN_DOMAIN_SHA256_LIST: readonly string[] = [
     '183a5526e76751b07cd57236bc8f253d5424e02a3fc7da7c30f80919e975125a',
     '59fe86216c23236fb4c6ab50cd8d1e261b7cad754e3e7cab33058df5b32d12e1',
@@ -31,16 +30,15 @@ const DEFAULT_KNOWN_DOMAIN_SHA256_LIST: readonly string[] = [
 export function getKnownDomainSha256List(): string[] {
     const stored = kvGet(DOMAIN_VERIFICATION_KEYS.KNOWN_SHA256);
     if (!stored) return [...DEFAULT_KNOWN_DOMAIN_SHA256_LIST];
-    // Historical: KV value may be either a JSON-encoded array (new shape)
-    // or a single SHA256 hex string (pre-list shape). Fall back cleanly in
-    // either case so an in-place upgrade does not strand a stale cache.
+    // KV 值可能是 JSON 编码的数组，也可能是单个 sha256 十六进制字符串；
+    // 两种形态都要能干净回退，避免升级后旧缓存被搁置。
     try {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
             return parsed;
         }
     } catch {
-        // not JSON — assume legacy single-hash shape
+        // 非 JSON —— 按单哈希形态处理
     }
     return [stored];
 }
@@ -57,21 +55,17 @@ export function getVerifiedDomainsList(): string[] {
 }
 
 /**
- * Thin wrapper around the pure `hostnameMatchesAnyAllowlist` primitive:
- * reads both KV-backed allowlists and delegates the suffix-hash check.
- * On a miss, fires a non-blocking whitelist refresh (TTL-gated inside
- * `updateVerificationData`) so the next verify benefits from newer data.
+ * 对纯函数 `hostnameMatchesAnyAllowlist` 的薄封装：读取两份 KV 支撑的
+ * 白名单，把后缀哈希校验委托给它。未命中时触发一次非阻塞的白名单刷新
+ * （TTL 门控在 `updateVerificationData` 内部），让下一次校验用上更新的数据。
  *
- * Mirrors OneBox/Tauri `verify_hostname` semantics: zero network in the
- * hot path, both the compile-time list and the remote-cached list
- * considered in one suffix traversal.
+ * 与 OneBox/Tauri 的 `verify_hostname` 语义一致：热路径零网络，编译期列表
+ * 与远程缓存列表在一次后缀遍历中一并考虑。
  */
 export async function verifyHostname(hostname: string): Promise<boolean> {
-    // Fail-closed like the native verifiers (audit D3c-02): the KV-cached lists
-    // (JS-pushed known + remote verified) are trusted only within the TTL; once
-    // stale, fall back to the always-available compile-time list until the
-    // non-blocking refresh below repopulates the cache. Previously the stale
-    // cache was trusted indefinitely, diverging from native.
+    // 与原生验证器一样 fail-closed：KV 缓存的列表（JS 推入的 known +
+    // 远程 verified）仅在 TTL 内可信；一旦过期，就回落到始终可用的编译期
+    // 列表，直到下方的非阻塞刷新重新填充缓存。
     const cacheValid = isCacheValid();
     const known    = new Set<string>(cacheValid ? getKnownDomainSha256List() : [...DEFAULT_KNOWN_DOMAIN_SHA256_LIST]);
     const verified = new Set<string>(cacheValid ? getVerifiedDomainsList() : []);
@@ -81,7 +75,7 @@ export async function verifyHostname(hostname: string): Promise<boolean> {
 }
 
 /**
- * Check if the cache is still valid (within TTL).
+ * 检查缓存是否仍在有效期（TTL）内。
  */
 function isCacheValid(): boolean {
     const cacheTime = kvGet(DOMAIN_VERIFICATION_KEYS.CACHE_TIME);
@@ -95,10 +89,9 @@ function isCacheValid(): boolean {
 }
 
 /**
- * Push the current KV cache into the native background worker so it can
- * verify hostnames without re-fetching the remote list on every wake.
- * Safe to call frequently — the native side just overwrites its copy.
- * Silent on failure (native module may be absent on web).
+ * 把当前 KV 缓存推入原生后台 worker，使其每次唤醒都无需重新拉取远程列表
+ * 即可校验 hostname。可频繁调用 —— 原生侧只是覆盖自己的副本。
+ * 失败时静默（web 上可能没有原生模块）。
  */
 async function pushVerificationDataToNative(): Promise<void> {
     try {
@@ -112,9 +105,9 @@ async function pushVerificationDataToNative(): Promise<void> {
 }
 
 /**
- * Fetch and cache the verified domains list from sing-box.net.
- * Only updates if cache is stale (or forced). On any successful write,
- * re-pushes the full allowlist into the native background worker.
+ * 从 sing-box.net 拉取并缓存已验证域名列表。
+ * 仅在缓存过期（或强制）时更新；每次成功写入后，都会把完整白名单重新
+ * 推入原生后台 worker。
  */
 export async function updateVerificationData(force: boolean = false): Promise<void> {
     if (!force && isCacheValid()) {
@@ -144,24 +137,23 @@ export async function updateVerificationData(force: boolean = false): Promise<vo
 }
 
 /**
- * Initialize verification data on app startup.
- * Fetches remote list if cache is stale, then pushes the seeded allowlist
- * into the native background worker so it is ready before any bg fire.
+ * 应用启动时初始化验证数据。
+ * 缓存过期则拉取远程列表，随后把已就绪的白名单推入原生后台 worker，
+ * 确保在任何后台触发之前它就已备好。
  */
 export async function initializeVerificationData(): Promise<void> {
-    // Ensure we have at least the default known-SHA256 list. Always rewrite
-    // with the current defaults so builds that ship additional approved
-    // entries replace an older single-hash value left over from v1.
+    // 至少保证存在默认的 known-sha256 列表；每次都用当前默认值覆盖写入，
+    // 让新增受信条目的构建覆盖掉此前缓存的旧值。
     kvSet(
         DOMAIN_VERIFICATION_KEYS.KNOWN_SHA256,
         JSON.stringify(DEFAULT_KNOWN_DOMAIN_SHA256_LIST),
     );
 
-    // Push defaults now so a bg fire before the network returns still sees
-    // the compile-time list in the shared store.
+    // 现在就推入默认值，让网络返回前触发的后台任务也能在共享存储里
+    // 看到编译期列表。
     await pushVerificationDataToNative();
 
-    // Fetch verified list if not cached or stale (pushes again on success).
+    // 未缓存或已过期时拉取已验证列表（成功后会再次推入）。
     await updateVerificationData(false);
 }
 

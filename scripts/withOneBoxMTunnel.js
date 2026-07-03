@@ -124,9 +124,9 @@ extension_target.build_configurations.each do |config|
   config.build_settings['SKIP_INSTALL'] = 'YES'
   config.build_settings['CODE_SIGN_STYLE'] = 'Automatic'
   config.build_settings['FRAMEWORK_SEARCH_PATHS'] = ['$(inherited)', "\\"#{EXTENSION_RELATIVE_PATH}\\""]
-  # -lresolv: sing-box v1.13+ DNS transport calls libresolv on Apple platforms
-  # (res_9_ninit / res_9_nclose / res_9_nsearch). Libbox.framework is a static
-  # archive and can't self-link, so the consumer target must.
+  # -lresolv: sing-box v1.13+ 的 DNS transport 在 Apple 平台调用 libresolv
+  # (res_9_ninit / res_9_nclose / res_9_nsearch)。Libbox.framework 是静态库，
+  # 无法自链接，因此消费方 target 必须补上。
   config.build_settings['OTHER_LDFLAGS'] = '$(inherited) -ObjC -lresolv'
   config.build_settings['DEFINES_MODULE'] = 'YES'
   config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
@@ -142,7 +142,7 @@ if main_target
     phase.name == 'Embed App Extensions' 
   } || main_target.new_copy_files_build_phase('Embed App Extensions')
   
-  embed_phase.dst_subfolder_spec = '13'  # PlugIns folder
+  embed_phase.dst_subfolder_spec = '13'  # PlugIns 目录
   embed_phase.dst_path = ''
   
   # 添加扩展产物到 embed 阶段
@@ -153,10 +153,10 @@ if main_target
   build_file = embed_phase.add_file_reference(product_ref, true)
   build_file.settings = { 'ATTRIBUTES' => ['CodeSignOnCopy', 'RemoveHeadersOnCopy'] }
 
-  # Main app also links Libbox transitively (via ExpoOneBox pod).
-  # Same -lresolv reason as the Tunnel target: sing-box v1.13+ DNS transport
-  # uses res_9_* from libresolv, and Libbox.framework is a static archive
-  # that can't self-link system libs.
+  # 主 App 也会（经 ExpoOneBox pod）传递性地链接 Libbox。
+  # -lresolv 的原因与 Tunnel target 相同：sing-box v1.13+ 的 DNS transport
+  # 用到 libresolv 里的 res_9_*，而 Libbox.framework 是静态库，无法自链接
+  # 系统库。
   main_target.build_configurations.each do |config|
     existing = config.build_settings['OTHER_LDFLAGS'] || ['$(inherited)']
     flags = existing.is_a?(Array) ? existing.dup : [existing]
@@ -209,8 +209,8 @@ const resolveRubyWithXcodeproj = () => {
 };
 
 /**
- * Expo config plugin to add OneBoxMTunnel Network Extension target
- * 在每次 prebuild 后自动运行 Ruby 脚本添加扩展 target
+ * Expo config plugin：添加 OneBoxMTunnel Network Extension target。
+ * 在每次 prebuild 后自动运行 Ruby 脚本添加扩展 target。
  * Ruby 脚本内容已内嵌，兼容 EAS 本地/云端构建的临时目录环境
  */
 const withOneBoxMTunnel = (config) => {

@@ -1,18 +1,17 @@
 import type { TunConfigLike } from './tun-exclusions';
 
 /**
- * Merge the user profile's TUN bypass field into the active config, in place.
+ * 就地把用户配置文件的 TUN 绕行字段合并进当前生效的配置。
  *
- * Platform-split (`.android.ts` / `.ios.ts` / base): which `tun` inbound field
- * carries the bypass list differs by platform —
- *   Android → exclude_package, iOS → route_exclude_address.
- * This base implementation serves Web, which never builds a TUN config, so it
- * is intentionally a no-op. Per the project rule, the divergence lives in
- * platform files rather than a runtime `Platform.OS` branch in shared logic.
+ * 按平台拆分（`.android.ts` / `.ios.ts` / 基础文件）：哪个 `tun` inbound 字段
+ * 承载绕行列表因平台而异 ——
+ *   Android → exclude_package，iOS → route_exclude_address。
+ * 此基础实现服务于 Web，而 Web 永不构建 TUN 配置，故刻意做成空操作。按项目
+ * 规则，平台差异放在平台文件里，而非在共享逻辑中用运行时 `Platform.OS` 分支。
  */
 export function applyPlatformTunExclusions(
     _userConfig: TunConfigLike,
     _templateConfig: TunConfigLike,
 ): void {
-    // no-op on Web
+    // Web 上为空操作
 }

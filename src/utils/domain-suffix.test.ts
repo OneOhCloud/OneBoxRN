@@ -79,8 +79,8 @@ describe('hostnameMatchesAnyAllowlist', () => {
     });
 
     it('approves subtrees via any of the supplied allowlists', async () => {
-        // Parent `suffix.example` is only in the "verified" set; its child
-        // must still be approved because suffix matching runs across both.
+        // 父级 `suffix.example` 只在 "verified" 集合里；由于后缀匹配跨两个集合
+        // 进行，它的子级仍必须被放行。
         const known    = new Set([await sha256Hex('unrelated.zone')]);
         const verified = new Set([await sha256Hex('suffix.example')]);
         assert.equal(

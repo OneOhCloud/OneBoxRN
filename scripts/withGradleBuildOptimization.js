@@ -1,53 +1,50 @@
 const { withGradleProperties } = require('@expo/config-plugins');
 
 /**
- * Expo Config Plugin: Gradle build performance optimization.
+ * Expo Config Plugin：Gradle 构建性能优化。
  *
- * Optimizations applied:
- * 1. JVM memory — 8GB heap + 2GB metaspace, avoid OOM & daemon restart
- * 2. Parallel execution — build independent modules concurrently
- * 3. Configuration cache — skip re-evaluating build scripts when nothing changed
- * 4. Build cache — reuse task outputs across builds
- * 5. Caching — enable org.gradle.caching for incremental builds
- * 6. File system watching — continuous monitoring avoids full re-scan
- * 7. Kotlin daemon JVM args — match memory for Kotlin compilation
+ * 应用的优化项：
+ * 1. JVM 内存 —— 8GB 堆 + 2GB metaspace，避免 OOM 与 daemon 重启
+ * 2. 并行执行 —— 独立模块并发构建
+ * 3. Configuration cache —— 无改动时跳过重新求值构建脚本
+ * 4. Build cache —— 跨构建复用任务产物
+ * 5. Caching —— 开启 org.gradle.caching 支持增量构建
+ * 6. 文件系统监听 —— 持续监控，避免全量重扫
+ * 7. Kotlin daemon JVM 参数 —— 为 Kotlin 编译匹配内存
  *
- * NOTE: org.gradle.configureondemand is intentionally NOT set. It is
- * unsupported by the Android Gradle Plugin and the React Native Gradle
- * Plugin: it lazily configures only "touched" projects and drops the
- * task-dependency edges that wire codegen (BuildConfig, R.jar,
- * autolinking PackageList.java / autolinking.h) ahead of the :app
- * compile/CMake tasks. With it on, the consumers race ahead of the
- * generators and the build fails non-deterministically with
- * "Unresolved reference 'BuildConfig'", missing R.jar, and
- * "'autolinking.h' file not found".
+ * 注意：org.gradle.configureondemand 有意不设置。Android Gradle Plugin 与
+ * React Native Gradle Plugin 都不支持它：它只惰性配置"被触及"的工程，会丢掉
+ * 那些把 codegen（BuildConfig、R.jar、autolinking PackageList.java / autolinking.h）
+ * 接到 :app 编译/CMake 任务之前的任务依赖边。一旦开启，消费方会抢在生成方
+ * 之前执行，构建随机失败，报 "Unresolved reference 'BuildConfig'"、缺失 R.jar
+ * 以及 "'autolinking.h' file not found"。
  */
 module.exports = function withGradleBuildOptimization(config) {
   return withGradleProperties(config, (config) => {
     const props = config.modResults;
 
     const optimizations = {
-      // ── JVM Memory ──
+      // ── JVM 内存 ──
       'org.gradle.jvmargs':
         '-Xmx8192m -XX:MaxMetaspaceSize=2048m -XX:+HeapDumpOnOutOfMemoryError',
 
-      // ── Parallelism ──
+      // ── 并行 ──
       'org.gradle.parallel': 'true',
       'org.gradle.workers.max': String(Math.max(4, require('os').cpus().length)),
 
-      // ── Caching ──
+      // ── 缓存 ──
       'org.gradle.caching': 'true',
       'org.gradle.configuration-cache': 'false',
 
-      // ── File System Watching (avoid full FS scan on each build) ──
+      // ── 文件系统监听（避免每次构建全量扫描）──
       'org.gradle.vfs.watch': 'true',
 
-      // ── Kotlin Compilation ──
+      // ── Kotlin 编译 ──
       'kotlin.daemon.jvmargs':
         '-Xmx4096m -XX:MaxMetaspaceSize=1024m',
       'kotlin.incremental': 'true',
 
-      // ── Suppress Daemon Performance Warning ──
+      // ── 抑制 Daemon 性能警告 ──
       'org.gradle.daemon.performance.disable-logging': 'true',
     };
 

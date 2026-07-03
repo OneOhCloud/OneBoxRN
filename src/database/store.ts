@@ -1,31 +1,31 @@
 import { emptyRuleSet, RULE_ACTIONS, type RuleAction, type RuleSet } from './custom-rules';
 import { kvDelete, kvGet, kvSet } from './kv';
 
-// ─── SQLite-backed store wrapper ─────────────────────────────────────────────
-// All values are stored as strings in kv_store.
-// Non-string writes are JSON-serialised; reads are JSON-parsed where possible
-// so that booleans (true/false) and numbers round-trip correctly.
+// ─── SQLite 支撑的 store 包装 ─────────────────────────────────────────────
+// 所有值都以字符串形式存入 kv_store。
+// 非字符串写入会做 JSON 序列化；读取时尽量做 JSON 解析，使布尔值（true/false）
+// 与数字能正确往返。
 // ─────────────────────────────────────────────────────────────────────────────
 
 const store = {
-    /** Synchronous read — returns the parsed value or the raw string. */
+    /** 同步读取 —— 返回解析后的值或原始字符串。 */
     getRaw(key: string): string | null {
         return kvGet(key);
     },
 
-    /** Async read with JSON coercion (booleans, numbers, strings all work). */
+    /** 异步读取并做 JSON 归一化（布尔、数字、字符串都适用）。 */
     async get(key: string): Promise<any> {
         const raw = kvGet(key);
         if (raw === null || raw === undefined) return null;
         try {
             return JSON.parse(raw);
         } catch {
-            // Plain string values that are not valid JSON
+            // 非合法 JSON 的纯字符串值
             return raw;
         }
     },
 
-    /** Persist a value; non-strings are JSON-serialised. */
+    /** 持久化一个值；非字符串会做 JSON 序列化。 */
     set(key: string, value: any): void {
         if (typeof value === 'string') {
             kvSet(key, value);
@@ -38,13 +38,13 @@ const store = {
         kvDelete(key);
     },
 
-    /** No-op — SQLite writes are synchronous, no explicit flush needed. */
+    /** 空操作 —— SQLite 写入是同步的，无需显式 flush。 */
     save(): Promise<void> {
         return Promise.resolve();
     },
 };
 
-// ─── Public API ──────────────────────────────────────────────────────────────
+// ─── 公开 API ──────────────────────────────────────────────────────────────
 
 export async function getStoreValue(key: string, defaultValue?: any): Promise<any> {
     const value = await store.get(key);
@@ -88,7 +88,7 @@ export async function getCustomRuleSet(key: RuleAction): Promise<RuleSet> {
 }
 
 export async function getAllCustomRuleSets(): Promise<Record<RuleAction, RuleSet>> {
-    // Destructure order mirrors RULE_ACTIONS (reject, direct, proxy).
+    // 解构顺序对应 RULE_ACTIONS（reject, direct, proxy）。
     const [reject, direct, proxy] = await Promise.all(
         RULE_ACTIONS.map((action) => getCustomRuleSet(action)),
     );

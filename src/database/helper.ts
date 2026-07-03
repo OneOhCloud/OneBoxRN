@@ -12,7 +12,7 @@ import { getAllCustomRuleSets, setStoreValue } from './store';
 
 export { extractSystemDns } from './config-merge-core';
 
-// ─── DNS rewrite ─────────────────────────────────────────────────────────────
+// ─── DNS 改写 ─────────────────────────────────────────────────────────────
 
 const BEST_DNS_TIMEOUT_MS = 2000;
 
@@ -21,34 +21,29 @@ async function getBestDnsWithTimeout(fallback: string): Promise<string> {
         return await Promise.race([
             ExpoOneBox.getBestDns(),
             new Promise<string>((_, reject) =>
-                setTimeout(() => reject(new Error(`getBestDns 超时（${BEST_DNS_TIMEOUT_MS}ms）`)), BEST_DNS_TIMEOUT_MS)
+                setTimeout(() => reject(new Error(`getBestDns timed out (${BEST_DNS_TIMEOUT_MS}ms)`)), BEST_DNS_TIMEOUT_MS)
             ),
         ]);
     } catch (e) {
-        jsLog.warn('[Config] getBestDns 失败或超时，使用 fallback DNS:', fallback, e);
+        jsLog.warn('[Config] getBestDns failed or timed out, using fallback DNS:', fallback, e);
         return fallback;
     }
 }
 
 /**
- * Single source of truth for the "direct" DNS server.
+ * "direct" DNS server 的单一来源。
  *
- * Used by both the merge pipeline (updateDNSToConfig) and the Settings
- * InfoCard. Callers MUST route through here instead of calling
- * ExpoOneBox.getBestDns / setStoreValue('directDNS', …) on their own, so
- * the value in `dns.servers[tag='system'].server` of the merged config
- * stays byte-identical to the value read from KV by the Settings UI.
- * UI callers MUST go through VpnContext.refreshDirectDns — never import
- * this function from a component / screen / hook.
+ * 合并流水线（updateDNSToConfig）与 Settings InfoCard 都用它。调用方必须经由
+ * 此函数，而非各自调用 ExpoOneBox.getBestDns / setStoreValue('directDNS', …)，
+ * 以保证合并后配置里 `dns.servers[tag='system'].server` 的值与 Settings UI 从
+ * KV 读到的值逐字节一致。UI 调用方必须走 VpnContext.refreshDirectDns —— 绝不
+ * 从 component / screen / hook 直接 import 本函数。
  *
- * Accepted trade-off: accept possible double native probe + double KV write
- * when the merge pipeline (config-merge-core, via the injected
- * resolveDirectDns seam below) and the UI's focus refresh fire
- * concurrently, in exchange for not plumbing the merge pipeline through
- * VpnContext (which would invert a layering: DB → UI context → DB). The race
- * window is bounded (both calls settle within the 2s probe timeout) and both
- * writes converge on the same IP value detected by the same OS query, so
- * last-writer-wins is idempotent in practice.
+ * 已接受的权衡：当合并流水线（config-merge-core，经下方注入的 resolveDirectDns
+ * 接缝）与 UI 的 focus 刷新并发触发时，容许一次重复的原生探测 + 重复 KV 写入，
+ * 以换取不必把合并流水线接进 VpnContext（那会颠倒分层：DB → UI context → DB）。
+ * 竞争窗口有界（两次调用都在 2s 探测超时内收敛），且两次写入都收敛到同一次 OS
+ * 查询得到的同一个 IP 值，因此 last-writer-wins 在实践中是幂等的。
  */
 export async function refreshDirectDns(fallback: string = FALLBACK_DNS): Promise<string> {
     const raw = await getBestDnsWithTimeout(fallback);
@@ -57,12 +52,11 @@ export async function refreshDirectDns(fallback: string = FALLBACK_DNS): Promise
     return trimmed;
 }
 
-// ─── Entry point ─────────────────────────────────────────────────────────────
+// ─── 入口 ─────────────────────────────────────────────────────────────
 
-// Merge pipeline lives in config-merge-core.ts (pure, golden-tested); this is
-// its one production wiring point. `resolveDirectDns: refreshDirectDns` is
-// the directDNS byte-identity contract wiring (see the comment above
-// refreshDirectDns).
+// 合并流水线在 config-merge-core.ts（纯核心，golden 覆盖）；这里是它唯一的
+// 生产装配点。`resolveDirectDns: refreshDirectDns` 是 directDNS 逐字节一致
+// 契约的装配（见 refreshDirectDns 上方的注释）。
 const mergeDeps: ConfigMergeDeps = {
     getTemplate: getConfigTemplate,
     getCustomRuleSets: getAllCustomRuleSets,

@@ -5,22 +5,22 @@ import type { RuleAction, RuleKind } from '@/database/custom-rules';
 import { useTheme } from '@/hooks/use-theme';
 import { Text, View } from 'react-native';
 
-// Semantic action colors — match priority palette: reject(red) > direct(green)
-// > proxy(blue). Reused by the row, composer preview and help legend.
+// 语义化的 action 配色 — 对应优先级色板：reject(红) > direct(绿) > proxy(蓝)。
+// 被 row、composer 预览与帮助图例复用。
 export const ACTION_COLOR: Record<RuleAction, string> = {
     reject: '#FF3B30',
     direct: '#34C759',
     proxy: '#007AFF',
 };
 
-// Compact mono glyph standing in for each match kind in the list density.
+// 紧凑的等宽字形，在密集列表中代表各 match kind。
 export const KIND_GLYPH: Record<RuleKind, string> = {
     domain: '=',
     domain_suffix: '*.',
     ip_cidr: '/',
 };
 
-/** Tinted pill carrying the localized action label in its action color. */
+/** 带色药丸，用 action 配色承载本地化的 action 标签。 */
 export function ActionBadge({ action, small }: { action: RuleAction; small?: boolean }) {
     const color = ACTION_COLOR[action];
     return (
@@ -53,7 +53,7 @@ export function ActionBadge({ action, small }: { action: RuleAction; small?: boo
     );
 }
 
-/** Quiet mono glyph chip distinguishing the match kind at a glance. */
+/** 安静的等宽字形 chip，一眼区分 match kind。 */
 export function KindChip({ kind }: { kind: RuleKind }) {
     const theme = useTheme();
     const chrome = useQuietChrome();

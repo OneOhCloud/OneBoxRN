@@ -14,7 +14,7 @@ interface ImportUrlModalProps {
     onClose: () => void;
 }
 
-/** Full-screen modal for importing a profile URL or scanning QR */
+/** 用于导入配置 URL 或扫描 QR 的全屏 modal */
 export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
@@ -63,7 +63,7 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
             backdropColor={theme.background}
         >
             <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: theme.background }}>
-                {/* Header */}
+                {/* 头部 */}
                 <View
                     style={{
                         paddingTop: 20,
@@ -95,9 +95,9 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
                     automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Content */}
+                    {/* 内容 */}
                     <View style={{ gap: 16 }}>
-                        {/* URL Input */}
+                        {/* URL 输入 */}
                         <TextInput
                             placeholder={i18n.t('url_placeholder')}
                             value={url}
@@ -125,7 +125,7 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
                             </Text>
                         ) : null}
 
-                        {/* Import Button */}
+                        {/* 导入按钮 */}
                         <Pressable
                             onPress={handleImport}
                             style={({ pressed }) => ({
@@ -139,7 +139,7 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
                             <ThemedText style={{ color: '#fff', fontWeight: '600' }}>{i18n.t('import')}</ThemedText>
                         </Pressable>
 
-                        {/* Divider */}
+                        {/* 分隔线 */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 8 }}>
                             <View style={{ flex: 1, height: 1, backgroundColor: theme.backgroundElement }} />
                             <ThemedText themeColor="textSecondary" style={{ fontSize: 13 }}>
@@ -148,7 +148,7 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
                             <View style={{ flex: 1, height: 1, backgroundColor: theme.backgroundElement }} />
                         </View>
 
-                        {/* Scan QR Button */}
+                        {/* 扫描 QR 按钮 */}
                         <Pressable
                             onPress={() => {
                                 mediumImpact();
@@ -172,7 +172,7 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
 
                     <View style={{ flex: 1 }} />
 
-                    {/* Bottom cancel button */}
+                    {/* 底部取消按钮 */}
                     <View style={{ marginTop: 20 }}>
                         <Pressable
                             onPress={onClose}

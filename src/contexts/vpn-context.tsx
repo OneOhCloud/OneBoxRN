@@ -22,16 +22,15 @@ import type {
     StopResult,
 } from './vpn/types';
 
-// QA switch: set to true to show the startup failure UI on app/VPN startup.
+// QA 开关：置为 true 可在 app/VPN 启动时展示启动失败 UI。
 const FORCE_STARTUP_FAILURE = false;
 
 // ─── Module-scope action singletons ─────────────────────────
 //
-// Created once (module scope, like the log-sink store) so identities are
-// stable across provider remounts / Fast Refresh and exactly one restart
-// machine exists per JS runtime. All ExpoOneBox mutations below flow
-// through these — no other layer may call the bridge mutation surface
-// (docs/claude/vpn-context.md).
+// 在模块作用域创建一次（与 log-sink store 一样），使其身份在 provider
+// 重挂载 / Fast Refresh 间保持稳定，且每个 JS runtime 只存在一个 restart
+// machine。下面所有 ExpoOneBox 变更都经由它们 —— 其他层不得调用 bridge
+// 的变更接口（docs/claude/vpn-context.md）。
 
 const vpnActions = createVpnActions({
     bridge: expoOneBoxBridge,
@@ -63,11 +62,11 @@ export interface VpnState {
     directDns: string;
     getStartConfig: () => string;
     refreshDirectDns: (fallback?: string) => Promise<string>;
-    /** Permission-gated connect; typed failures, never throws. */
+    /** 需权限的连接；以类型化结果返回失败，绝不抛异常。 */
     start: (options?: StartOptions) => Promise<StartResult>;
-    /** Awaitable disconnect resolving on the STOPPED event. */
+    /** 可 await 的断开，在 STOPPED 事件时 resolve。 */
     stop: (options?: StopOptions) => Promise<StopResult>;
-    /** Debounced, serialized restart with the freshest config. */
+    /** 防抖、串行化的重启，使用最新配置。 */
     requestRestart: () => void;
     selectNode: (tag: string) => Promise<SelectNodeResult>;
     triggerNodeTests: () => void;
@@ -79,18 +78,17 @@ const VpnContext = createContext<VpnState | null>(null);
 // ---- Provider ----
 
 /**
- * Logs no longer live in this context. They are owned by `log-sink.ts`
- * (a `useSyncExternalStore`-backed ring buffer, capacity 1000). Native
- * listeners here publish into the store via `emitLog(...)`; JS helpers
- * publish via `jsLog.*`; the Logs viewer subscribes via `useLogs()`.
+ * 日志不由本 context 持有，而归 `log-sink.ts` 所有（基于
+ * `useSyncExternalStore` 的环形缓冲，容量 1000）。此处的原生监听器经
+ * `emitLog(...)` 写入 store；JS 辅助函数经 `jsLog.*` 写入；日志查看器经
+ * `useLogs()` 监听。
  *
- * Rationale: keeping logs in context state caused every consumer of
- * `useVpn()` (home, settings, mode selector) to re-render on every
- * inbound log line — untenable at 1000-line buffers.
+ * WHY：若把日志放进 context state，每条入站日志都会让所有 `useVpn()`
+ * 消费方（home、settings、模式选择器）重渲染 —— 在 1000 行缓冲下无法接受。
  */
 export function VpnProvider({ children }: { children: React.ReactNode }) {
-    // Lazy init reads native truth at first render (no mount-time
-    // setState); `connected` is derived, not stored.
+    // 惰性初始化在首次渲染时读取原生真实状态（避免挂载期 setState）；
+    // `connected` 是派生值，不单独存储。
     const [status, setStatus] = useState(() => ExpoOneBox.getStatus());
     const connected = status === VPN_STATUS.STARTED || status === VPN_STATUS.STARTING;
     const [traffic, setTraffic] = useState<TrafficUpdateEventPayload | null>(null);
@@ -98,8 +96,8 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     const [directDns, setDirectDns] = useState<string>('—');
     const [startupFailure, setStartupFailure] = useState<StartupFailureInfo | null>(null);
 
-    // Single-flight: if a refresh is already in progress, all callers
-    // share the same promise instead of racing to call getBestDns + KV-write.
+    // 单飞：若已有刷新在途，所有调用方共享同一 promise，避免并发调用
+    // getBestDns + KV 写入。
     const directDnsInflightRef = useRef<Promise<string> | null>(null);
 
     const refreshDirectDnsAction = useCallback((fallback?: string): Promise<string> => {
@@ -122,9 +120,8 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
 
     const getStartConfig = useCallback(() => ExpoOneBox.getStartConfig(), []);
 
-    // Hydrate directDns from KV on mount so the first paint shows a cached
-    // value rather than '—'. The useFocusEffect in InfoCard will follow up
-    // with a live probe.
+    // 挂载时从 KV 注水 directDns，让首帧显示缓存值而非 '—'。InfoCard 中的
+    // useFocusEffect 随后会发起实时探测。
     useEffect(() => {
         getStoreValue('directDNS', '—')
             .then((v: string) => setDirectDns(v))
@@ -134,14 +131,13 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     const setMode = useCallback((m: ConfigType) => {
         setModeState(m);
         ProfileConfig.setMode(m);
-        // Debounced + in-flight-guarded restart.
+        // 防抖 + 在途保护的重启。
         requestRestart();
     }, []);
 
     const presentStartupFailure = useCallback((info: Omit<StartupFailureInfo, 'occurredAt'>) => {
-        // Native emits a language-neutral token for user-facing failures; map it
-        // to the user's language. Non-token messages are raw binary error detail,
-        // shown verbatim (audit C9).
+        // 面向用户的失败由原生发出语言无关的 token，此处映射到用户语言。
+        // 非 token 的消息是原始二进制错误详情，原样展示。
         const raw = info.message?.trim();
         const tokenKey = startupErrorTokenToKey(raw);
         const message = tokenKey ? i18n.t(tokenKey) : (raw || i18n.t('startup_error_empty_message'));
@@ -175,14 +171,12 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         ExpoOneBox.setCoreLogEnabled(true);
-        // Push the user's log level preference into the native filter so
-        // it takes effect on the next CommandServer log entry — without
-        // needing to restart the tunnel. See `setCoreLogLevel` in the
-        // Kotlin / Swift modules and the parser comment in vpn/core-log.ts.
+        // 把用户偏好的日志级别推入原生过滤器，使其在下一条 CommandServer
+        // 日志时生效 —— 无需重启 tunnel。参见 Kotlin / Swift 模块中的
+        // `setCoreLogLevel` 以及 vpn/core-log.ts 中的解析器注释。
         ExpoOneBox.setCoreLogLevel(ProfileConfig.getLogLevel());
-        // Status was lazily initialized at first render; re-sync from a
-        // zero-delay timer to close the render→subscribe race without a
-        // synchronous setState in the effect body.
+        // 用零延迟 timer 重新同步 status，以消除 render→subscribe 竞态，
+        // 又不在 effect 主体里同步 setState。
         const initialSyncTimer = setTimeout(syncStatus, 0);
 
         jsLog.info(`[App] VpnProvider ready, status=${ExpoOneBox.getStatus()}, mode=${ProfileConfig.getMode()}, logLevel=${ProfileConfig.getLogLevel()}`);
@@ -275,8 +269,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         });
 
         const logSub = ExpoOneBox.addListener('onLog', (event: { message: string }) => {
-            // Level filtering is done natively before this fires —
-            // we only parse the prefix here to colour the row.
+            // 级别过滤已在原生侧于此之前完成 —— 这里只解析前缀用于给行着色。
             const parsed = parseCoreLineLevel(event.message);
             emitLog({
                 source: 'sing-box',
@@ -285,8 +278,8 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             });
         });
 
-        // Native layer log pipe — Kotlin / Swift emit lifecycle & operation
-        // events through here. See `sendNativeLog` in the native module.
+        // 原生层日志管道 —— Kotlin / Swift 经此发出生命周期与操作事件。
+        // 参见原生模块中的 `sendNativeLog`。
         const nativeLogSub = ExpoOneBox.addListener('onNativeLog', (event: { level: 'info' | 'warn' | 'error'; tag: string; message: string }) => {
             emitLog({
                 source: 'native',
@@ -295,11 +288,10 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             });
         });
 
-        // Group updates fire from libbox's group stream via the native
-        // CommandClient handler. This is the single onGroupUpdate
-        // subscription in the app (docs/claude/vpn-context.md): it feeds
-        // the node store (read via useProxyNodeState) and surfaces a
-        // native-origin log line for the Logs viewer.
+        // group 更新经原生 CommandClient handler 从 libbox 的 group 流触发。
+        // 这是全 app 唯一一处 onGroupUpdate 监听（docs/claude/vpn-context.md）：
+        // 它喂给 node store（经 useProxyNodeState 读取），并为日志查看器产出
+        // 一条原生来源的日志行。
         const groupSub = ExpoOneBox.addListener('onGroupUpdate', (event: GroupUpdateEventPayload) => {
             nodeStore.applyGroupUpdate(event);
             emitLog({

@@ -25,8 +25,7 @@ export function ToggleSettingCard({
     onChanged,
     colorScheme = 'green',
 }: ToggleSettingCardProps) {
-    // Lazy init covers the mount read; callers pass module-level getters with
-    // stable identity, so the removed [getValue] effect only ever re-ran it.
+    // 惰性初始化覆盖挂载时的读取；调用方传入的是模块级、标识稳定的 getter。
     const [enabled, setEnabled] = useState(() => getValue());
 
     const handleToggle = (value: boolean) => {

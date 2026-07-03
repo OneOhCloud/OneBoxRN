@@ -1,32 +1,26 @@
 /**
- * Sing-box config merge pipeline — pure core with injected dependencies.
+ * Sing-box 配置合并流水线 —— 纯核心，依赖以注入方式提供。
  *
- * Verbatim assembly of the former helper.ts chain (getTunConfig /
- * getGlobalTunConfig / rewriteConfig / updateDNSToConfig /
- * updateVPNServerConfigFromDB): parse user profile → template → [custom
- * rules] → DNS/log rewrite → TUN exclusions → server-node injection →
- * JSON string. Statement order and log lines are preserved byte-for-byte —
- * the merged config JSON is an observable contract (golden-tested by the
- * sibling test file).
+ * 流水线阶段：解析用户配置 → 模板 → [自定义规则] → DNS/日志改写 → TUN 排除项
+ * → 服务器节点注入 → JSON 字符串。语句顺序与日志行必须逐字节保持，因为合并后
+ * 的配置 JSON 是一份可观测契约（由 sibling test 文件的 golden 锁定）。
  *
- * Effects stay behind deps seams: template supply, custom-rule reads, the
- * direct-DNS probe+persist, log-level read, and the platform-split TUN
- * exclusion merge are all injected (see helper.ts for the one production
- * wiring). Zero native imports so node --experimental-strip-types can run
- * the sibling test directly.
+ * 副作用全部收敛到 deps 接缝之后：模板供给、自定义规则读取、direct DNS 探测+
+ * 持久化、日志等级读取，以及按平台拆分的 TUN 排除项合并，均由外部注入（生产
+ * 环境的唯一装配见 helper.ts）。零原生 import，使 node --experimental-strip-types
+ * 能直接运行 sibling test。
  */
 
 import type { ConfigType } from '@/definition';
 import { injectCustomRules, type RuleAction, type RuleSet } from './custom-rules.ts';
 import type { TunConfigLike } from './tun-exclusions.ts';
 
-// Outbound group / pseudo types that are never treated as proxy server nodes.
+// 这些 outbound 组 / 伪类型永不视为代理服务器节点。
 const EXCLUDED_OUTBOUND_TYPES = new Set(['selector', 'urltest', 'direct', 'block', 'dns']);
 
-// Minimal structural types over the runtime JSON graphs (RouteRuleLike
-// precedent in custom-rules.ts). They never force rewriting an expression:
-// where the former `Dict = any` code relied on a missing section throwing,
-// a non-null assertion keeps that exact runtime behavior.
+// 覆盖运行时 JSON 图的最小结构类型（RouteRuleLike 先例见 custom-rules.ts）。
+// 它们不需要改写任何表达式：代码依赖「section 缺失即抛错」这一行为，非空断言
+// 精确保留了该运行时行为。
 
 interface DnsServerLike {
     tag: string;
@@ -60,7 +54,7 @@ export interface SingBoxConfigLike {
     [k: string]: unknown;
 }
 
-/** Matches jsLog's varargs surface so emitted lines stay byte-identical. */
+/** 与 jsLog 的可变参数签名一致，确保输出的日志行逐字节相同。 */
 export interface ConfigLogger {
     info(...args: unknown[]): void;
     warn(...args: unknown[]): void;
@@ -69,39 +63,36 @@ export interface ConfigLogger {
 
 export interface ConfigMergeDeps {
     /**
-     * Template supply (helper getConfigTemplate). MUST return a fresh object
-     * graph per call — the pipeline mutates it in place (see
-     * template-cache.ts for the supply-side contract).
+     * 模板供给（helper 的 getConfigTemplate）。每次调用必须返回全新的对象图 ——
+     * 流水线会就地修改它（供给侧契约见 template-cache.ts）。
      */
     getTemplate(mode: ConfigType): Promise<SingBoxConfigLike>;
-    /** Custom routing rule sets (store getAllCustomRuleSets). Only invoked for 'tun-rules'. */
+    /** 自定义路由规则集（store 的 getAllCustomRuleSets）。仅在 'tun-rules' 模式下调用。 */
     getCustomRuleSets(): Promise<Record<RuleAction, RuleSet>>;
     /**
-     * Probe + persist the direct DNS (helper refreshDirectDns). Injected so
-     * the KV-write side of the directDNS byte-identity contract stays in the
-     * impure shell, shared with the Settings UI.
+     * 探测并持久化 direct DNS（helper 的 refreshDirectDns）。注入进来，使
+     * directDNS 逐字节一致契约的 KV 写入侧留在非纯外壳中，并与 Settings UI 共享。
      */
     resolveDirectDns(fallback: string): Promise<string>;
-    /** sing-box core log level preference (ProfileConfig.getLogLevel). */
+    /** sing-box 核心日志等级偏好（ProfileConfig.getLogLevel）。 */
     getLogLevel(): string;
-    /** Platform-split TUN bypass merge (apply-tun-exclusions.{ios,android}). */
+    /** 按平台拆分的 TUN 绕行合并（apply-tun-exclusions.{ios,android}）。 */
     applyTunExclusions(userConfig: TunConfigLike, templateConfig: TunConfigLike): void;
     log: ConfigLogger;
 }
 
 export interface ConfigMergeInput {
     mode: ConfigType;
-    /** The user's imported profile JSON string (ProfileConfig.getConfigContent). */
+    /** 用户导入的配置文件 JSON 字符串（ProfileConfig.getConfigContent）。 */
     userConfigContent: string;
 }
 
 export const FALLBACK_DNS = '119.29.29.29';
 
 /**
- * Single source of truth for reading the "direct" DNS back out of a merged
- * config — the value in `dns.servers[tag='system'].server` must stay
- * byte-identical to the KV value the Settings UI reads (see the
- * refreshDirectDns contract comment in helper.ts).
+ * 从合并后的配置中读回 "direct" DNS 的单一来源 —— `dns.servers[tag='system'].server`
+ * 的值必须与 Settings UI 从 KV 读到的值逐字节一致（契约见 helper.ts 中
+ * refreshDirectDns 的注释）。
  */
 export function extractSystemDns(configJson: string): string | null {
     try {
@@ -118,7 +109,7 @@ async function updateDNSToConfig(deps: ConfigMergeDeps, newConfig: SingBoxConfig
         if (server.tag === 'system') {
             const fallback = server.server?.trim() || FALLBACK_DNS;
             const directDNS = await deps.resolveDirectDns(fallback);
-            deps.log.info('[Config] 直连 DNS:', directDNS);
+            deps.log.info('[Config] direct DNS:', directDNS);
             server.type = 'udp';
             server.server = directDNS;
             server.server_port = 53;
@@ -128,19 +119,18 @@ async function updateDNSToConfig(deps: ConfigMergeDeps, newConfig: SingBoxConfig
 }
 
 async function rewriteConfig(deps: ConfigMergeDeps, newConfig: SingBoxConfigLike): Promise<void> {
-    deps.log.info('[Config] rewriteConfig: 注入 DNS，清理未用字段');
+    deps.log.info('[Config] rewriteConfig: inject DNS, strip unused fields');
     try {
         await updateDNSToConfig(deps, newConfig);
     } catch (error) {
-        deps.log.error('[Config] 更新 DNS 配置失败:', error);
+        deps.log.error('[Config] failed to update DNS config:', error);
         throw error;
     }
     if (newConfig['experimental']) {
         delete newConfig['experimental']['clash_api'];
     }
-    // Override the sing-box core log level with the user's preference
-    // (default: info). The template ships with `debug` which is noisy
-    // and hurts battery; users can bump it back up in the dev page.
+    // 用用户偏好覆盖 sing-box 核心日志等级（默认 info）。模板自带 `debug`，
+    // 噪声大且耗电；用户可在 dev 页面调回去。
     const level = deps.getLogLevel();
     if (!newConfig.log) newConfig.log = {};
     newConfig.log.level = level;
@@ -159,7 +149,7 @@ function injectServerNodes(
     const outboundsSelector: string[] = outboundGroups[outboundsSelectorIndex]['outbounds']!;
     const outboundsUrltest: string[] = outboundGroups[outboundsUrltestIndex]['outbounds']!;
 
-    // Collect tags already present in the template to avoid duplicates
+    // 收集模板中已存在的 tag 以避免重复
     const existingTags = new Set<string>(
         outboundGroups.map((o) => o.tag).filter(Boolean)
     );
@@ -187,8 +177,8 @@ function injectServerNodes(
 }
 
 /**
- * Pure-core pipeline: parse → template → [custom rules] → DNS/log rewrite
- * → TUN exclusions → server-node injection → JSON string.
+ * 纯核心流水线：解析 → 模板 → [自定义规则] → DNS/日志改写 → TUN 排除项 →
+ * 服务器节点注入 → JSON 字符串。
  */
 export async function buildSingBoxConfig(
     deps: ConfigMergeDeps,
@@ -206,8 +196,8 @@ export async function buildSingBoxConfig(
     }
 
     await rewriteConfig(deps, newConfig);
-    // Carry the profile's per-platform TUN bypass list into the active config
-    // (Android: exclude_package, iOS: route_exclude_address). Platform-split.
+    // 把配置文件按平台的 TUN 绕行列表带入当前生效的配置
+    // （Android：exclude_package，iOS：route_exclude_address）。按平台拆分。
     deps.applyTunExclusions(configJson, newConfig);
     return injectServerNodes(configJson, newConfig, deps.log);
 }

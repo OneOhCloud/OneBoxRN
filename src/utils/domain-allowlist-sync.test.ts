@@ -2,12 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 
-// Cross-platform consistency lock for the compile-time domain allowlist
-// (audit C2 / D3c-02). The same SHA256 suffix-hash list and remote URL are
-// hardcoded in three places (JS / Kotlin / Swift). This reads all three sources
-// plus golden/domain-allowlist.json and asserts they are byte-identical, so a
-// change to one that the others don't mirror fails make test. Same file-reading
-// pattern as sing-box-version-sync.test.ts — no native imports.
+// 编译期域名白名单的跨平台一致性锁。同一份 sha256 后缀哈希列表与远程 URL
+// 被硬编码在三处（JS / Kotlin / Swift）。这里读取全部三个来源外加
+// golden/domain-allowlist.json，断言它们逐字节一致，因此改了其中一处而其他
+// 未同步就会让 make test 失败。文件读取方式与 sing-box-version-sync.test.ts 相同
+// —— 无原生 import。
 
 function read(rel: string): string {
     return readFileSync(new URL(rel, import.meta.url), 'utf8');

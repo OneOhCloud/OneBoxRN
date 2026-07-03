@@ -55,7 +55,7 @@ resolve_report() {
   fi
 
   if [ -d "$p" ]; then
-    # Prefer Xcode's locally symbolicated crashes.
+    # 优先选择 Xcode 本地符号化后的 crash。
     if [ -d "$p/Filters" ]; then
       if latest="$(pick_latest_crash_in_dir "$p/Filters")"; then
         printf '%s\n' "$latest"

@@ -1,6 +1,6 @@
 /**
- * Root layout — Stack navigator with theme-aware navigation chrome.
- * Wraps the entire app in a ThemeProvider for react-navigation dark mode support.
+ * 根布局 — 带主题感知导航外观的 Stack navigator。
+ * 用 ThemeProvider 包裹整个 app，为 react-navigation 提供深色模式支持。
  */
 
 import { VpnProvider } from '@/contexts/vpn-context';
@@ -37,7 +37,7 @@ const ErrorBoundary = bugsnagEnabled
     : null;
 
 // ---------------------------------------------------------------------------
-// First-launch initialization helper
+// 首次启动初始化辅助函数
 // ---------------------------------------------------------------------------
 
 async function copyCacheDb() {
@@ -58,9 +58,9 @@ async function copyCacheDb() {
 async function runFirstLaunchSetup() {
     try {
         if (Platform.OS === 'android') {
-            // Request notification permission via expo-notifications (Android 13+ POST_NOTIFICATIONS)
+            // 通过 expo-notifications 申请通知权限（Android 13+ POST_NOTIFICATIONS）
             await Notifications.requestPermissionsAsync();
-            // Request battery optimization exemption so the VPN service can run unrestricted in the background
+            // 申请电池优化豁免，让 VPN 服务在后台不受限制地运行
             try {
                 const exempt = ExpoOneBox.checkBatteryOptimizationExemption();
                 if (!exempt) {
@@ -78,7 +78,7 @@ async function runFirstLaunchSetup() {
             });
         }
     } catch (e) {
-        // Non-fatal — log and continue
+        // 非致命错误 — 记录后继续
         jsLog.warn('[FirstLaunch] setup error:', e);
     } finally {
         AppLaunchFlags.markFirstLaunchDone();
@@ -154,30 +154,29 @@ export default function RootLayout() {
         migrateV1ProfileToMulti();
         runBugsnagCrashTestIfArmed();
 
-        // Initialize domain verification data (fetch and cache) before registering background task
+        // 注册后台任务前，先初始化域名校验数据（拉取并缓存）
         Task.initializeConfigRefresh()
             .then(() => {
                 jsLog.info('[RootLayout] config refresh initialization complete');
-                // Now register background task with populated verification data
+                // 此时校验数据已就位，注册后台任务
                 Task.registerConfigRefreshTask();
             })
             .catch((e) => {
                 jsLog.warn('[RootLayout] config refresh initialization error:', e);
-                // Still register task even if verification data fetch failed, it will use defaults
+                // 校验数据拉取失败也照样注册任务，届时使用默认值
                 Task.registerConfigRefreshTask();
             });
 
-        // Sync any result that the native background task stored while the app was suspended
+        // 同步原生后台任务在 JS 未运行期间写入的结果
         Task.syncNativeResultToJS();
 
         const appStateSub = AppState.addEventListener('change', (nextState) => {
             if (nextState === 'active') {
                 Task.syncNativeResultToJS();
 
-                // Re-prefetch remote assets when returning to foreground,
-                // only if the tunnel is not routing traffic (otherwise the
-                // request stalls on the TUN interface). Both calls are
-                // TTL-gated internally so frequent app switches are cheap.
+                // 回到前台时重新预取远程资源，但仅在隧道未转发流量时进行
+                // （否则请求会卡在 TUN 接口上）。两个调用内部都有 TTL 门控，
+                // 所以频繁切换 app 的开销很低。
                 if (ExpoOneBox.getStatus() === VPN_STATUS.STOPPED) {
                     prefetchConfigTemplates().catch((e) => {
                         jsLog.warn('[RootLayout] prefetchConfigTemplates on active error:', e);
@@ -189,9 +188,9 @@ export default function RootLayout() {
             }
         });
 
-        // Prefetch config templates only when VPN is stopped.
-        // When VPN is running, all traffic routes through the TUN interface — HTTP requests
-        // made before the tunnel is stable will hang until the 5s timeout fires.
+        // 仅在 VPN 停止时预取配置模板。
+        // VPN 运行时所有流量都经 TUN 接口，隧道稳定前发出的 HTTP 请求
+        // 会一直挂起，直到 5s 超时触发。
         if (ExpoOneBox.getStatus() === VPN_STATUS.STOPPED) {
             prefetchConfigTemplates().catch((e) => {
                 jsLog.warn('[RootLayout] prefetchConfigTemplates error:', e);
@@ -229,10 +228,9 @@ export default function RootLayout() {
                                         animation: 'slide_from_right',
                                     }}
                                 />
-                                {/* Dev-only diagnostic reached via `oneoh-networktools://dev-smoke`.
-                                    Shipping the route in production is harmless — there is no UI
-                                    that navigates to it; only the Makefile's post-`run-*` deep link
-                                    opens it. */}
+                                {/* 仅供开发的诊断页，经 `oneoh-networktools://dev-smoke` 进入。
+                                    随生产版本发布无害 — 没有任何 UI 会导航到它，只有 Makefile
+                                    在 `run-*` 之后用 deep link 打开它。 */}
                                 <Stack.Screen
                                     name="dev-smoke"
                                     options={{
@@ -241,8 +239,8 @@ export default function RootLayout() {
                                         animation: 'slide_from_bottom',
                                     }}
                                 />
-                                {/* DEV-only automation harness — oneoh-networktools://dev-harness?op=…
-                                    Actions are __DEV__-gated inside the screen; emits [[HARNESS]] logcat markers. */}
+                                {/* 仅供开发的自动化 harness — oneoh-networktools://dev-harness?op=…
+                                    各动作在屏幕内受 __DEV__ 门控，并输出 [[HARNESS]] logcat 标记。 */}
                                 <Stack.Screen
                                     name="dev-harness"
                                     options={{

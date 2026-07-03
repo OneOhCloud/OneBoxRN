@@ -1,121 +1,119 @@
-# Audit Exceptions & Dependency Decisions — 2026-07-02
+# 审计例外与依赖决定 — 2026-07-02
 
-Companion to `2026-07-02-engineering-audit.md`. Records F-07 dependency decisions and
-standing exceptions referenced by the audit's acceptance criteria.
+`2026-07-02-engineering-audit.md` 的配套文档。记录 F-07 依赖决定，以及
+审计验收标准所引用的长期例外。
 
 ## F-07 npm audit
 
-Status after overrides: **0 open advisories** — both `npm audit --omit=dev --audit-level=moderate`
-(the audit gate) and full `npm audit` (dev included).
+使用 override 后的状态：**0 条未处理公告**——`npm audit --omit=dev --audit-level=moderate`
+（审计门禁）与完整的 `npm audit`（含开发依赖）皆然。
 
-Verification performed: `npm install` → both audits 0 → `npm ls` spot check →
-`npx tsc --noEmit` → `npm test` (66 pass) → `npx expo-doctor` 20/20 →
-`npx expo install --check` aligned → `make prebuild` succeeds (proves `xcode`+`uuid@11`) →
-node smoke: `i18n-js` translates with `lodash@4.18.1`.
+已执行的验证：`npm install` → 两个 audit 均为 0 → `npm ls` 抽查 →
+`npx tsc --noEmit` → `npm test`（66 通过）→ `npx expo-doctor` 20/20 →
+`npx expo install --check` 对齐 → `make prebuild` 成功（证明 `xcode`+`uuid@11`）→
+node smoke：`i18n-js` 用 `lodash@4.18.1` 正常翻译。
 
-### Rejected remediations
+### 已否决的整改
 
-- `npm audit fix --force` — would downgrade `expo` 57→46 and `expo-splash-screen` 57→55.
-  Destructive; forbidden.
-- Upgrading `expo` majors solely for transitive advisories — not needed; every advisory
-  roots at an overridable leaf.
+- `npm audit fix --force`——会把 `expo` 从 57 降到 46、`expo-splash-screen` 从 57 降到 55。
+  破坏性；禁止。
+- 仅为传递依赖公告而升级 `expo` 大版本——不必要；每条公告都根源于一个可
+  override 的叶子依赖。
 
-### Override decisions (risk log)
+### Override 决定（风险日志）
 
-All entries in `package.json` `overrides`. "exposure" = where the vulnerable code could run.
+所有条目都在 `package.json` 的 `overrides` 中。"exposure"（暴露）= 有漏洞的代码可能运行的位置。
 
-| package | from → to | parent(s) | exposure | risk note |
+| 包 | from → to | 父依赖 | exposure | 风险说明 |
 |---|---|---|---|---|
-| shell-quote | 1.8.3 → 1.8.4 | react-native → react-devtools-core | dev-time (devtools) | critical advisory; parent range `^1.6.1` satisfied |
-| @xmldom/xmldom | 0.8.11 → 0.8.13 | @expo/plist, plist (via config-plugins) | prebuild-time | clears 5 high advisories + entire expo-chain xmldom branch |
-| lodash | 4.17.23 → 4.18.1 | i18n-js | **production JS bundle** | only runtime-shipped override; node i18n smoke passed; device boot smoke in manual checklist |
-| picomatch@^2.0.0 | 2.3.1 → 2.3.2 | micromatch, jest-util (metro chain) | build-time | range-scoped; picomatch@4 instances untouched |
-| undici | 6.25.0 → 6.27.0 | @bugsnag/cli | build-time (sourcemap upload) | not the runtime Bugsnag SDK |
-| ws@^7.0.0 | 7.5.10 → 7.5.11 | react-native, react-devtools-core, metro | dev-time (dev server) | range-scoped; ws@8.21.0 untouched |
-| @babel/core | 7.29.0 → 7.29.7 | expo tooling | build-time | low severity |
-| brace-expansion@^5.0.0 | 5.0.4 → 5.0.7 | config-plugins glob chain | build-time | range-scoped |
-| brace-expansion@^1.0.0 | 1.1.12 → 1.1.13 | minimatch@3 (eslint chain) | dev-time | added beyond audit baseline (full-audit hygiene) |
-| flatted | 3.3.4 → 3.4.2 | flat-cache (eslint chain) | dev-time | added beyond audit baseline (full-audit hygiene) |
-| js-yaml@^4.0.0 | 4.1.1 → 4.2.0 | @expo/xcpretty, @eslint/eslintrc | build/dev-time | range-scoped |
-| uuid (scoped under `xcode`) | 7.0.3 → 11.1.1 | xcode@3.0.1 | prebuild-time | major jump; xcode uses only CJS `uuid.v4()`, present in v11; `make prebuild` proof-gate passed |
+| shell-quote | 1.8.3 → 1.8.4 | react-native → react-devtools-core | 开发期（devtools） | 严重公告；父依赖范围 `^1.6.1` 满足 |
+| @xmldom/xmldom | 0.8.11 → 0.8.13 | @expo/plist, plist（经 config-plugins） | prebuild 期 | 清除 5 条高危公告 + 整条 expo 链的 xmldom 分支 |
+| lodash | 4.17.23 → 4.18.1 | i18n-js | **生产 JS bundle** | 唯一随运行时发布的 override；node i18n smoke 已通过；设备启动 smoke 在手动清单中 |
+| picomatch@^2.0.0 | 2.3.1 → 2.3.2 | micromatch, jest-util（metro 链） | 构建期 | 范围限定；picomatch@4 实例不受影响 |
+| undici | 6.25.0 → 6.27.0 | @bugsnag/cli | 构建期（sourcemap 上传） | 不是运行时的 Bugsnag SDK |
+| ws@^7.0.0 | 7.5.10 → 7.5.11 | react-native, react-devtools-core, metro | 开发期（dev server） | 范围限定；ws@8.21.0 不受影响 |
+| @babel/core | 7.29.0 → 7.29.7 | expo 工具链 | 构建期 | 低危 |
+| brace-expansion@^5.0.0 | 5.0.4 → 5.0.7 | config-plugins glob 链 | 构建期 | 范围限定 |
+| brace-expansion@^1.0.0 | 1.1.12 → 1.1.13 | minimatch@3（eslint 链） | 开发期 | 超出审计基线添加（完整 audit 卫生） |
+| flatted | 3.3.4 → 3.4.2 | flat-cache（eslint 链） | 开发期 | 超出审计基线添加（完整 audit 卫生） |
+| js-yaml@^4.0.0 | 4.1.1 → 4.2.0 | @expo/xcpretty, @eslint/eslintrc | 构建/开发期 | 范围限定 |
+| uuid（限定在 `xcode` 下） | 7.0.3 → 11.1.1 | xcode@3.0.1 | prebuild 期 | 大版本跳跃；xcode 只用 CJS `uuid.v4()`，v11 中存在；`make prebuild` 证明门禁已通过 |
 
-### Open exceptions
+### 未决例外
 
-(none — every advisory resolved without version-major risk to direct deps)
+（无——每条公告都已解决，且未给直接依赖带来大版本风险）
 
-Template for future rows: advisory · package · exposure class
-[build-time | dev-only | production JS | native runtime] · rationale · revisit-by date.
+未来行的模板：advisory · package · exposure 类别
+[build-time | dev-only | production JS | native runtime] · 理由 · 复查截止日期。
 
-### Known non-issues (pre-existing, unrelated to overrides)
+### 已知的非问题（既有，与 override 无关）
 
-- `@bugsnag/expo` declares peer `expo ^55`, installed `expo 57` — Bugsnag's latest release
-  is `55.0.0` (no SDK-57 line exists yet), and 55 works on 57 (dev-smoke bridge check
-  passes). A nested `overrides["@bugsnag/expo"]` pins its `expo`/`expo-constants` peers to
-  the root versions to silence the install warning (audit D6a-10). Drop the override when
-  Bugsnag ships an SDK-57 line and bump the dependency.
-- `npm ls ws` shows `@expo/ws-tunnel` (wants `^8.0.0`) deduped onto the v7 instance and
-  flagged `invalid` — pre-existing hoisting quirk (present before overrides, then at
-  7.5.10); `ws@8.21.0` also present in tree; dev-tunnel only.
+- `@bugsnag/expo` 声明 peer `expo ^55`，实际安装 `expo 57`——Bugsnag 最新发行版
+  是 `55.0.0`（尚无 SDK-57 线），而 55 在 57 上可用（dev-smoke 桥接检查
+  通过）。一个嵌套的 `overrides["@bugsnag/expo"]` 把它的 `expo`/`expo-constants` peer 固定到
+  根版本，以消除安装警告（审计 D6a-10）。当 Bugsnag 发布 SDK-57 线时，去掉这个
+  override 并升级该依赖。
+- `npm ls ws` 显示 `@expo/ws-tunnel`（想要 `^8.0.0`）被 dedupe 到 v7 实例上并
+  标为 `invalid`——既有的提升怪癖（在 override 之前就存在，当时为
+  7.5.10）；树中也存在 `ws@8.21.0`；仅用于 dev-tunnel。
 
-### Maintenance rule
+### 维护规则
 
-`expo lint` and `expo install --fix` can rewrite `package.json` and silently drop the
-`overrides` block. Lint via `npx eslint`; after running any expo tooling, check
-`git diff package.json`.
+`expo lint` 和 `expo install --fix` 会重写 `package.json` 并悄悄丢掉
+`overrides` 块。用 `npx eslint` 做 lint；运行任何 expo 工具后，检查
+`git diff package.json`。
 
-## F-08 legacy tables decision
+## F-08 遗留表决定
 
-`subscriptions` / `subscription_configs` (created by the v0→1 SQLite migration) are kept
-**migration-frozen**: shipped migration steps are not rewritten, and the tables are provably
-empty on every install (`git log -S` shows no shipped writer ever existed; the only
-reader/writer, `use-profiles.ts`, was dead code deleted in this remediation). Runtime
-profile CRUD lives exclusively in `ProfileStore` (`src/database/kv.ts`). See comments in
-`src/database/sqlite3.tsx`. Table names are a documented terminology exemption
-(`docs/claude/terminology-exceptions.md`).
+`subscriptions` / `subscription_configs`（由 v0→1 SQLite 迁移创建）保持
+**迁移冻结**：已发布的迁移步骤不重写，且这些表在每个安装上可证明
+为空（`git log -S` 显示从未发布过任何写者；唯一的读者/写者
+`use-profiles.ts` 是本次整改中删除的死代码）。运行时配置文件 CRUD 完全
+存活于 `ProfileStore`（`src/database/kv.ts`）。见 `src/database/sqlite3.tsx` 中的注释。
+表名是一条已记录的术语豁免（`docs/claude/terminology-exceptions.md`）。
 
-## C15 cross-platform background-store key naming
+## C15 跨平台后台存储键命名
 
-The iOS App Group `UserDefaults` and the Android `SharedPreferences`
-(`expo_onebox_background_config`) are **separate, never-interoperating stores** — each
-platform only ever reads its own keys, never the other's. Their key names differ (iOS
-`bg_`-prefixed: `bg_config_url`, `bg_accelerate_url`, `bg_last_result_json`, …; Android
-unprefixed: `config_url`, `accelerate_url`, `last_result`, …) and their structure differs
-(iOS stores the domain-verification cache as one atomic JSON blob
-`bg_domain_verification_cache_json`; Android uses two separate keys). Aligning the names
-would require a persisted-key migration on installed devices for **zero functional
-benefit** — there is no cross-platform key sharing — so the per-platform naming is kept
-as-is (audit C15). This is a **native runtime** exemption; revisit only if the two stores
-are ever unified (e.g. behind a shared Go-side store).
+iOS App Group 的 `UserDefaults` 与 Android 的 `SharedPreferences`
+（`expo_onebox_background_config`）是**相互独立、从不互通的存储**——每个
+平台只读自己的键，绝不读另一个平台的。它们的键名不同（iOS
+以 `bg_` 为前缀：`bg_config_url`、`bg_accelerate_url`、`bg_last_result_json`……；Android
+无前缀：`config_url`、`accelerate_url`、`last_result`……），结构也不同
+（iOS 把域名验证缓存存为一个原子 JSON blob
+`bg_domain_verification_cache_json`；Android 用两个独立的键）。对齐这些名称
+需要在已安装设备上做一次持久化键迁移，却带来**零功能
+收益**——不存在跨平台键共享——因此按平台各自的命名保持
+原样（审计 C15）。这是一条**原生运行时**豁免；仅当两个存储将来
+被统一（例如放到共享的 Go 侧存储之后）时才复查。
 
-## D3c-08 heterogeneous config fetcher (iOS NWConnection vs Android OkHttp)
+## D3c-08 异构 config fetcher（iOS NWConnection vs Android OkHttp）
 
-The two `ConfigFetcher` implementations are **platform-native by necessity**, not
-accidental duplication. The iOS side hand-rolls HTTP/1.1 over `NWConnection`
-specifically to (a) resolve the host through a best-of-N DNS probe and connect to the
-returned IP while keeping the original hostname as the TLS SNI — bypassing local DNS
-poisoning, a core requirement for the app's censored-network users — and (b) accept a
-gzip body that the accelerator returns without a `Content-Encoding` header. Android
-gets the same behavior from OkHttp with a custom `Dns`. Go's `net/http` (and libbox's
-already-bound `LibboxNewHTTPClient`, which wraps `http.Client`) exposes neither the
-custom-resolver-plus-SNI split nor the header-less gzip path, so **reusing it would
-regress the poisoning bypass**.
+两个 `ConfigFetcher` 实现是**出于必要而平台原生**，不是
+偶然的重复。iOS 侧在 `NWConnection` 上手写 HTTP/1.1，
+专门是为了 (a) 通过 best-of-N 的 DNS 探测解析主机、连接到
+返回的 IP，同时保留原始主机名作为 TLS SNI——绕过本地 DNS
+污染，这是该应用受审查网络用户的核心需求——以及 (b) 接受
+加速器在没有 `Content-Encoding` 头的情况下返回的 gzip 主体。Android
+用带自定义 `Dns` 的 OkHttp 获得相同行为。Go 的 `net/http`（以及 libbox
+已绑定、封装 `http.Client` 的 `LibboxNewHTTPClient`）既不暴露
+自定义解析器加 SNI 的拆分，也不暴露无头 gzip 路径，所以**复用它会让
+污染绕过退化**。
 
-**Drift risk is mitigated, not ignored.** The two fetchers share the transport-neutral
-`ConfigFetchResult` contract, and every pure/fragile piece is golden-locked against one
-cross-platform spec: the fetch→accelerator decision (`golden/fetch-fallback-decision.json`
-+ the JVM `FetchWithFallbackTest`), the DNS A-record parser (`golden/dns-arecord.json`),
-the `subscription-userinfo` parser (`golden/userinfo.json`), and — new in this pass — the
-iOS hand-written chunked-transfer decoder (`golden/http-chunked.json` + `HttpChunkedGoldenCheck`),
-which is the single riskiest hand-rolled part OkHttp handles for Android.
+**漂移风险被缓解，而非被忽视。** 两个 fetcher 共享传输中立的
+`ConfigFetchResult` 契约，且每个纯/脆弱的部分都对一份跨平台规范做了
+golden 锁定：fetch→加速器 决策（`golden/fetch-fallback-decision.json`
++ JVM `FetchWithFallbackTest`）、DNS A 记录解析器（`golden/dns-arecord.json`）、
+`subscription-userinfo` 解析器（`golden/userinfo.json`），以及——本轮新增的——
+iOS 手写的 chunked-transfer 解码器（`golden/http-chunked.json` + `HttpChunkedGoldenCheck`），
+后者是 OkHttp 在 Android 上代为处理的、风险最高的单个手写部分。
 
-**Full transport unification (one shared Go fetcher) is a scoped, deferred Batch-4
-delivery**, not a surgical change: (1) `helper/Makefile`'s `build` target does
-`rm -rf sing-box` and re-clones the pinned tag from GitHub every run, so the fetcher
-cannot live inside sing-box — it needs a new **tracked** Go package plus a gomobile-bind
-restructure to bundle it alongside the pristine clone; (2) that rebuild re-clones the
-engine over the network and would break the working build if the clone fails; (3) the
-Go fetcher must reproduce the best-DNS/SNI/header-less-gzip/redirect behavior exactly or
-every user's config fetch breaks on both platforms; (4) that security-sensitive change
-**requires iOS real-device regression** (per the repo's "Verified = observed on device"
-rule), which is unavailable in this environment. Revisit when a Go-side network sink is
-scheduled with device access. This is a **native runtime** exemption.
+**完整的传输统一（一个共享的 Go fetcher）是一项范围明确、被推迟的 Batch-4
+交付**，不是外科式的小改：(1) `helper/Makefile` 的 `build` target 每次运行都会
+`rm -rf sing-box` 并从 GitHub 重新克隆固定的 tag，所以 fetcher 不能住在
+sing-box 内部——它需要一个新的**受追踪的** Go 包，加上一次 gomobile-bind
+重构，以便与纯净克隆一起打包；(2) 那次重建会通过网络重新克隆引擎，
+若克隆失败会破坏可用的构建；(3) Go fetcher 必须精确复现
+best-DNS/SNI/无头 gzip/重定向 行为，否则每个用户在两个平台上的 config 抓取
+都会失败；(4) 那项安全敏感的改动**需要 iOS 真机回归**（依据仓库的
+"已验证 = 在设备上观察到"规则），而本环境不具备。等到有设备访问权限、
+排期 Go 侧网络 sink 时再复查。这是一条**原生运行时**豁免。

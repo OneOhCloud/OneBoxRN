@@ -1,3 +1,2 @@
-// Bottom clearance reserved on the home screen so scrollable content is not
-// obscured by the floating action layer.
+// 主屏底部预留的间距，避免可滚动内容被悬浮操作层遮挡。
 export const FAB_CLEARANCE = 56 + 12;

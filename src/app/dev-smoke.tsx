@@ -1,24 +1,22 @@
 /**
- * Dev-Smoke route — auto-runs the full import + smoke suite on mount.
+ * Dev-Smoke 路由 — 挂载时自动运行完整的 import + smoke 套件。
  *
- * Reached via `oneoh-networktools://dev-smoke` (fired by
- * `make dev-smoke-ios` / `make dev-smoke-android`). The native-import
- * smoke set runs first (bridge reachability), then import-flow cases.
+ * 经 `oneoh-networktools://dev-smoke` 进入（由 `make dev-smoke-ios` /
+ * `make dev-smoke-android` 触发）。先跑 native-import smoke 集（bridge 可达性），
+ * 再跑 import-flow 用例。
  *
- * UI choices (non-obvious):
- *   - Results grouped by `TestCase.group` in collapsible glass cards.
- *     Flat list was unreadable once the combined suite crossed ~30 rows.
- *   - Filter chips ("All / Failing / Running / Passing") above groups;
- *     `Running` chip only appears while something is running.
- *   - Cards use `useGlassSurface()` for consistency with tab screens.
- *     Rejected: hand-rolled StyleSheet hairlines (prior look).
- *   - Rejected: nested ScrollViews per group — single outer ScrollView
- *     handles ~40 rows fine and nested scrolling is a UX trap on both
- *     platforms.
- *   - No `elevation` on Android (see CLAUDE.md § Shadow / Elevation):
- *     glass hairline border does the lift suggestion instead.
+ * UI 取舍（不那么显然的）：
+ *   - 结果按 `TestCase.group` 分组放进可折叠的玻璃卡片；合并后的套件行数一多，
+ *     扁平列表就读不下去了。
+ *   - 分组上方有 filter chips（"All / Failing / Running / Passing"）；
+ *     `Running` chip 仅在有用例运行时出现。
+ *   - 卡片用 `useGlassSurface()`，与 tab 屏保持一致。
+ *   - 不给每个 group 套嵌套 ScrollView，只用单个外层 ScrollView —— 两个平台上
+ *     嵌套滚动都是 UX 陷阱。
+ *   - Android 上禁用 `elevation`（见 CLAUDE.md § Shadow / Elevation）：改由
+ *     玻璃 hairline 边框来暗示层次。
  *
- * Never expose this from production UI — deep link / direct nav only.
+ * 绝不从生产 UI 暴露此页 —— 仅经 deep link / 直接导航进入。
  */
 import { lightImpact, mediumImpact } from '@/components/ui/haptics';
 import { useGlassSurface } from '@/constants/ios26-palette';
@@ -59,8 +57,8 @@ const STATUS_LABEL: Record<TestStatus, string> = {
     error: 'ERROR',
 };
 
-// Fixed group order; unknown groups fall to the end. `smoke` first because a
-// bridge-reachability failure invalidates every flow-level case below it.
+// 固定的分组顺序；未知分组排到末尾。`smoke` 排第一，因为 bridge 可达性一旦失败，
+// 其下所有 flow 级用例都失去意义。
 const GROUP_ORDER: readonly TestGroup[] = ['smoke', 'import', 'parse', 'crypto', 'verify', 'apply'];
 const GROUP_LABEL: Record<TestGroup, string> = {
     smoke: 'Native Imports',
@@ -166,14 +164,14 @@ export default function DevSmokeScreen() {
             setRunning(false);
             const failing = final.filter(r => r.status === 'fail' || r.status === 'error');
             const pass = final.filter(r => r.status === 'pass').length;
-            // Machine-parseable acceptance marker (see CLAUDE.md dev harness).
+            // 机器可解析的验收标记（见 CLAUDE.md dev harness）。
             jsLog.info(`[[HARNESS]] op=devsmoke phase=done total=${final.length} pass=${pass} fail=${failing.length}` +
                 (failing.length ? ` failures=${failing.map(r => r.id).join(',')}` : ''));
         }
     };
 
-    // StrictMode double-mount guard — the whole point of the deep link
-    // is to fire the suite without user interaction on first mount.
+    // StrictMode 双重挂载守卫 —— deep link 的意义正是在首次挂载时
+    // 无需用户交互即自动跑起套件。
     useEffect(() => {
         if (autoStartedRef.current) return;
         autoStartedRef.current = true;
@@ -323,14 +321,10 @@ function FilterChips({
         <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            // What we deliberately DON'T do: leave FilterChips without
-            // explicit flex sizing. Reason: with two flex-shrinkable
-            // ScrollView siblings in this column, RN's flex negotiation
-            // would let the main content ScrollView's intrinsic height
-            // drive this row's height — so expanding a GroupSection
-            // squeezes the chips and collapsing everything stretches
-            // them. flexGrow:0/flexShrink:0 pins this row to content
-            // height.
+            // 刻意不做的事：让 FilterChips 缺少显式 flex 尺寸。原因：本列里有两个
+            // 可收缩的 ScrollView 兄弟节点，RN 的 flex 协商会让主内容 ScrollView 的
+            // 固有高度来决定本行高度 —— 于是展开某个 GroupSection 会挤压 chips、
+            // 全部折叠又会把它们撑高。flexGrow:0/flexShrink:0 把本行钉死到内容高度。
             style={styles.filterChipsRow}
             contentContainerStyle={styles.filterChipsContent}
         >
@@ -408,7 +402,7 @@ function GroupSection({
         [bucket.rows, filter],
     );
 
-    // Hide empty groups under an active filter.
+    // 在生效的过滤条件下隐藏空分组。
     if (filter !== 'all' && visibleRows.length === 0) return null;
 
     const headerTint = bucket.failing > 0

@@ -1,7 +1,6 @@
 /**
- * Config Import Screen — presentational state views, moved verbatim out of
- * src/app/config/index.tsx (files under src/app/ are routes; these are not).
- * One view per ImportPhase family: loading / error / success / default.
+ * 配置导入屏 — 各状态的展示视图。放在 src/app/ 之外，因为 src/app/ 下的文件是路由，
+ * 这些不是。按 ImportPhase 家族每种一个视图：loading / error / success / default。
  */
 import { mediumImpact } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
@@ -13,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-// ─── Shared: Icon Orb ───────────────────────────────────────
+// ─── 共享：Icon Orb ─────────────────────────────────────────
 function IconOrb({
     name,
     color,
@@ -39,7 +38,7 @@ function IconOrb({
     );
 }
 
-// ─── Loading State ──────────────────────────────────────────
+// ─── Loading 状态 ───────────────────────────────────────────
 export function LoadingView() {
     const theme = useTheme();
     return (
@@ -56,7 +55,7 @@ export function LoadingView() {
     );
 }
 
-// ─── Error State ────────────────────────────────────────────
+// ─── Error 状态 ─────────────────────────────────────────────
 export function ErrorView({ message }: { message: string }) {
     const theme = useTheme();
     return (
@@ -105,7 +104,7 @@ export function ErrorView({ message }: { message: string }) {
     );
 }
 
-// ─── Success State ──────────────────────────────────────────
+// ─── Success 状态 ───────────────────────────────────────────
 function InfoRow({
     label,
     value,
@@ -156,7 +155,7 @@ export function SuccessView({
                 {i18n.t('config_import_success_hint')}
             </Text>
 
-            {/* Info card */}
+            {/* 信息卡片 */}
             <View
                 style={{
                     width: '100%',
@@ -168,10 +167,10 @@ export function SuccessView({
                     overflow: 'hidden',
                 }}
             >
-                {/* Traffic section */}
+                {/* 流量区块 */}
                 {total > 0 && (
                     <View style={{ paddingTop: 14, paddingBottom: 4 }}>
-                        {/* Label row */}
+                        {/* 标签行 */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
                             <Text style={{ fontSize: 13, fontWeight: '500', color: theme.textSecondary }}>
                                 {i18n.t('config_traffic_label')}
@@ -180,7 +179,7 @@ export function SuccessView({
                                 {i18n.t('config_traffic_remaining', { amount: formatBytes(left) })}
                             </Text>
                         </View>
-                        {/* Progress track */}
+                        {/* 进度条轨道 */}
                         <View style={{ width: '100%', height: 6, borderRadius: 3, backgroundColor: theme.backgroundElement }}>
                             <View
                                 style={{
@@ -191,7 +190,7 @@ export function SuccessView({
                                 }}
                             />
                         </View>
-                        {/* Sub labels */}
+                        {/* 副标签 */}
                         <View
                             style={{
                                 flexDirection: 'row',
@@ -212,7 +211,7 @@ export function SuccessView({
                     </View>
                 )}
 
-                {/* Expire row */}
+                {/* 到期行 */}
                 <InfoRow
                     label={i18n.t('expire_time')}
                     value={expireDate ? expireDate.toLocaleDateString() : i18n.t('config_no_expire')}
@@ -220,7 +219,7 @@ export function SuccessView({
                 />
             </View>
 
-            {/* CTA */}
+            {/* 主行动按钮 */}
             <Pressable
                 onPress={() => { mediumImpact(); router.dismissTo('/'); }}
                 style={({ pressed }) => ({
@@ -242,7 +241,7 @@ export function SuccessView({
     );
 }
 
-// ─── Default / No URL State ─────────────────────────────────
+// ─── Default / 无 URL 状态 ──────────────────────────────────
 export function DefaultView() {
     const theme = useTheme();
     return (

@@ -2,12 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { templateMemoryCache } from './template-cache.ts';
 
-// Regression guard for the "profile switch accumulates nodes" bug:
-// `updateVPNServerConfigFromDB` mutates the config object returned by
-// `getConfigTemplate`. Before this fix, `templateMemoryCache` handed out
-// a shared object reference, so pushing Profile A's nodes into the template's
-// outbounds array left them there when Profile B's config was later built —
-// the node selector then showed A ∪ B.
+// 「切换配置文件导致节点累积」bug 的回归防线：
+// `updateVPNServerConfigFromDB` 会修改 `getConfigTemplate` 返回的配置对象。若
+// `templateMemoryCache` 交出共享的对象引用，把配置文件 A 的节点 push 进模板的
+// outbounds 数组后，等到构建配置文件 B 时它们仍留在里面 —— 节点 selector 便会
+// 显示 A ∪ B。
 
 test('get returns a different reference than the object set', () => {
     templateMemoryCache.clear();
@@ -52,7 +51,7 @@ test('mutating a fetched copy does not leak into subsequent fetches', () => {
         ],
     });
 
-    // Simulate `updateVPNServerConfigFromDB` pushing Profile A's 20 nodes.
+    // 模拟 `updateVPNServerConfigFromDB` push 配置文件 A 的 20 个节点。
     const buildForProfileA = templateMemoryCache.get('tun-rules');
     for (let i = 0; i < 20; i++) {
         buildForProfileA.outbounds[1].outbounds.push(`A-${i}`);
@@ -60,7 +59,7 @@ test('mutating a fetched copy does not leak into subsequent fetches', () => {
         buildForProfileA.outbounds.push({ tag: `A-${i}`, type: 'shadowsocks' });
     }
 
-    // Now Profile B switches in; the cache must hand back a clean template.
+    // 此时切入配置文件 B；缓存必须交回一份干净的模板。
     const buildForProfileB = templateMemoryCache.get('tun-rules');
 
     assert.equal(

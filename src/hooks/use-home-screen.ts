@@ -67,7 +67,7 @@ export function useHomeScreen() {
                 return;
             case 'aborted':
             case 'timeout':
-                // No signal/timeout is passed from this screen — unreachable.
+                // 本屏不传 signal/timeout —— 不可达。
                 return;
             case 'config-error':
             case 'native-error':
@@ -83,8 +83,8 @@ export function useHomeScreen() {
         logFlowEvent({ event: 'vpn_toggle', flowId, phase, status: 'start' });
         try {
             if (connected) {
-                // Resolves on the STOPPED event (≤10 s) — the derived
-                // `loading` already covers the STOPPING span either way.
+                // 在 STOPPED 事件时 resolve（≤10s）—— 派生的 `loading` 无论
+                // 如何都已覆盖 STOPPING 期间。
                 const result = await stop();
                 if (result.outcome === 'stop-rejected') {
                     recordFlowFailure({ event: 'vpn_toggle', flowId, phase, status: 'fail', errorCode: 'UNKNOWN' });

@@ -2,10 +2,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 
-// The web stub has no native Libbox binary, so it hard-codes the sing-box
-// version. The single source of truth is SING_BOX_TAG in the module Makefile
-// (baked into the real binaries by the gomobile build). This test makes any
-// drift between the two a red test instead of a silent hand-sync failure.
+// web stub 没有原生 Libbox 二进制，因此硬编码了 sing-box 版本。单一事实来源是
+// 模块 Makefile 里的 SING_BOX_TAG（由 gomobile 构建烤进真正的二进制）。本测试让
+// 两者之间的任何漂移变成红色测试，而不是悄无声息的手工同步失败。
 
 const MAKEFILE = 'src/modules/expo-onebox/helper/Makefile';
 const WEB_STUB = 'src/modules/expo-onebox/src/ExpoOneBoxModule.web.ts';

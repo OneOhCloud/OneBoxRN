@@ -11,10 +11,9 @@ interface DevHeaderProps {
 }
 
 /**
- * Compact dev-screen header. Mirrors the iOS navigation bar metrics used by
- * the tab screens: 44pt content row, rounded title, hairline bottom border.
- * Refresh action uses a quiet chrome pill — not an iconic accent chip — so it
- * stays legible on the glass-card field behind it.
+ * 紧凑的开发者页头部。沿用 tab 页的 iOS 导航栏度量：44pt 内容行、圆角标题、
+ * hairline 底边框。刷新按钮采用低调的 chrome pill 而非高饱和 accent chip，
+ * 以便在其后的 glass-card 背景上保持清晰可读。
  */
 export function DevHeader({ onRefresh }: DevHeaderProps) {
     const theme = useTheme();

@@ -1,12 +1,11 @@
 /**
- * Config Import Screen — downloads and displays profile configuration.
- * Reached via deep link or QR scan with base64-encoded URL in search params.
+ * 配置导入屏幕 — 下载并展示配置文件。
+ * 经 deep link 或扫描含 base64 编码 URL 的 QR 进入（URL 在 search params 中）。
  *
- * Pure render mapping over the import-flow machine: the pipeline
- * (capture → verify → stop → download → store → start → apply) lives in
- * src/hooks/import-flow-machine.ts (node:test covered), wired by
- * src/hooks/use-import-flow.ts. Grep the Logs viewer for `flow=<id>` to
- * trace an import end-to-end.
+ * 纯渲染，映射 import-flow 状态机：流水线
+ * （capture → verify → stop → download → store → start → apply）位于
+ * src/hooks/import-flow-machine.ts，由 src/hooks/use-import-flow.ts 接线。
+ * 在日志查看器里搜 `flow=<id>` 可端到端追踪一次导入。
  */
 import {
     DefaultView,
@@ -30,7 +29,7 @@ export default function ConfigScreen() {
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-            {/* Navigation bar — standard iOS inline title style */}
+            {/* 导航栏 —— 标准 iOS inline 标题样式 */}
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, minHeight: 44 }}>
                 <Pressable
                     onPress={() => router.back()}
@@ -60,12 +59,12 @@ export default function ConfigScreen() {
                 >
                     {i18n.t('import_profile')}
                 </Text>
-                {/* Spacer to balance back button */}
+                {/* 占位，用于平衡返回按钮 */}
                 <View style={{ width: 44 }} />
             </View>
 
-            {/* Content states — 'applied' keeps LoadingView until the
-                navigation fires (no SuccessView flash on the apply path). */}
+            {/* 内容状态 —— 'applied' 保持 LoadingView 直到导航触发
+                （apply 路径上不闪现 SuccessView）。 */}
             {phase.phase === 'error' ? (
                 <ErrorView message={errorMessage ?? ''} />
             ) : phase.phase === 'success' ? (

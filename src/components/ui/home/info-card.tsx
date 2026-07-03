@@ -69,8 +69,8 @@ export function InfoCard({ connected }: { connected: boolean }) {
     const theme = useTheme();
     const { directDns, getStartConfig, refreshDirectDns } = useVpn();
 
-    // Memoized — getSingBoxUserAgent() calls expo-device which can throw on
-    // web in restricted contexts. Catching here keeps the route alive.
+    // memoize——getSingBoxUserAgent() 会调用 expo-device，在 web 受限环境下
+    // 可能抛错。在此捕获以保证路由不崩。
     const ua = useMemo(() => {
         try {
             return getSingBoxUserAgent();
@@ -85,8 +85,8 @@ export function InfoCard({ connected }: { connected: boolean }) {
         [connected, getStartConfig]
     );
 
-    // On every focus, re-probe the direct DNS so Settings always shows the
-    // same value as the merged config. Single-flight is enforced by VpnContext.
+    // 每次聚焦都重新探测 direct DNS，让 Settings 始终显示与合并后配置一致的值。
+    // single-flight 由 VpnContext 保证。
     useFocusEffect(
         useCallback(() => {
             if (connected) return;

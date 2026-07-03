@@ -1,11 +1,9 @@
 /**
- * React adapter over the import-flow machine (import-flow-machine.ts).
+ * import-flow machine（import-flow-machine.ts）之上的 React 适配器。
  *
- * Owns the impure wiring — context actions, native fetch bridge, profile
- * store, flow logging, haptics — plus the two presentation concerns the
- * pure core must not know about: mapping typed ImportErrors onto i18n
- * strings and navigating home once the applied phase lands (one microtask
- * later than the pre-refactor inline call; accepted).
+ * 持有非纯接线 —— context action、原生 fetch bridge、配置存储、流程日志、
+ * haptics —— 以及纯核心不应知晓的两项呈现关切：把类型化的 ImportError
+ * 映射到 i18n 字符串，并在 applied 阶段到达后导航回 home。
  */
 import { notifyError, notifySuccess } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
@@ -26,10 +24,9 @@ import {
 } from './import-flow-machine';
 
 /**
- * Maps a typed context-start failure onto this screen's user-visible
- * message vocabulary (wrapped in `config_apply_failed` below, matching the
- * previous throw-based strings exactly). 'aborted' never reaches here —
- * the machine drops it at the phase boundary.
+ * 把类型化的 context-start 失败映射到本屏的用户可见消息（下面包进
+ * `config_apply_failed`）。'aborted' 绝不会到达这里 —— machine 在阶段
+ * 边界就将其丢弃。
  */
 function mapStartFailureMessage(failure: Exclude<StartFailure, { kind: 'aborted' }>): string {
     switch (failure.kind) {
@@ -60,16 +57,15 @@ function mapImportError(error: ImportError): string {
 
 export interface ImportFlowView {
     phase: ImportPhase;
-    /** Pre-localized message when phase is 'error'; null otherwise. */
+    /** phase 为 'error' 时预先本地化的消息；否则为 null。 */
     errorMessage: string | null;
 }
 
 export function useImportFlow(input: { data?: string; apply?: string }): ImportFlowView {
     const { start, stop } = useVpn();
 
-    // One machine per screen instance; route params never change in place.
-    // start/stop are module-scope action singletons (stable identities), so
-    // capturing them in the lazy init is safe.
+    // 每个屏幕实例一个 machine；路由参数不会原地变更。start/stop 是模块级
+    // action 单例（身份稳定），因此在惰性初始化中捕获它们是安全的。
     const [machine] = useState(() =>
         createImportFlowMachine(
             { data: input.data, apply: input.apply },

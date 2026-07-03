@@ -1,10 +1,8 @@
 /**
- * VpnContext action layer — pure core with injected dependencies.
+ * VpnContext 的 action 层 —— 依赖注入的纯核心。
  *
- * Ports the connect / disconnect / node flows previously duplicated in
- * use-home-screen.ts, config/index.tsx and use-proxy-nodes.ts into one
- * implementation. All failures surface as typed results (see types.ts);
- * nothing here throws across the boundary or presents UI.
+ * 连接 / 断开 / 节点流程的单一实现。所有失败以类型化结果呈现（见
+ * types.ts）；此处不跨边界抛异常，也不呈现 UI。
  */
 
 import { VPN_STATUS } from '../../modules/expo-onebox/src/ExpoOneBox.types.ts';
@@ -26,15 +24,15 @@ import { AUTO_GROUP_TAG, GATEWAY_GROUP_TAG } from './node-store-core.ts';
 import { errorCodeFromMessage } from '../../utils/config-fetch-policy.ts';
 
 const DEFAULT_STOP_TIMEOUT_MS = 10_000;
-/** Native stop() may still emit STOPPED after rejecting — grace window. */
+/** 原生 stop() 在 reject 后仍可能发出 STOPPED —— 宽限窗口。 */
 const STOP_REJECT_GRACE_MS = 300;
 
 /**
- * Map a start failure to the shared errorCode vocabulary for telemetry.
- * permission-denied / timeout / aborted map to fixed tokens; config-error and
- * native-error carry real native strings, classified via the fetch-policy
- * core. The single mapper for both the import flow and the home toggle — keep
- * their vpn_toggle / config_import failure codes in lockstep.
+ * 把启动失败映射到用于遥测的共享 errorCode 词表。
+ * permission-denied / timeout / aborted 映射为固定 token；config-error 与
+ * native-error 携带真实原生字符串，经 fetch-policy 核心分类。这是 import
+ * 流程与 home 开关共用的唯一映射器 —— 使两者的 vpn_toggle / config_import
+ * 失败码保持一致。
  */
 export function startFailureErrorCode(failure: StartFailure): string {
     switch (failure.kind) {
@@ -55,9 +53,8 @@ function errorMessage(e: unknown): string {
 }
 
 /**
- * Shared stop-wait core: status gate → bridge.stop() → await STOPPED |
- * timeout | reject(+grace). The single implementation behind the
- * previous three copies (use-home-screen, config/index, vpn-restart).
+ * 共享的 stop-wait 核心：状态门控 → bridge.stop() → await STOPPED |
+ * 超时 | reject(+宽限)。
  */
 export function stopAndAwaitStopped(
     deps: { bridge: VpnBridge; log: VpnLogger; timers?: TimerHost },
@@ -104,7 +101,7 @@ export function stopAndAwaitStopped(
 
 export interface VpnActionDeps {
     bridge: VpnBridge;
-    /** Platform.OS injected by vpn-context ('android' gates the permission flow). */
+    /** 由 vpn-context 注入的 Platform.OS（'android' 时才走权限流程）。 */
     platform: string;
     getProcessedConfig(): Promise<string>;
     nodeStore: NodeStore;
@@ -134,9 +131,8 @@ export function createVpnActions(deps: VpnActionDeps): VpnActions {
         const fail = (failure: StartFailure): StartResult => ({ ok: false, failure });
         if (options?.signal?.aborted) return fail({ kind: 'aborted' });
 
-        // The permission bridge itself can reject (e.g. VpnService.prepare
-        // throwing SecurityException under lockdown/restricted profiles) —
-        // map that to a typed failure so start() never rejects.
+        // 权限 bridge 本身可能 reject（例如受限/锁定配置下 VpnService.prepare
+        // 抛出 SecurityException）—— 将其映射为类型化失败，使 start() 绝不 reject。
         let permitted: boolean;
         try {
             permitted = await ensureVpnPermission();
@@ -148,8 +144,7 @@ export function createVpnActions(deps: VpnActionDeps): VpnActions {
 
         let config: string;
         try {
-            // Web runs against the mock module — an empty config keeps the
-            // smoke path functional (previous use-home-screen behavior).
+            // Web 运行在 mock 模块上 —— 空配置让 smoke 路径可用。
             config = platform === 'web' ? '{}' : await deps.getProcessedConfig();
         } catch (e) {
             return fail({ kind: 'config-error', message: errorMessage(e) });
@@ -166,9 +161,7 @@ export function createVpnActions(deps: VpnActionDeps): VpnActions {
             }
         }
 
-        // Race the native start against the wall clock. On timeout the
-        // native start keeps running — parity with the previous
-        // Promise.race in config/index.tsx.
+        // 让原生 start 与挂钟计时赛跑。超时后原生 start 仍在后台继续运行。
         return new Promise<StartResult>((resolve) => {
             let settled = false;
             const timer = timers.setTimeout(() => {
@@ -203,10 +196,9 @@ export function createVpnActions(deps: VpnActionDeps): VpnActions {
 
     async function selectNode(tag: string): Promise<SelectNodeResult> {
         try {
-            // Error channel diverges by platform: iOS rejects on failure, Android
-            // resolves `false`. Honour the boolean so a failed selection never
-            // gets optimistically marked as the current node (UI would otherwise
-            // report a switch that never happened on Android).
+            // 错误通道因平台而异：iOS 失败时 reject，Android resolve `false`。
+            // 尊重该布尔值，避免把失败的选择乐观地标记为当前节点（否则 Android
+            // 上 UI 会报告一次并未发生的切换）。
             const ok = await bridge.selectProxyNode(tag);
             if (!ok) {
                 return { ok: false, message: '' };
@@ -220,8 +212,8 @@ export function createVpnActions(deps: VpnActionDeps): VpnActions {
 
     function triggerNodeTests(): void {
         nodeStore.beginTestingWindow();
-        // One-shot trigger for immediate results; subsequent tests are
-        // driven by sing-box's internal `interval` config.
+        // 一次性触发以立即出结果；后续测试由 sing-box 内部的 `interval`
+        // 配置驱动。
         void bridge.triggerURLTest(GATEWAY_GROUP_TAG).catch(() => {});
         void bridge.triggerURLTest(AUTO_GROUP_TAG).catch(() => {});
     }

@@ -9,16 +9,16 @@ import { Alert, TextInput, View } from 'react-native';
 import { Card } from './card';
 import { Row } from './row';
 
-// Public TLS test service (NOT an allowlist member — its fetch can never
-// fall back to the accelerator, so the raw primary TLS error surfaces).
-// Editable so QA can point at self-signed / wrong-host variants.
+// 公共 TLS 测试服务（不属于 allowlist —— 它的 fetch 永远不会回落到加速器，
+// 因此原始的 primary TLS 错误会直接暴露出来）。
+// 可编辑，方便 QA 指向自签名 / host 不匹配等变体。
 const DEFAULT_INVALID_CERT_URL = 'https://expired.badssl.com/';
 
 /**
- * F-03 probe. Android: verifies the SNI/IP fetch path validates chains via
- * systemDefaultTrustManager (a trust bypass would make row 1 "succeed").
- * iOS: verifies Network.framework system-trust parity. Row 2 exercises the
- * happy path: custom-DNS resolve → IP dial → SNI → system trust.
+ * TLS 信任探针。Android：验证 SNI/IP fetch 路径经 systemDefaultTrustManager
+ * 校验证书链（信任被绕过时 row 1 会「成功」）。iOS：验证 Network.framework
+ * 的 system-trust 一致性。Row 2 走正常路径：custom-DNS resolve → IP dial →
+ * SNI → system trust。
  */
 export function TlsTrustProbeCard() {
     const theme = useTheme();
@@ -31,7 +31,7 @@ export function TlsTrustProbeCard() {
         setBusy(true);
         try {
             const response = await ExpoOneBox.fetchProfileConfig(invalidCertUrl, getSingBoxUserAgent());
-            // Any response at all means the TLS chain was accepted → bypass.
+            // 只要收到任何响应就说明 TLS 链被接受 → 信任被绕过。
             Alert.alert(
                 'Invalid-cert probe: FAIL',
                 `Got HTTP ${response.statusCode} from a host with an invalid certificate — trust validation is bypassed. This must never happen.`,

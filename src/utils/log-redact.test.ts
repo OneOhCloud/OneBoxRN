@@ -9,8 +9,7 @@ describe('djb2Hash', () => {
     });
 
     it('matches the legacy kv.ts hashUrl output (KV key compat guard)', () => {
-        // Reference implementation copied verbatim from the pre-refactor
-        // kv.ts hashUrl — TaskLog KV keys must not change.
+        // 内联的参考 djb2 实现 —— TaskLog 的 KV key 必须保持稳定，不能变。
         function legacyHashUrl(url: string): string {
             let h = 5381;
             for (let i = 0; i < url.length; i++) {

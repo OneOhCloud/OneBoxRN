@@ -47,7 +47,7 @@ export function triggerColor(trigger: TriggerSource | undefined): string {
     }
 }
 
-// Fallback loads stand out (orange); primary stays neutral.
+// 回落加载用橙色凸显；主路径保持中性色。
 export function methodColor(method: string): string {
     return method === 'primary' ? '#8E8E93' : '#FF9500';
 }

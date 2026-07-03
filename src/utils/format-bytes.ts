@@ -1,7 +1,5 @@
-// Single byte-size formatter for the whole app. Three significant figures,
-// binary units (1 KB = 1024 B). Replaces the former `fmtBytes` and the ad-hoc
-// per-screen copies (dev-utils, task-detail-modal). Rates ("… /s") are a
-// separate concern and are not handled here.
+// 全应用统一的字节大小格式化器。三位有效数字，二进制单位（1 KB = 1024 B）。
+// 速率（"… /s"）是另一回事，这里不处理。
 
 function formatSignificant(n: number): string {
     if (n >= 100) return Math.round(n).toString();

@@ -1,14 +1,14 @@
-// Shared shape + injection logic for user custom routing rules.
+// 用户自定义路由规则的共享结构 + 注入逻辑。
 //
-// A custom rule is an (action, kind, value) triple:
-//   action ∈ reject | direct | proxy   — what to do with matched traffic
-//   kind   ∈ domain | domain_suffix | ip_cidr — how to match it
+// 一条自定义规则是一个 (action, kind, value) 三元组：
+//   action ∈ reject | direct | proxy   —— 对匹配到的流量做什么
+//   kind   ∈ domain | domain_suffix | ip_cidr —— 如何匹配
 //
-// Per action we keep one RuleSet (three string arrays). injectCustomRules
-// merges each set into the matching anchor route rule emitted by the template.
+// 每个 action 保存一个 RuleSet（三个字符串数组）。injectCustomRules 把每个集合
+// 合并进模板产出的对应锚点 route rule。
 //
-// Pure module: ZERO native imports so node --experimental-strip-types can run
-// its sibling test directly.
+// 纯模块：零原生 import，使 node --experimental-strip-types 能直接运行 sibling
+// test。
 
 export type RuleAction = 'reject' | 'direct' | 'proxy';
 export type RuleKind = 'domain' | 'domain_suffix' | 'ip_cidr';
@@ -19,16 +19,15 @@ export interface RuleSet {
     ip_cidr: string[];
 }
 
-// Fixed iteration / display order = match priority: reject → direct → proxy.
-// sing-box is first-match-wins, so reject (block) outranks direct outranks
-// proxy; the list, the action pickers and the help legend all follow this.
+// 固定的迭代 / 显示顺序 = 匹配优先级：reject → direct → proxy。
+// sing-box 是 first-match-wins，因此 reject（block）优先于 direct 优先于
+// proxy；列表、action 选择器与帮助图例都遵循这一顺序。
 export const RULE_ACTIONS: readonly RuleAction[] = ['reject', 'direct', 'proxy'];
 export const RULE_KINDS: readonly RuleKind[] = ['domain', 'domain_suffix', 'ip_cidr'];
 
-// Anchor domains are load-bearing contracts shared with the runtime template.
-// The template emits one route rule per action carrying its anchor domain;
-// injectCustomRules finds that rule and appends the user's matchers into it.
-// The strings must match the template byte-for-byte.
+// 锚点域名是与运行时模板共享的承重契约。模板为每个 action 产出一条携带其锚点
+// 域名的 route rule；injectCustomRules 找到该 rule 并把用户的匹配项追加进去。
+// 这些字符串必须与模板逐字节一致。
 export const ACTION_ANCHOR: Record<RuleAction, string> = {
     reject: 'reject-tag.oneoh.cloud',
     direct: 'direct-tag.oneoh.cloud',
@@ -45,8 +44,8 @@ export function isRuleSetEmpty(s: RuleSet): boolean {
         && s.ip_cidr.length === 0;
 }
 
-// Minimal structural types so injectCustomRules stays `any`-free while still
-// tolerating the many extra fields a real sing-box route rule carries.
+// 最小结构类型，让 injectCustomRules 保持 `any`-free，同时仍能容纳真实 sing-box
+// route rule 携带的众多额外字段。
 interface RouteRuleLike {
     domain?: string[];
     domain_suffix?: string[];
@@ -59,9 +58,9 @@ interface SingBoxConfigLike {
 }
 
 /**
- * Locate the route rule that anchors a given action — the one whose `domain`
- * array carries that action's anchor domain. Returns undefined when the config
- * has no such rule (a stale template snapshot may predate an anchor).
+ * 定位锚定给定 action 的 route rule —— 即 `domain` 数组携带该 action 锚点域名
+ * 的那一条。配置中没有这样的 rule 时返回 undefined（陈旧的模板快照可能早于某个
+ * 锚点）。
  */
 export function findAnchorRule(
     config: SingBoxConfigLike,
@@ -73,23 +72,21 @@ export function findAnchorRule(
     return rules.find((r) => Array.isArray(r.domain) && r.domain.includes(anchor));
 }
 
-/** True when the config carries the route rule anchoring the given action. */
+/** 配置携带锚定给定 action 的 route rule 时为 true。 */
 export function hasActionAnchor(config: SingBoxConfigLike, action: RuleAction): boolean {
     return findAnchorRule(config, action) !== undefined;
 }
 
 /**
- * Inject user custom rules into a sing-box route config, in place.
+ * 就地把用户自定义规则注入 sing-box 的 route 配置。
  *
- * For each action with a non-empty set, locate the anchor route rule (the
- * one whose `domain` array contains the action's anchor domain) and append
- * the user's domain / domain_suffix / ip_cidr matchers into it.
+ * 对每个集合非空的 action，定位其锚点 route rule（`domain` 数组含该 action 锚点
+ * 域名的那条），并把用户的 domain / domain_suffix / ip_cidr 匹配项追加进去。
  *
- * A missing anchor is skipped silently rather than throwing: a stale template
- * snapshot may predate an anchor, and offline first-launch is the only window
- * that affects. The matched rule's action / outbound is never touched — reject
- * rules keep action:"reject", direct keep outbound:"direct", proxy keep
- * outbound:"ExitGateway".
+ * 锚点缺失时静默跳过而非抛错：陈旧的模板快照可能早于某个锚点，而唯一受影响的
+ * 窗口是离线首启。被匹配 rule 的 action / outbound 永不改动 —— reject rule 保持
+ * action:"reject"，direct 保持 outbound:"direct"，proxy 保持
+ * outbound:"ExitGateway"。
  */
 export function injectCustomRules(
     config: SingBoxConfigLike,
@@ -116,7 +113,7 @@ export interface FlatRule {
     value: string;
 }
 
-/** Expand every kind of every action into a single unsorted list. */
+/** 把每个 action 的每个 kind 展开成一个未排序的列表。 */
 export function flattenRuleSets(sets: Record<RuleAction, RuleSet>): FlatRule[] {
     const out: FlatRule[] = [];
     for (const action of RULE_ACTIONS) {
@@ -130,8 +127,8 @@ export function flattenRuleSets(sets: Record<RuleAction, RuleSet>): FlatRule[] {
 }
 
 /**
- * Sort by action priority (RULE_ACTIONS), then kind (RULE_KINDS), then value.
- * Returns a NEW array — the input is left untouched.
+ * 按 action 优先级（RULE_ACTIONS）、再按 kind（RULE_KINDS）、再按 value 排序。
+ * 返回一个新数组 —— 输入保持不变。
  */
 export function sortFlatRules(rules: FlatRule[]): FlatRule[] {
     return [...rules].sort((a, b) => {
@@ -143,7 +140,7 @@ export function sortFlatRules(rules: FlatRule[]): FlatRule[] {
     });
 }
 
-/** Case-insensitive substring filter on value; a blank query returns all. */
+/** 对 value 做大小写不敏感的子串过滤；空查询返回全部。 */
 export function filterFlatRules(rules: FlatRule[], query: string): FlatRule[] {
     const q = query.trim().toLowerCase();
     if (q === '') return rules;

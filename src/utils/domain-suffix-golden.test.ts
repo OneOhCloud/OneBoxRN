@@ -3,10 +3,9 @@ import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { hostnameSuffixCandidates } from './domain-suffix.ts';
 
-// JS third of the hostname-suffix cross-platform golden lock (audit C2 / D3c-02).
-// Loads the shared golden/domain-suffix.json (in the native submodule) — the same
-// file the Kotlin (DomainSuffixTest) and Swift (DomainSuffixGoldenCheck) runners
-// use — so all three suffix walks agree, including the empty-segment edge case.
+// hostname 后缀跨平台 golden 锁的 JS 一方。加载共享的 golden/domain-suffix.json
+// （在原生子模块里）—— 与 Kotlin (DomainSuffixTest) 和 Swift (DomainSuffixGoldenCheck)
+// 运行器使用的是同一个文件 —— 使三方的后缀遍历一致，包括空段这一边界情形。
 
 const golden = JSON.parse(
     readFileSync(new URL('../modules/expo-onebox/golden/domain-suffix.json', import.meta.url), 'utf8'),

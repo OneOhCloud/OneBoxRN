@@ -3,20 +3,20 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 /**
- * Expo Config Plugin: Android status bar icon color.
+ * Expo Config Plugin：Android 状态栏图标颜色。
  *
- * Sets windowLightStatusBar so status bar icons are always readable:
- *   - Light mode → true  (dark/black icons on white background)
- *   - Dark mode  → false (light/white icons on dark background)
+ * 设置 windowLightStatusBar，确保状态栏图标始终清晰可读：
+ *   - 浅色模式 → true  （白底上的深色/黑色图标）
+ *   - 深色模式 → false （深底上的浅色/白色图标）
  *
- * Both values/styles.xml and values-night/styles.xml are written, so
- * the correct icon color applies from the first frame (before JS loads).
+ * values/styles.xml 与 values-night/styles.xml 都会写入，因此从第一帧
+ * （JS 加载之前）起图标颜色就正确。
  */
 
 const STYLE_NAME = 'AppTheme';
 const ITEM_NAME = 'android:windowLightStatusBar';
 
-/** Upsert a <item> inside the named <style> in the parsed styles XML object. */
+/** 在解析后的 styles XML 对象里，向指定 <style> 中 upsert 一个 <item>。 */
 function upsertStyleItem(resources, styleName, itemName, itemValue) {
   const styles = resources.resources?.style;
   if (!Array.isArray(styles)) return;
@@ -36,7 +36,7 @@ function upsertStyleItem(resources, styleName, itemName, itemValue) {
   }
 }
 
-/** Write values-night/styles.xml so dark mode also gets the right setting. */
+/** 写入 values-night/styles.xml，让深色模式也拿到正确设置。 */
 function writeNightStyles(platformProjectRoot) {
   const nightDir = path.join(platformProjectRoot, 'app/src/main/res/values-night');
   const nightStylesPath = path.join(nightDir, 'styles.xml');
@@ -54,7 +54,7 @@ function writeNightStyles(platformProjectRoot) {
 </resources>
 `;
 
-  // Only write if the content changed — avoids unnecessary prebuild churn.
+  // 内容变化时才写入 —— 避免不必要的 prebuild 抖动。
   const existing = fs.existsSync(nightStylesPath)
     ? fs.readFileSync(nightStylesPath, 'utf-8')
     : '';
@@ -64,13 +64,13 @@ function writeNightStyles(platformProjectRoot) {
 }
 
 const withAndroidStatusBar = (config) => {
-  // Step 1: patch values/styles.xml (light mode — windowLightStatusBar = true)
+  // 第 1 步：patch values/styles.xml（浅色模式 —— windowLightStatusBar = true）
   config = withAndroidStyles(config, (modConfig) => {
     upsertStyleItem(modConfig.modResults, STYLE_NAME, ITEM_NAME, 'true');
     return modConfig;
   });
 
-  // Step 2: write values-night/styles.xml (dark mode — windowLightStatusBar = false)
+  // 第 2 步：写入 values-night/styles.xml（深色模式 —— windowLightStatusBar = false）
   config = withDangerousMod(config, [
     'android',
     (modConfig) => {

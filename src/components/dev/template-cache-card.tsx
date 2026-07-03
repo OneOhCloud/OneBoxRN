@@ -9,7 +9,7 @@ import { Card } from './card';
 import { Row } from './row';
 
 interface TemplateCacheCardProps {
-    /** Per-mode cache state, fetched by the parent's aggregator. */
+    /** 各模式的缓存状态，由父级聚合器获取。 */
     info: TemplateCacheInfo[] | null;
     onChanged?: () => void;
 }
@@ -28,8 +28,8 @@ function statusValue(info: TemplateCacheInfo): string {
     return `${source} · ${anchor}`;
 }
 
-// tun-global has no action anchors by design; only a rules-mode template that
-// is missing the reject anchor signals the stale-cache bug.
+// tun-global 按设计没有 action anchor；只有 rules 模式模板缺失 reject anchor
+// 才是 stale-cache bug 的信号。
 function isFlagged(info: TemplateCacheInfo): boolean {
     return info.mode === 'tun-rules' && !info.hasRejectAnchor;
 }

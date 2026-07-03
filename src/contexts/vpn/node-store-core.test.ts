@@ -99,7 +99,7 @@ describe('createNodeStore', () => {
         const timers = createFakeTimers();
         let now = 0;
         const store = createNodeStore({ now: () => now, timers: timers.host });
-        store.beginTestingWindow(); // window = [0, 12_000)
+        store.beginTestingWindow(); // 窗口 = [0, 12_000)
 
         now = 1_000;
         store.applyGroupUpdate(update({ all: [{ tag: 'a', delay: 0 }] }));
@@ -137,7 +137,7 @@ describe('createNodeStore', () => {
         assert.deepEqual(store.getSnapshot(), EMPTY_NODE_STATE);
         assert.equal(timers.pendingCount(), 0);
 
-        // Window is closed after reset: delay=0 no longer counts as testing.
+        // reset 后窗口关闭：delay=0 不再算作 testing。
         store.applyGroupUpdate(update({ all: [{ tag: 'a', delay: 0 }] }));
         assert.equal(store.getSnapshot().nodes[0].testing, false);
     });

@@ -1,11 +1,10 @@
 import { mergeUserTunField, type TunConfigLike } from './tun-exclusions';
 
 /**
- * iOS: NetworkExtension has no package concept, so carry the profile's
- * `route_exclude_address` (CIDRs excluded from the routed range) from the
- * imported config into the active config instead. Merged on top of the
- * template's own private-range exclusions. See the base
- * `apply-tun-exclusions.ts` for the platform-split rationale.
+ * iOS：NetworkExtension 没有 package 概念，因此改为把配置文件的
+ * `route_exclude_address`（从路由范围内排除的 CIDR）从导入的配置带入当前生效
+ * 的配置。合并在模板自带的私有网段排除项之上。按平台拆分的理由见基础文件
+ * `apply-tun-exclusions.ts`。
  */
 export function applyPlatformTunExclusions(
     userConfig: TunConfigLike,

@@ -46,9 +46,9 @@ interface NodeSignalProps {
 }
 
 /**
- * Four-bar signal-strength indicator + monospaced delay readout.
- * Five levels: None / Weak / Medium / Strong / Full.
- * Pure RN — identical render on iOS and Android.
+ * 四格信号强度指示器 + 等宽字体延迟读数。
+ * 五个等级：None / Weak / Medium / Strong / Full。
+ * 纯 RN——iOS 与 Android 渲染完全一致。
  */
 export function NodeSignal({ delay, testing }: NodeSignalProps) {
     const theme = useTheme();

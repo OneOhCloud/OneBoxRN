@@ -1,25 +1,23 @@
 /**
- * Pure types for the VpnContext action layer.
+ * VpnContext action 层的纯类型。
  *
- * Dependency-free of expo / react-native / `@/` aliases so the sibling
- * pure cores (actions.ts, restart-machine.ts, node-store-core.ts) and
- * their node:test suites load under `--experimental-strip-types`.
+ * 不依赖 expo / react-native / `@/` 别名，使同级纯核心（actions.ts、
+ * restart-machine.ts、node-store-core.ts）及其 node:test 套件能在
+ * `--experimental-strip-types` 下加载。
  *
- * Actions report failures as typed results instead of throwing across
- * the context boundary — presentation (Alert / ErrorView / i18n) stays
- * in the UI layer.
+ * Action 以类型化结果报告失败，而非跨 context 边界抛异常 —— 呈现
+ *（Alert / ErrorView / i18n）留在 UI 层。
  */
 
 export interface StartOptions {
     /**
-     * Wall-clock cap racing the native start. Omit = wait indefinitely
-     * (home-screen behavior). On timeout the native start keeps running
-     * in the background — same property as the previous Promise.race.
+     * 与原生 start 赛跑的挂钟上限。省略 = 无限等待（home 屏行为）。超时后
+     * 原生 start 仍在后台继续运行。
      */
     timeoutMs?: number;
     /**
-     * Checked at phase boundaries (permission → config → start). Cannot
-     * cancel an in-flight native start.
+     * 在各阶段边界检查（permission → config → start）。无法取消已在途的
+     * 原生 start。
      */
     signal?: AbortSignal;
 }
@@ -34,25 +32,25 @@ export type StartFailure =
 export type StartResult = { ok: true } | { ok: false; failure: StartFailure };
 
 export interface StopOptions {
-    /** How long to wait for the STOPPED status event. Default 10_000. */
+    /** 等待 STOPPED 状态事件的时长。默认 10_000。 */
     timeoutMs?: number;
 }
 
 export type StopResult =
-    /** STOPPED status event observed. */
+    /** 观察到 STOPPED 状态事件。 */
     | { outcome: 'stopped' }
-    /** Status was not STARTED/STARTING; no native call issued. */
+    /** 状态不是 STARTED/STARTING；未发起原生调用。 */
     | { outcome: 'already-stopped' }
-    /** No STOPPED event within timeoutMs; native stop may still land. */
+    /** timeoutMs 内未收到 STOPPED；原生 stop 仍可能稍后到达。 */
     | { outcome: 'timeout' }
-    /** Native stop() rejected; resolved after a 300 ms grace window. */
+    /** 原生 stop() reject；在 300ms 宽限窗口后 resolve。 */
     | { outcome: 'stop-rejected'; message: string };
 
 export type SelectNodeResult = { ok: true } | { ok: false; message: string };
 
 /**
- * Minimal surface of ExpoOneBox the action layer needs — injected so
- * the pure cores never import the native module.
+ * action 层所需的 ExpoOneBox 最小接口 —— 注入使用，使纯核心绝不 import
+ * 原生模块。
  */
 export interface VpnBridge {
     getStatus(): number;
@@ -65,7 +63,7 @@ export interface VpnBridge {
     addStatusListener(cb: (status: number) => void): { remove(): void };
 }
 
-/** Union with number so fake timer hosts in tests can hand out plain ids. */
+/** 与 number 联合，使测试中的 fake timer host 能派发普通数字 id。 */
 export type TimerHandle = ReturnType<typeof setTimeout> | number;
 
 export interface TimerHost {

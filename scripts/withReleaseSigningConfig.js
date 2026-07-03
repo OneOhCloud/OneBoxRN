@@ -1,20 +1,20 @@
 const { withAppBuildGradle } = require('@expo/config-plugins');
 
 /**
- * Expo Config Plugin: inject Android release signing config into build.gradle during prebuild.
- * Reads ANDROID_KEYSTORE_PATH / ANDROID_STORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD
- * from Gradle properties (passed via -P flags by the Makefile).
+ * Expo Config Plugin：prebuild 期间把 Android release 签名配置注入 build.gradle。
+ * 从 Gradle properties 读取 ANDROID_KEYSTORE_PATH / ANDROID_STORE_PASSWORD /
+ * ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD（由 Makefile 通过 -P 标志传入）。
  */
 module.exports = function withReleaseSigningConfig(config) {
   return withAppBuildGradle(config, (config) => {
     let contents = config.modResults.contents;
 
-    // Idempotent: skip if already patched
+    // 幂等：已 patch 过则跳过
     if (contents.includes('ANDROID_KEYSTORE_PATH')) {
       return config;
     }
 
-    // 1. Insert release signing block after the debug signing block
+    // 1. 在 debug 签名块之后插入 release 签名块
     contents = contents.replace(
       /(signingConfigs\s*\{)([\s\S]*?)(^\s*debug\s*\{[\s\S]*?^\s*\})/m,
       (match) =>
@@ -31,7 +31,7 @@ module.exports = function withReleaseSigningConfig(config) {
         }`
     );
 
-    // 2. Replace release buildType to use release signingConfig
+    // 2. 让 release buildType 改用 release signingConfig
     contents = contents.replace(
       /(\bbuildTypes\s*\{[\s\S]*?\brelease\s*\{[\s\S]*?)signingConfig signingConfigs\.debug/,
       (match, prefix) =>

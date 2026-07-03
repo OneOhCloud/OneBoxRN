@@ -14,8 +14,8 @@ interface RecordRowProps {
 }
 
 /**
- * Compact monospaced log row — denser than the tab SettingsRow because the
- * dev screen is info-heavy, but still uses the same hairline / iOS font stack.
+ * 紧凑的等宽日志行 —— 因开发页信息密度高，比 tab 的 SettingsRow 更紧凑，
+ * 但仍沿用相同的 hairline / iOS 字体栈。
  */
 export function RecordRow({ record, isLast, onPress }: RecordRowProps) {
     const theme = useTheme();
@@ -29,7 +29,7 @@ export function RecordRow({ record, isLast, onPress }: RecordRowProps) {
             style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
         >
             <View style={{ paddingVertical: 10, paddingHorizontal: 16, gap: 3 }}>
-                {/* Row 1: time (left) + duration + chevron (right) */}
+                {/* 第 1 行：时间（左）+ 时长 + chevron（右） */}
                 <View
                     style={{
                         flexDirection: 'row',
@@ -74,7 +74,7 @@ export function RecordRow({ record, isLast, onPress }: RecordRowProps) {
                         )}
                     </View>
                 </View>
-                {/* Row 2: trigger + status + updated badge */}
+                {/* 第 2 行：trigger + status + updated 徽章 */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 13 }}>
                     <Text
                         style={{

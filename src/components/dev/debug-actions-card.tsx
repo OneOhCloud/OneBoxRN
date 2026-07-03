@@ -40,10 +40,9 @@ export function DebugActionsCard({ onExecuted }: DebugActionsCardProps) {
         }
     };
 
-    // F-02 parity probe: a manual foreground refresh must never land in the
-    // native last-result slot (reserved for true background runs). PASS =
-    // getLastConfigRefreshResult() returns null right after a manual run.
-    // Destructive: clear-on-read consumes any pending background result.
+    // 手动前台 refresh 绝不能落入原生 last-result 槽（该槽仅保留给真正的后台运行）。
+    // PASS = 手动运行后 getLastConfigRefreshResult() 立即返回 null。
+    // 破坏性操作：clear-on-read 会消费掉任何待处理的后台结果。
     const handleRefreshParityProbe = () => {
         Alert.alert(
             'Refresh Parity Probe',
@@ -55,8 +54,7 @@ export function DebugActionsCard({ onExecuted }: DebugActionsCardProps) {
                     onPress: async () => {
                         mediumImpact();
                         try {
-                            // Drain anything a background run left behind first, so the
-                            // assertion only sees what the manual run just did.
+                            // 先清空后台运行可能遗留的结果，使断言只看到本次手动运行产生的内容。
                             ExpoOneBox.getLastConfigRefreshResult();
                             const result = await executeConfigRefresh();
                             if (!result) {

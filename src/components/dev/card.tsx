@@ -10,9 +10,8 @@ interface CardProps {
 }
 
 /**
- * Frosted-glass card matching the iOS 26 design used in the tab screens.
- * Light/dark background comes from `theme.glassBackground`, hairline border
- * from `theme.glassBorder`.
+ * 磨砂玻璃卡片，与 tab 页采用的 iOS 26 设计一致。
+ * 明暗背景取自 `theme.glassBackground`，hairline 边框取自 `theme.glassBorder`。
  */
 export function Card({ title, subtitle, children }: CardProps) {
     const theme = useTheme();
@@ -68,7 +67,7 @@ export function Card({ title, subtitle, children }: CardProps) {
             >
                 {children}
             </View>
-            {/* decorative shadow hairline hidden when no title — kept for layout parity */}
+            {/* 无标题时的装饰性 hairline 占位 —— 为保持布局一致性而保留 */}
             {!title && <View style={{ height: 0, backgroundColor: hairline }} />}
         </View>
     );

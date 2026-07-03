@@ -12,12 +12,12 @@ interface RowProps {
     value?: string;
     valueColor?: string;
     valueMono?: boolean;
-    /** Optional leading icon square (SettingsRow-style). */
+    /** 可选的前导图标方块（SettingsRow 风格）。 */
     iconName?: IconGlyph;
     iconColor?: string;
-    /** Optional secondary line under the value. */
+    /** value 下方的可选次要行。 */
     caption?: string;
-    /** Custom trailing replaces the default value + chevron. */
+    /** 自定义 trailing 会替换默认的 value + chevron。 */
     trailing?: React.ReactNode;
     onPress?: () => void;
     onLongPress?: () => void;
@@ -25,10 +25,9 @@ interface RowProps {
 }
 
 /**
- * iOS 26 list row used across the developer tools screen.
- * Typographic scale matches `SettingsRow` so dev pages feel cohesive with the
- * Settings / Profiles tabs. Values default to monospaced tabular numerals —
- * dev surfaces are overwhelmingly numeric — but can be disabled per-row.
+ * 开发者工具页通用的 iOS 26 列表行。
+ * 字号与 `SettingsRow` 一致，使开发页与 Settings / Profiles tab 观感统一。
+ * value 默认使用等宽 tabular 数字（开发页几乎全是数值），可按行关闭。
  */
 export function Row({
     label,

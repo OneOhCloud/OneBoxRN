@@ -10,14 +10,14 @@ import { LogLevelSheet } from './log-level-sheet';
 import { Row } from './row';
 
 interface LogLevelCardProps {
-    /** Fired after the user confirms a level change. */
+    /** 用户确认级别变更后触发。 */
     onChanged?: () => void;
 }
 
 export function LogLevelCard({ onChanged }: LogLevelCardProps) {
     const { requestRestart } = useVpn();
-    // Lazy init reads the store at first render; migration runs in RootLayout
-    // before this dev screen can mount, so no post-mount re-read is needed.
+    // 惰性初始化在首次渲染时读取 store；migration 在 RootLayout 中先于本开发页
+    // 挂载运行，因此挂载后无需再次读取。
     const [level, setLevel] = useState<SingBoxLogLevel>(() => ProfileConfig.getLogLevel());
     const sheetRef = useRef<BottomSheetModal>(null);
 
@@ -32,12 +32,11 @@ export function LogLevelCard({ onChanged }: LogLevelCardProps) {
         selectionChanged();
         setLevel(next);
         ProfileConfig.setLogLevel(next);
-        // The native CommandClient filter reads this on the next libbox
-        // log entry — no tunnel restart required for the change to take
-        // effect on the live stream.
+        // 原生 CommandClient 过滤器会在下一条 libbox 日志时读取此值 —— 变更对
+        // 实时日志流生效无需重启 tunnel。
         ExpoOneBox.setCoreLogLevel(next);
-        // Also rebuild config so the stdout + observable sinks pick up
-        // the new level on next tunnel start (defence in depth).
+        // 同时重建 config，让 stdout 与 observable sink 在下次 tunnel 启动时
+        // 采用新级别（纵深防御）。
         requestRestart();
         onChanged?.();
     }, [level, onChanged, requestRestart]);

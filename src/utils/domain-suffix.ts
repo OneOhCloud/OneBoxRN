@@ -1,18 +1,17 @@
 /**
- * Pure helpers for suffix-based hostname allowlist matching.
+ * 基于后缀的 hostname 白名单匹配纯函数。
  *
- * Kept dependency-free (no project imports, no React Native APIs) so the
- * committed `domain-suffix.test.ts` can exercise them under Node's native
- * `--experimental-strip-types` + `node:test`.
+ * 保持无依赖（不引入项目模块、不用 React Native API），使随仓库提交的
+ * `domain-suffix.test.ts` 能在 Node 原生的 `--experimental-strip-types` +
+ * `node:test` 下运行。
  *
- * Consumers: `domain-verification.ts` (hostname verification + background
- * cache refresh).
+ * 消费方：`domain-verification.ts`（hostname 验证 + 后台缓存刷新）。
  */
 
 /**
- * Progressive suffix candidates, shortest first.
+ * 渐进式后缀候选，从最短开始。
  *   "a.b.c" → ["c", "b.c", "a.b.c"]
- * Single-label hostnames and IP literals return just the input.
+ * 单标签 hostname 与 IP 字面量只返回输入本身。
  */
 export function hostnameSuffixCandidates(hostname: string): string[] {
     if (!hostname) return [];
@@ -25,15 +24,15 @@ export function hostnameSuffixCandidates(hostname: string): string[] {
 }
 
 /**
- * SHA256 hex digest.
+ * SHA256 十六进制摘要。
  *
- * Two branches — the first that can actually compute a digest wins:
- *   1. `crypto.subtle` — present in Node ≥20 (covers the `--experimental-strip-types`
- *      test runner) and in browsers. Hermes in RN 0.83 does NOT expose this;
- *      any call there throws `Property 'crypto' doesn't exist`.
- *   2. `expo-crypto` — lazy-imported so the Node test runner never tries to
- *      resolve a native module. Uses iOS CommonCrypto / Android MessageDigest
- *      under the hood, so it works in every RN build of this app.
+ * 两条分支 —— 谁能真正算出摘要谁就胜出：
+ *   1. `crypto.subtle` —— Node ≥20（覆盖 `--experimental-strip-types` 测试运行器）
+ *      与浏览器里都有。RN 0.83 的 Hermes 不暴露它；在那里调用会抛
+ *      `Property 'crypto' doesn't exist`。
+ *   2. `expo-crypto` —— 惰性 import，避免 Node 测试运行器去解析原生模块。
+ *      底层用 iOS CommonCrypto / Android MessageDigest，因此在本应用的每个
+ *      RN 构建里都能工作。
  */
 export async function sha256Hex(input: string): Promise<string> {
     if (typeof crypto !== 'undefined' && crypto.subtle) {
@@ -52,9 +51,9 @@ export async function sha256Hex(input: string): Promise<string> {
 }
 
 /**
- * True iff any suffix of `hostname` (shortest first) hashes to an entry
- * in `allowedHashes`. A match at a broader suffix approves every child
- * hostname — callers decide how broad an entry may be.
+ * 当 `hostname` 的任一后缀（从最短开始）哈希命中 `allowedHashes` 中的某项时
+ * 返回 true。更宽的后缀命中会放行其下所有子 hostname —— 由调用方决定条目
+ * 可以放到多宽。
  */
 export async function hostnameMatchesAllowlist(
     hostname: string,
@@ -67,14 +66,12 @@ export async function hostnameMatchesAllowlist(
 }
 
 /**
- * Multi-allowlist variant of `hostnameMatchesAllowlist`. Returns true iff
- * any suffix of `hostname` (shortest first) hashes to an entry in any of
- * the supplied sets. Mirrors the two-list check in OneBox's Rust
- * `verify_hostname` (compile-time list ∪ cached remote list) — each
- * suffix is hashed at most once and tested against every allowlist
- * before moving to the next suffix.
+ * `hostnameMatchesAllowlist` 的多白名单变体。当 `hostname` 的任一后缀
+ * （从最短开始）哈希命中任一传入集合中的某项时返回 true。与 OneBox Rust
+ * `verify_hostname` 的两列表检查一致（编译期列表 ∪ 缓存的远程列表）——
+ * 每个后缀最多哈希一次，并在进入下一个后缀前对每份白名单都测试一遍。
  *
- * Zero allowlists → always false. Empty sets are safely ignored.
+ * 零个白名单 → 恒为 false。空集合会被安全忽略。
  */
 export async function hostnameMatchesAnyAllowlist(
     hostname: string,

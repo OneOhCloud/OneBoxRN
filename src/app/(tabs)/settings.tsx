@@ -63,8 +63,8 @@ export default function SettingsScreen() {
         : `v${appVersion}-${coreVersion}`;
 
     return (
-        // Top-level shell must stay structurally identical to index.tsx and
-        // profile.tsx — any divergence causes sub-pixel drift on tab switches.
+        // 顶层外壳必须与 index.tsx、profile.tsx 结构完全一致 ——
+        // 任何差异都会在 tab 切换时造成亚像素偏移。
         <ThemedView style={{ flex: 1, flexDirection: 'row', justifyContent: 'center' }}>
             <SafeAreaView
                 edges={TabScreenEdges}
@@ -161,10 +161,8 @@ export default function SettingsScreen() {
                             </View>
                         </View>
 
-                        {/* Flex spacer pushes the version footer to the bottom of
-                        the scroll area whenever content is shorter than the
-                        viewport. Triple-tap opens the dev menu; long-press
-                        toggles the build number. */}
+                        {/* 弹性占位：当内容短于视口时，把版本页脚推到滚动区底部。
+                        三连点打开开发者菜单；长按切换 build number 显示。 */}
                         <View style={{ flex: 1 }} />
 
                         <Pressable

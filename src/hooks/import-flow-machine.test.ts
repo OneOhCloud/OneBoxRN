@@ -87,7 +87,7 @@ function makeHarness(overrides?: Partial<ImportFlowDeps>): Harness {
     return { deps, calls, events, failures, upserts, haptics, phases, errorLogs };
 }
 
-/** Run the machine to quiescence, recording every phase transition. */
+/** 把 machine 跑到静止，记录每次阶段转换。 */
 async function runToEnd(
     input: ImportFlowInput,
     h: Harness,
@@ -96,8 +96,7 @@ async function runToEnd(
     const machine = createImportFlowMachine(input, h.deps, options);
     machine.subscribe(() => h.phases.push(machine.getSnapshot().phase));
     machine.run();
-    // The pipeline is a chain of already-resolved promises; a few microtask
-    // turns settle it.
+    // 流水线是一串已 resolve 的 promise；几个 microtask 轮次即可 settle。
     await flushMicrotasks();
     return { machine, final: machine.getSnapshot() };
 }
@@ -105,8 +104,7 @@ async function runToEnd(
 describe('createImportFlowMachine', () => {
     it('manual import (no apply): downloads, stores, ends in success; stop/start never called', async () => {
         const h = makeHarness();
-        // Manual imports start idle (parity: the old screen's first frame
-        // was DefaultView until the pre-download effect fired).
+        // 手动导入起始为 idle。
         const probe = createImportFlowMachine({ data: DATA_OK, apply: undefined }, h.deps);
         assert.equal(probe.getSnapshot().phase, 'idle');
 
@@ -137,8 +135,8 @@ describe('createImportFlowMachine', () => {
 
     it('apply=1 + verified: full chain with one flowId across every event', async () => {
         const h = makeHarness();
-        // First-frame contract: an apply=1 deep link must present as busy
-        // (LoadingView) from the very first snapshot, before run() fires.
+        // 首帧契约：apply=1 的 deep link 必须从首个快照起就呈现为 busy
+        //（LoadingView），早于 run() 触发。
         const probe = createImportFlowMachine({ data: DATA_OK, apply: '1' }, h.deps);
         assert.equal(probe.getSnapshot().phase, 'verifying');
 
@@ -155,7 +153,7 @@ describe('createImportFlowMachine', () => {
         ]);
         assert.ok(h.events.every((e) => e.flowId === machine.flowId));
         assert.ok(h.events.every((e) => e.event === 'config_import'));
-        // Download success still fires the success haptic on the apply path.
+        // 在 apply 路径上，下载成功仍会触发 success haptic。
         assert.deepEqual(h.haptics, ['success']);
     });
 
@@ -213,7 +211,7 @@ describe('createImportFlowMachine', () => {
     });
 
     it('2xx with undecodable body: error(invalid-content), nothing stored, start never reached', async () => {
-        // The stripped-Content-Encoding proxy defect: 200 + gzip bytes as text.
+        // stripped-Content-Encoding 代理缺陷：200 + 当作文本的 gzip 字节。
         const h = makeHarness({ fetchConfig: () => Promise.resolve(okResponse({ body: '�' })) });
         const { final } = await runToEnd({ data: DATA_OK, apply: '1' }, h);
 
@@ -254,7 +252,7 @@ describe('createImportFlowMachine', () => {
             const h = makeHarness({ start: () => Promise.resolve(startResult) });
             const { final } = await runToEnd({ data: DATA_OK, apply: '1' }, h);
             if (expectedCode === null) {
-                // aborted: no error phase, no navigation — screen is unmounting.
+                // aborted：无 error 阶段，无导航 —— 屏幕正在卸载。
                 assert.equal(final.phase, 'applying');
                 assert.equal(h.failures.length, 0);
             } else {
@@ -333,7 +331,7 @@ describe('createImportFlowMachine', () => {
     });
 
     it('name fallback chain: content-disposition → existing profile name → url filename → hostname', async () => {
-        // No content-disposition, existing profile by URL → its name wins.
+        // 无 content-disposition，按 URL 命中已有配置 → 用它的名字。
         const existing = makeHarness({
             fetchConfig: () => Promise.resolve(okResponse({ headers: { 'subscription-userinfo': 'upload=1; download=2; total=3; expire=4' } })),
         });
@@ -350,14 +348,14 @@ describe('createImportFlowMachine', () => {
         await runToEnd({ data: DATA_OK, apply: undefined }, existing);
         assert.equal(existing.upserts[0].name, 'Existing');
 
-        // No header, no existing → URL filename.
+        // 无 header，无已有 → 用 URL 文件名。
         const filename = makeHarness({
             fetchConfig: () => Promise.resolve(okResponse({ headers: {} })),
         });
         await runToEnd({ data: DATA_OK, apply: undefined }, filename);
         assert.equal(filename.upserts[0].name, 'pro.json');
 
-        // No filename segment either → hostname.
+        // 也没有文件名段 → 用主机名。
         const hostOnly = makeHarness({
             fetchConfig: () => Promise.resolve(okResponse({ headers: {} })),
         });

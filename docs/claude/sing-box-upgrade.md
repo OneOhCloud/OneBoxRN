@@ -1,51 +1,51 @@
 ---
 applies-to: src/modules/expo-onebox/helper/Makefile, src/modules/expo-onebox/ios/Libbox.xcframework/**, src/modules/expo-onebox/android/libs/**, scripts/withOneBoxMTunnel.js, src/modules/expo-onebox/ios/add_onebox_tunnel.rb, src/modules/expo-onebox/ios/ExpoOneBoxModule.swift
-loaded-when: bumping SING_BOX_TAG in helper/Makefile; rebuilding Libbox; debugging iOS "Undefined symbols" at link; debugging Swift "has been renamed to" in ExtensionPlatformInterface or command handler classes
+loaded-when: 在 helper/Makefile 中提升 SING_BOX_TAG；重新构建 Libbox；调试链接期的 iOS "Undefined symbols"；调试 ExtensionPlatformInterface 或命令处理器类中的 Swift "has been renamed to"
 updated-on: dep-upgrade
 ---
 
 # sing-box-upgrade
 
-## libbox.framework is a static archive
+## libbox.framework 是静态归档
 category: platform-diff.
-failure: `Libbox.framework/Libbox` is `ar archive` (verify with `file`), not a Mach-O dylib. carries no `LC_LOAD_DYLIB` — consumer targets must add system `-l*` flags themselves.
-constraint: both `OneBoxMTunnel` (Network Extension) AND `OneBoxM` (main app, links Libbox transitively via ExpoOneBox pod) need the flags. canonical patch: `scripts/withOneBoxMTunnel.js` (JS = source of truth, `.rb` sibling kept in sync but not what runs at build time).
+failure: `Libbox.framework/Libbox` 是 `ar archive`（用 `file` 验证），不是 Mach-O dylib。它不带 `LC_LOAD_DYLIB`——消费方 target 必须自行添加系统 `-l*` 标志。
+constraint: `OneBoxMTunnel`（Network Extension）**和** `OneBoxM`（主 app，经 ExpoOneBox pod 传递链接 Libbox）都需要这些标志。规范补丁：`scripts/withOneBoxMTunnel.js`（JS = 唯一来源，`.rb` 同级文件保持同步，但不是构建时实际运行的那个）。
 
-## -lresolv required as of v1.13+
+## 自 v1.13+ 起需要 -lresolv
 category: dep-upgrade.
-symbols: `_res_9_ninit` / `_res_9_nclose` / `_res_9_nsearch` — pulled in by darwin DNS resolver in Go net package.
-missing-flag symptom: `Undefined symbols for architecture arm64: "_<symbol>" referenced from: _runtime.text in Libbox[arm64](go.o)`.
-future additions: identify owning system lib via `man <symbol>` or Apple SDK search, add `-l*` flag the same way.
+symbols: `_res_9_ninit` / `_res_9_nclose` / `_res_9_nsearch`——由 Go net 包中的 darwin DNS 解析器引入。
+missing-flag symptom: `Undefined symbols for architecture arm64: "_<symbol>" referenced from: _runtime.text in Libbox[arm64](go.o)`。
+future additions: 通过 `man <symbol>` 或 Apple SDK 搜索找出所属的系统库，以同样方式添加 `-l*` 标志。
 
-## Swift bridge uses SHORT Swift names, not ObjC selectors
+## Swift 桥接使用短 Swift 名，而非 ObjC selector
 category: dep-upgrade.
-failure: gomobile emits ObjC selectors AND Swift name aliases into the precompiled module (`.pcm`). Swift code must implement the short Swift name, not the long ObjC selector.
+failure: gomobile 会把 ObjC selector **和** Swift 名别名一起写入预编译模块（`.pcm`）。Swift 代码必须实现短的 Swift 名，而不是长的 ObjC selector。
 
-| ObjC selector (in header / binary) | Swift name (what Swift class implements) |
+| ObjC selector（头文件 / 二进制中） | Swift 名（Swift 类实现的名字） |
 |---|---|
 | `autoDetectInterfaceControl:error:` | `autoDetectControl(_:)` |
 | `usePlatformAutoDetectInterfaceControl` | `usePlatformAutoDetectControl()` |
 | `sendNotification:error:` | `send(_:)` |
 | `writeConnectionEvents:` | `write(_:)` |
 
-error `'foo' has been renamed to 'bar(_:)'` → `bar` is correct. do NOT "fix" to long ObjC selectors by reading `Libbox.objc.h` literally.
+错误 `'foo' has been renamed to 'bar(_:)'` → `bar` 才是对的。不要按字面读 `Libbox.objc.h` 就"修"成长的 ObjC selector。
 
-## verifying the Swift-name surface
+## 验证 Swift 名表面
 ```
 clang -module-file-info <DerivedData>/.../SwiftExplicitPrecompiledModules/Libbox-*.pcm
 strings <same.pcm> | grep -E "<methodName>"
 ```
-PCM showing both long ObjC selector and short Swift name is normal.
+PCM 同时显示长 ObjC selector 和短 Swift 名是正常的。
 
-## stale PCM cache triage
+## 陈旧 PCM 缓存排查
 category: dep-upgrade.
-failure: header / framework / binary all show new names but Swift still complains → SourceKit-managed DerivedData (`~/Library/Developer/Xcode/DerivedData/<App>-*/.../Index.noindex/.../Libbox-*.pcm`) is stale.
-fix: `make clean-ios` — cleans both user-level DerivedData and project-local `target/DerivedData/`.
+failure: 头文件 / framework / 二进制都显示新名，但 Swift 仍报错 → SourceKit 管理的 DerivedData（`~/Library/Developer/Xcode/DerivedData/<App>-*/.../Index.noindex/.../Libbox-*.pcm`）已陈旧。
+fix: `make clean-ios`——同时清理用户级 DerivedData 和项目本地的 `target/DerivedData/`。
 
-## xcpretty truncation
-xcpretty mangles multi-line Swift diagnostics — shows source lines from one error against the line number of another, trims `{` to `}`. grab raw output: `xcodebuild ... 2>&1 | tee /tmp/log | xcpretty`, then `grep -A 5 "error:" /tmp/log`.
+## xcpretty 截断
+xcpretty 会弄乱多行 Swift 诊断——把某个错误的源码行配上另一个错误的行号，把 `{` 截到 `}`。抓原始输出：`xcodebuild ... 2>&1 | tee /tmp/log | xcpretty`，然后 `grep -A 5 "error:" /tmp/log`。
 
-## version-specific breaks (append as discovered)
-| sing-box version | affected layer | required change |
+## 特定版本的破坏性变更（发现即追加）
+| sing-box 版本 | 受影响的层 | 所需改动 |
 |---|---|---|
-| v1.13.8 | android PlatformInterface.findConnectionOwner | ConnectionOwner.AndroidPackageName removed; use setAndroidPackageNames(StringIterator) setter. iOS impl throws "Not implemented", unaffected. |
+| v1.13.8 | android PlatformInterface.findConnectionOwner | ConnectionOwner.AndroidPackageName 已移除；改用 setAndroidPackageNames(StringIterator) setter。iOS 实现抛出 "Not implemented"，不受影响。 |

@@ -1,17 +1,15 @@
 /**
- * Log store — single source of truth for the multi-source log stream.
+ * 日志存储 —— 多来源日志流的单一事实来源。
  *
- * Exposes a subscribable ring buffer (capacity 1000) plus a
- * `useSyncExternalStore`-based `useLogs()` hook. Native listeners in
- * `VpnContext` emit directly into this store; JS helpers call
- * `jsLog.*`; the Logs viewer subscribes via `useLogs()`.
+ * 暴露一个可监听的环形缓冲区（容量 1000）以及基于 `useSyncExternalStore`
+ * 的 `useLogs()` hook。`VpnContext` 里的原生监听器直接写入本存储；JS 辅助
+ * 函数调用 `jsLog.*`；日志查看器通过 `useLogs()` 监听。
  *
- * Why a dedicated store (not React context state):
- *   - Every new log line would rerender every consumer of VpnContext
- *     (home screen, settings, mode selector, etc.) when the buffer is
- *     1000 deep. Lifting logs out of context keeps the hot path isolated
- *     to screens that actually display them.
- *   - `useSyncExternalStore` tearing-safe; safe across concurrent renders.
+ * 为何用独立存储（而非 React context 状态）：
+ *   - 缓冲区深达 1000 时，每来一行日志都会让 VpnContext 的所有消费者
+ *     （主屏、设置、模式选择器等）重渲染。把日志移出 context，可把热路径
+ *     隔离到真正显示它们的屏幕。
+ *   - `useSyncExternalStore` 防撕裂，在并发渲染下安全。
  */
 import { useSyncExternalStore } from 'react';
 
@@ -26,7 +24,7 @@ export interface LogEntry {
     time: number;
 }
 
-// ── Ring buffer ─────────────────────────────────────────────
+// ── 环形缓冲区 ─────────────────────────────────────────────
 
 const BUFFER_LIMIT = 1000;
 
@@ -45,7 +43,7 @@ function notify(entry: LogEntry | null) {
         try {
             l(entry);
         } catch {
-            // swallow — a subscriber throwing must not break the emitter
+            // 吞掉 —— 某个监听者抛错不能拖垮发射方
         }
     }
 }
@@ -57,7 +55,7 @@ function subscribe(listener: Listener): () => void {
     };
 }
 
-// ── Public emit / clear API ─────────────────────────────────
+// ── 公开的 emit / clear API ─────────────────────────────────
 
 export function emitLog(
     partial: { source: LogSource; level: LogLevel; message: string; time?: number }
@@ -84,12 +82,10 @@ export function clearLogSink(): void {
 // ── React hook ──────────────────────────────────────────────
 
 /**
- * React listener notification is debounced — sing-box core can emit dozens of
- * lines per second; notifying React once per line would force a full
- * render of the Logs viewer for each one, which VirtualizedList flags
- * as slow (`dt: 2907ms`). The underlying buffer still updates
- * synchronously, so `getSnapshot()` always reflects the latest state;
- * only the re-render cadence is capped to ≈20fps.
+ * 对 React 监听器的通知做了去抖 —— sing-box 核心每秒可发出数十行；每行都
+ * 通知一次 React 会为每行强制整屏重渲染日志查看器，被 VirtualizedList 标记
+ * 为慢渲染。底层缓冲区仍同步更新，因此 `getSnapshot()` 始终反映最新状态；
+ * 只是把重渲染节奏限制在约 20fps。
  */
 const REACT_NOTIFY_INTERVAL_MS = 50;
 
@@ -119,7 +115,7 @@ export function useLogs(): LogEntry[] {
     return useSyncExternalStore(subscribeForReact, getSnapshot, getSnapshot);
 }
 
-// ── JS-layer publisher ──────────────────────────────────────
+// ── JS 层发布者 ──────────────────────────────────────
 
 function safeStringify(value: unknown): string {
     if (value instanceof Error) return value.stack || value.message;

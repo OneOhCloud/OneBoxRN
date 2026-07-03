@@ -1,11 +1,9 @@
 /**
- * Native startup-failure machine tokens → i18n keys.
+ * 原生启动失败状态机的 token → i18n key。
  *
- * The native layers (Kotlin / Swift) emit these stable, language-neutral tokens
- * instead of localized text, so the JS layer can map them to the user's language
- * (audit C9 / D3a-06 / D3a-07 / D3b-11). Any message that is NOT a known token is
- * passed through verbatim — it is raw sing-box/binary error detail (already
- * English/technical), not user-facing copy.
+ * 原生层（Kotlin / Swift）发出这些稳定、与语言无关的 token 而非本地化文本，
+ * 好让 JS 层把它们映射到用户语言。任何不是已知 token 的消息都原样透传 ——
+ * 那是原始的 sing-box/二进制错误细节（本就是英文/技术性的），并非面向用户的文案。
  */
 export const STARTUP_ERROR_TOKEN_KEYS: Record<string, string> = {
     START_FAILED_GENERIC: 'startup_error_generic',
@@ -14,7 +12,7 @@ export const STARTUP_ERROR_TOKEN_KEYS: Record<string, string> = {
     RULESET_DOWNLOAD_TIMEOUT: 'ruleset_download_timeout',
 };
 
-/** Returns the i18n key for a native startup-error token, or null if not a token. */
+/** 返回某个原生启动错误 token 对应的 i18n key；若不是 token 则返回 null。 */
 export function startupErrorTokenToKey(message: string | null | undefined): string | null {
     if (!message) return null;
     return STARTUP_ERROR_TOKEN_KEYS[message.trim()] ?? null;

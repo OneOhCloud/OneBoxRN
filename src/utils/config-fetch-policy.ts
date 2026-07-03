@@ -1,14 +1,11 @@
 /**
- * Config-fetch policy core — the executable mirror of
- * docs/claude/config-fetch-policy.md. Pure and dependency-free
- * (node:test covered). Two roles:
- *   - `classifyFetchError` / `errorCodeOf` run in production to map
- *     native/fetch errors into the shared errorCode vocabulary.
- *   - `shouldFallbackToAccelerator` encodes the fallback-eligibility rules
- *     the native fetchers implement. It has no production JS caller — it is
- *     a spec mirror the test suite locks against, so drift from the
- *     documented policy surfaces as a test failure. Keep it in sync when
- *     native fallback behavior changes.
+ * 配置拉取策略核心 —— docs/claude/config-fetch-policy.md 的可执行镜像。
+ * 纯函数、无依赖（node:test 覆盖）。两类职责：
+ *   - `classifyFetchError` / `errorCodeOf` 在生产中运行，把原生/fetch
+ *     错误映射到共享的 errorCode 词表。
+ *   - `shouldFallbackToAccelerator` 编码原生 fetcher 实现的回落资格规则。
+ *     它没有生产 JS 调用方 —— 只是测试套件锁定的规范镜像，因此一旦偏离
+ *     文档化的策略，就会以测试失败暴露出来。原生回落行为变更时要同步更新它。
  */
 
 export type FetchErrorKind =
@@ -20,23 +17,20 @@ export type FetchErrorKind =
     | 'cancelled'
     | 'unknown';
 
-/** Captures any 3-digit HTTP status from free text, e.g. "HTTP 403 from primary" → "403". */
+/** 从自由文本中捕获任意 3 位 HTTP 状态码，例如 "HTTP 403 from primary" → "403"。 */
 export const HTTP_STATUS_PATTERN = /http\s+(\d{3})/i;
 
 /**
- * Ordered free-text signatures for the native/fetch error surface.
+ * 原生/fetch 错误面的有序自由文本特征表。
  *
- * WHY substring/regex sniffing: some errors reach JS only as a native-bridge
- * rejection string — there is no structured error code across the
- * Kotlin/Swift → JS bridge, and adding one is a bridge-signature change out of
- * this module's scope. This table is the single, centralized home for that
- * fragile matching: add new native error phrasings here (never inline) so
- * classification stays auditable and the test suite can lock every branch.
+ * 为何用子串/正则嗅探：有些错误到达 JS 时只是一条原生桥接的 rejection
+ * 字符串 —— Kotlin/Swift → JS 桥接之间没有结构化错误码，而新增一个属于
+ * 桥接签名改动，超出本模块范围。此表是这类脆弱匹配的唯一集中处：新的
+ * 原生错误措辞都加到这里（切勿内联），使分类可审计、测试套件能锁定每个分支。
  *
- * Order is significant — a message may match several rows (e.g. a DNS lookup
- * that timed out), and the first matching row wins. All `substrings` are
- * lowercase and matched against the lowercased message; `names` are matched
- * against the error's `name` (WinterCG/XHR surface: AbortError/TypeError).
+ * 顺序有意义 —— 一条消息可能匹配多行（例如一次超时的 DNS 查询），先匹配到
+ * 的行胜出。所有 `substrings` 均为小写，与小写化后的消息比对；`names` 与
+ * 错误的 `name` 比对（WinterCG/XHR 面：AbortError/TypeError）。
  */
 const ERROR_SIGNATURES: readonly {
     kind: FetchErrorKind;
@@ -48,16 +42,15 @@ const ERROR_SIGNATURES: readonly {
     { kind: 'timeout', names: ['AbortError'], substrings: ['timed out', 'timeout'] },
     { kind: 'dns', substrings: ['dns', 'resolution', 'resolve'] },
     { kind: 'tls', substrings: ['certificate', 'trust', 'tls', 'ssl handshake'] },
-    // Only 4xx/5xx count as an "http" fault; a reachable server answered.
+    // 只有 4xx/5xx 算 "http" 故障；说明服务器可达并作出了应答。
     { kind: 'http', pattern: /http\s+[45]\d\d/ },
     { kind: 'network', names: ['TypeError'], substrings: ['network'] },
 ];
 
 /**
- * Best-effort classification of a fetch-layer error. Name checks cover
- * the WinterCG/XHR surface (AbortError/TypeError); message checks cover
- * native bridge rejections whose text is the only signal. See
- * `ERROR_SIGNATURES` for the centralized match table.
+ * 尽力而为地对 fetch 层错误分类。name 检查覆盖 WinterCG/XHR 面
+ * （AbortError/TypeError）；message 检查覆盖那些只有文本可依据的原生桥接
+ * rejection。集中匹配表见 `ERROR_SIGNATURES`。
  */
 export function classifyFetchError(err: { name?: string; message?: string }): FetchErrorKind {
     const name = err.name ?? '';
@@ -72,7 +65,7 @@ export function classifyFetchError(err: { name?: string; message?: string }): Fe
     return 'unknown';
 }
 
-/** Shared errorCode vocabulary for structured events + durable failures. */
+/** 结构化事件与持久失败共用的 errorCode 词表。 */
 export function errorCodeOf(kind: FetchErrorKind, httpStatus?: number): string {
     switch (kind) {
         case 'timeout':
@@ -93,10 +86,9 @@ export function errorCodeOf(kind: FetchErrorKind, httpStatus?: number): string {
 }
 
 /**
- * Turn a raw native/fetch error string into the shared errorCode vocabulary,
- * pulling an HTTP status out of the message when present
- * (e.g. "HTTP 403 from primary" → "HTTP_403"). The single home for message →
- * code, shared by start-failure and config-refresh telemetry.
+ * 把原始的原生/fetch 错误字符串转成共享的 errorCode 词表，消息里带 HTTP
+ * 状态码时一并取出（例如 "HTTP 403 from primary" → "HTTP_403"）。这是
+ * 消息 → 码 的唯一入口，由启动失败与配置刷新遥测共用。
  */
 export function errorCodeFromMessage(message: string | undefined): string | undefined {
     if (!message) return undefined;
@@ -109,14 +101,13 @@ export type ConfigContentVerdict =
     | { ok: true }
     | { ok: false; reason: 'empty' | 'not-json' | 'not-object' };
 
-/** Shared errorCode for a 2xx response whose body fails validation. */
+/** 2xx 响应但响应体校验失败时共用的 errorCode。 */
 export const ERROR_CODE_INVALID_CONTENT = 'INVALID_CONTENT';
 
 /**
- * Acceptance gate for downloaded config bodies: a sing-box config is a
- * JSON object at the top level. Guards the store step of import and
- * refresh — an HTTP 200 with an undecodable body (e.g. a proxy handing
- * through compressed bytes) must fail the flow, not silently persist.
+ * 下载配置体的准入闸门：sing-box 配置在顶层是一个 JSON 对象。守护 import
+ * 与 refresh 的存储步骤 —— HTTP 200 但响应体无法解码（例如代理透传了压缩
+ * 字节）必须让流程失败，而不是静默持久化。
  */
 export function validateConfigContent(content: string): ConfigContentVerdict {
     if (content.trim() === '') return { ok: false, reason: 'empty' };
@@ -140,9 +131,8 @@ export type FallbackDenialReason =
     | 'accelerator-unavailable';
 
 /**
- * Policy-table row lookup: may this failure proceed to the accelerator?
- * HTTP answers and cancellations never fall back; network faults fall
- * back only for verified domains with a configured accelerator.
+ * 策略表行查询：这次失败能否走加速代理？HTTP 应答与取消一律不回落；
+ * 网络故障仅在域名已验证且配置了加速代理时才回落。
  */
 export function shouldFallbackToAccelerator(
     kind: FetchErrorKind,

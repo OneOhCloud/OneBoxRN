@@ -1,8 +1,7 @@
 /**
- * Web mock of {@link fetchWithTimeout}. On the web target the native fetcher and
- * sing-box core are absent, so this returns a synthetic config Response that lets
- * the import flow be exercised. Metro selects this file over
- * fetch-with-timeout.ts on web (audit D9-07 — no runtime Platform.OS branch).
+ * {@link fetchWithTimeout} 的 web mock。web 目标上没有原生 fetcher 与 sing-box
+ * 核心，因此这里返回一个合成的配置 Response，让导入流程得以走通。web 端 Metro
+ * 会选这个文件而非 fetch-with-timeout.ts（无运行时 Platform.OS 分支）。
  */
 export async function fetchWithTimeout(
     input: string,

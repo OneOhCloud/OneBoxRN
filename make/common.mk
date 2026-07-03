@@ -27,8 +27,8 @@ _sync-templates:
 #  Prebuild
 # ════════════════════════════════════════════════════════════
 
-# --no-install skips expo's built-in pod install.
-# _ensure-pods (in ios.mk) runs pod install.
+# --no-install 跳过 expo 内置的 pod install。
+# _ensure-pods（在 ios.mk 中）负责执行 pod install。
 prebuild: _sync-templates
 	npx expo prebuild --clean --no-install
 	@$(MAKE) _prebuild-cache-hint

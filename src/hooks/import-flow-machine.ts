@@ -1,23 +1,13 @@
 /**
- * Config import pipeline — pure state machine with injected dependencies.
+ * 配置导入流水线 —— 依赖注入的纯状态机。
  *
- * Absorbs the effect chain previously spread across ConfigScreen
- * (src/app/config/index.tsx): capture → verify → stop → download → store →
- * start → apply. One machine instance runs one import; the flowId is a
- * closure field stamped on every emitted FlowEvent, so nothing threads it.
- * The UI adapter (use-import-flow.ts) subscribes via the external-store
- * pattern and maps typed errors onto i18n strings — no presentation here.
+ * 阶段：capture → verify → stop → download → store → start → apply。
+ * 一个 machine 实例跑一次导入；flowId 是闭包字段，盖在每个发出的 FlowEvent
+ * 上，因此无需层层传递。UI 适配器（use-import-flow.ts）以 external-store
+ * 模式监听，并把类型化错误映射到 i18n 字符串 —— 此处不做呈现。
  *
- * run() is latched: it executes at most one pipeline, and stays latched
- * after cancel() — identical to the previous unmount semantics (this app
- * does not run React StrictMode, so effects fire once).
- *
- * Flow-event parity note: the former screen derived the start-phase fail
- * errorCode by text-classifying the already-localized failure message —
- * locale-dependent junk for 'permission-denied'/'timeout'. This machine maps
- * those two kinds directly (PERMISSION_DENIED / TIMEOUT) and keeps message
- * classification for config-error / native-error, whose messages are real
- * native strings. Telemetry-only, declared change.
+ * run() 带闩锁：至多执行一条流水线，cancel() 后仍保持闩锁（本 app 不启用
+ * React StrictMode，故 effect 只触发一次）。
  */
 
 import type { ProfileStoreApi } from '../database/profile-store-core.ts';
@@ -62,18 +52,18 @@ export type ImportPhase =
     | { phase: 'error'; error: ImportError };
 
 export interface ImportFlowInput {
-    /** Raw search params, exactly as the screen receives them. */
+    /** 原始 search 参数，与屏幕收到的完全一致。 */
     data: string | undefined;
     apply: string | undefined;
 }
 
 export interface ImportFlowDeps {
-    /** Hostname allowlist check (@/utils/domain-verification — impure, injected). */
+    /** 主机名 allowlist 校验（@/utils/domain-verification —— 非纯，注入）。 */
     verifyHostname(hostname: string): Promise<boolean>;
-    /** Context actions — the machine orchestrates intents, never the bridge. */
+    /** Context action —— machine 编排意图，绝不直接调用 bridge。 */
     stop(options?: StopOptions): Promise<StopResult>;
     start(options?: StartOptions): Promise<StartResult>;
-    /** Native config download for the import flow (ExpoOneBox.fetchProfileConfig). */
+    /** 导入流程的原生配置下载（ExpoOneBox.fetchProfileConfig）。 */
     fetchConfig(url: string, userAgent: string): Promise<ConfigFetchResult>;
     userAgent: string;
     profiles: Pick<ProfileStoreApi, 'findByUrl' | 'upsertByUrl'>;
@@ -81,25 +71,25 @@ export interface ImportFlowDeps {
     recordFlowFailure(event: FlowEvent): void;
     haptics: { notifySuccess(): void; notifyError(): void };
     log: VpnLogger;
-    /** Duration clock; default Date.now. */
+    /** 计时时钟；默认 Date.now。 */
     now?(): number;
-    /** Base64 decoder; default global atob (present on Hermes and node). */
+    /** Base64 解码器；默认全局 atob（Hermes 与 node 均有）。 */
     decodeBase64?(s: string): string;
 }
 
 export interface ImportFlowOptions {
-    /** Stop-wait cap before the apply-path download. Default 10_000. */
+    /** apply 路径下载前的 stop-wait 上限。默认 10_000。 */
     stopTimeoutMs?: number;
-    /** Wall-clock cap on the auto-apply start. Default 20_000. */
+    /** 自动 apply 启动的挂钟上限。默认 20_000。 */
     startTimeoutMs?: number;
 }
 
 export interface ImportFlowMachine {
     getSnapshot(): ImportPhase;
     subscribe(listener: () => void): () => void;
-    /** Latched — at most one pipeline per machine. */
+    /** 带闩锁 —— 每个 machine 至多一条流水线。 */
     run(): void;
-    /** Drop pending results and abort the start at its phase boundaries. */
+    /** 丢弃待处理结果，并在阶段边界中止 start。 */
     cancel(): void;
     readonly flowId: string;
 }
@@ -128,7 +118,7 @@ export function createImportFlowMachine(
     }
 
     // ── Capture ──────────────────────────────────────────────
-    // Decode the deep-link payload; only https URLs are usable.
+    // 解码 deep-link 载荷；仅 https URL 可用。
     function decodePayload(): { url?: string; decodeError: string | null } {
         if (!input.data) return { decodeError: null };
         try {
@@ -142,11 +132,8 @@ export function createImportFlowMachine(
         }
     }
 
-    // Decoded at construction so the INITIAL snapshot already reflects the
-    // pipeline's first phase: an apply=1 deep link must render LoadingView on
-    // its very first committed frame (parity with the old screen, whose lazy
-    // `shouldApply=null` init made `busy` true before any effect ran) — never
-    // a one-frame DefaultView flash.
+    // 在构造时解码，使 INITIAL 快照已反映流水线首个阶段：apply=1 的 deep
+    // link 必须在其首个提交帧就渲染 LoadingView，绝不能闪现一帧 DefaultView。
     const decoded = decodePayload();
 
     let phase: ImportPhase =
@@ -170,17 +157,17 @@ export function createImportFlowMachine(
             status: decodeError ? 'fail' : 'start',
             detail: `apply=${requestedApply} hasUrl=${!!url}`,
         }));
-        if (!url) return; // stays idle → DefaultView
+        if (!url) return; // 保持 idle → DefaultView
 
         // ── Verify ───────────────────────────────────────────
-        // apply=1 only takes effect for hostnames on the verification
-        // allowlist; unverified hosts downgrade to manual import.
+        // apply=1 仅对验证 allowlist 内的主机名生效；未验证的主机降级为
+        // 手动导入。
         let willApply = false;
         if (requestedApply) {
-            // Already the initial phase (see the construction-time decode).
+            // 已是初始阶段（见构造时解码）。
             const startedAt = now();
             deps.log.info('[Config] verify: starting hostname allowlist check');
-            // Unparseable URL → '' → treated as unverified below.
+            // 无法解析的 URL → '' → 下面按未验证处理。
             const hostname = urlHostname(url);
             if (!hostname) {
                 deps.log.warn('[Config] verify: URL parse failed for decodedUrl → treated as unverified');
@@ -213,8 +200,8 @@ export function createImportFlowMachine(
         }
 
         // ── Stop ─────────────────────────────────────────────
-        // Auto-apply must stop a running tunnel before downloading; every
-        // StopResult outcome proceeds to the download.
+        // 自动 apply 在下载前必须停止运行中的 tunnel；任何 StopResult 结果
+        // 都会继续进入下载。
         if (willApply) {
             setPhase({ phase: 'stopping' });
             const stopStartedAt = now();
@@ -267,9 +254,8 @@ export function createImportFlowMachine(
         }
 
         // ── Store ────────────────────────────────────────────
-        // Acceptance gate: an HTTP 200 whose body is not a config (e.g. a
-        // proxy handing through undecodable bytes) must fail here — never
-        // persist and never reach start().
+        // 验收门：body 不是配置的 HTTP 200（例如代理透传了无法解码的字节）
+        // 必须在此失败 —— 绝不持久化，也绝不进入 start()。
         const content = response.body;
         const verdict = validateConfigContent(content);
         if (!verdict.ok) {
@@ -338,8 +324,8 @@ export function createImportFlowMachine(
                 deps.log.debug('[Config] apply: start aborted mid-phase (effect cleanup), dropping');
                 return;
             }
-            // Keep the native/config error text in the error-level log ring —
-            // the Logs viewer is the only post-hoc diagnostic surface.
+            // 把 native/config 错误文本留在 error 级日志环 —— 日志查看器是
+            // 唯一的事后诊断入口。
             deps.log.error(`[Config] apply: start failed → kind=${result.failure.kind}${'message' in result.failure ? `, message=${result.failure.message}` : ''}`);
             deps.recordFlowFailure(event({
                 phase: 'start', status: 'fail',
@@ -356,7 +342,7 @@ export function createImportFlowMachine(
             durationMs: now() - applyStartedAt,
         }));
         deps.logFlowEvent(event({ phase: 'apply', status: 'ok' }));
-        setPhase({ phase: 'applied' }); // adapter navigates home
+        setPhase({ phase: 'applied' }); // 适配器导航回 home
     }
 
     return {

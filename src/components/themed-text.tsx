@@ -46,5 +46,5 @@ export function ThemedText({
 }
 
 // ─────────────────────────────────────────────────────────────
-// No more styles - using tailwindcss!
+// 不再使用 StyleSheet —— 全部改用 tailwindcss！
 // ─────────────────────────────────────────────────────────────

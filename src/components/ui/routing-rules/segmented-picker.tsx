@@ -48,10 +48,9 @@ export function SegmentedPicker<T extends string>({
     const activeIndex = Math.max(0, options.findIndex((o) => o.value === value));
 
     const translateX = useSharedValue(0);
-    // Thumb stays transparent until the first layout pass has computed
-    // `thumbWidth` AND we've written the correct `translateX`. Without this
-    // gate Android shows a single frame of the thumb (+ shadow) at position 0
-    // on every remount. See mode-selector.tsx for the full rationale.
+    // thumb 保持透明，直到首次 layout 算出 `thumbWidth` 且写入正确的 `translateX`。
+    // 没有这道 gate，Android 每次 remount 都会在位置 0 闪一帧 thumb（含阴影）。
+    // 完整原因见 mode-selector.tsx。
     const opacity = useSharedValue(0);
     const hasPositioned = useRef(false);
 
@@ -107,12 +106,11 @@ export function SegmentedPicker<T extends string>({
                             borderRadius: 11,
                             backgroundColor: thumbColor,
                         },
-                        // iOS: soft frosted shadow under the active slot.
-                        // Android: no border, no `elevation`. The thumbColor fill
-                        // alone signals the active slot. `elevation` is forbidden
-                        // here — its RenderNode shadow is drawn independently of
-                        // opacity / transform and flashes a rectangular ghost at
-                        // the pre-animation bounds on every remount.
+                        // iOS：活动槽下方一层柔和的磨砂阴影。
+                        // Android：无边框、无 `elevation`。仅靠 thumbColor 填充标示
+                        // 活动槽。这里禁用 `elevation` — 它的 RenderNode 阴影独立于
+                        // opacity / transform 绘制，每次 remount 会在动画前的边界处
+                        // 闪出一个矩形残影。
                         Platform.OS === 'ios'
                             ? {
                                   shadowColor: '#0B1628',

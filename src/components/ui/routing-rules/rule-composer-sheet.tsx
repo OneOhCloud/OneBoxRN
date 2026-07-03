@@ -33,8 +33,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActionBadge, KindChip } from './rule-badges';
 import { SegmentedPicker } from './segmented-picker';
 
-// domain + domain_suffix form one editable class; ip_cidr is the other. When
-// editing an existing rule we keep the kind picker inside its original class.
+// domain + domain_suffix 属于一个可编辑类别，ip_cidr 属于另一个。编辑已有
+// 规则时，kind 选择器保持在其原始类别内。
 const isDomainClass = (kind: RuleKind) => kind !== 'ip_cidr';
 
 function renderBackdrop(props: BottomSheetBackdropProps) {
@@ -64,8 +64,8 @@ export const RuleComposerSheet = forwardRef<BottomSheetModal, RuleComposerSheetP
         const insets = useSafeAreaInsets();
         const snapPoints = useMemo(() => ['90%'], []);
 
-        // Keep an internal handle so we can dismiss after submit while still
-        // forwarding the real BottomSheetModal instance to the parent.
+        // 保留一个内部句柄，以便提交后能 dismiss，同时仍把真正的 BottomSheetModal
+        // 实例转发给父组件。
         const innerRef = useRef<BottomSheetModal>(null);
         const setRefs = useCallback(
             (node: BottomSheetModal | null) => {
@@ -124,8 +124,7 @@ export const RuleComposerSheet = forwardRef<BottomSheetModal, RuleComposerSheetP
             innerRef.current?.dismiss();
         }, [action, kind, validTokens, onSubmit]);
 
-        // Pin the submit button above the keyboard / home indicator so it is
-        // always reachable, regardless of scroll position.
+        // 把提交按钮固定在键盘 / home indicator 之上，无论滚动到哪里都可点到。
         const renderFooter = useCallback(
             (props: BottomSheetFooterProps) => (
                 <BottomSheetFooter {...props} bottomInset={0}>

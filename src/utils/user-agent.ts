@@ -4,10 +4,9 @@ import { getLocales } from 'expo-localization';
 import { Platform } from 'react-native';
 import { getSingBoxVersion } from './sing-box-version';
 
-// SFI / SFA impersonate the official sing-box client User-Agent tags
-// (sing-box-for-iOS / sing-box-for-Android). Some config providers gate
-// responses on this UA, so these strings are an external contract — changing
-// them can break config delivery server-side.
+// SFI / SFA 冒充官方 sing-box 客户端的 User-Agent 标记
+// （sing-box-for-iOS / sing-box-for-Android）。有些配置提供方会按此 UA 决定
+// 是否返回响应，因此这些字符串是对外契约 —— 改动它们可能导致服务端不再下发配置。
 const iOSTag = 'SFI';
 const AndroidTag = 'SFA';
 

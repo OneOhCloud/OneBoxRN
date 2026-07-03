@@ -1,19 +1,16 @@
 /**
- * Serial runner for the developer-tools import-flow test suite.
+ * 开发者工具里 import-flow 测试套件的串行 runner。
  *
- * The suite is not wired to `make test` / CI — it is strictly a manual
- * diagnostic surfaced in the dev screen. Its one-and-only responsibility
- * is to catch "the import entry path would fail on this device" before
- * the user runs into it through the real QR scanner.
+ * 本套件不接入 `make test` / CI —— 它纯粹是暴露在开发者屏上的手动诊断。
+ * 它唯一的职责，是在用户经由真实 QR 扫描器碰上之前，先抓出
+ * "导入入口路径在本设备上会失败"。
  *
- * Design notes:
- *   - Runs cases sequentially. Several cases depend on wall-clock
- *     timings (timeout races) and parallel execution would make failure
- *     modes harder to read.
- *   - Never touches real KV / ProfileStore / ExpoOneBox. The context
- *     only exposes fakes + plain helpers.
- *   - Every transition emits `[ImportTest]`-tagged jsLog lines so the
- *     Logs tab mirrors the panel.
+ * 设计要点：
+ *   - 串行运行用例。若干用例依赖 wall-clock 计时（timeout 竞速），
+ *     并行执行会让失败模式更难读。
+ *   - 从不触碰真实的 KV / ProfileStore / ExpoOneBox。context 只暴露
+ *     fake 与纯 helper。
+ *   - 每次转移都输出带 `[ImportTest]` 标签的 jsLog 行，使日志页与面板镜像。
  */
 import { jsLog } from '@/utils/log-sink';
 
@@ -31,11 +28,11 @@ export interface TestResult {
     startedAt: number | null;
     finishedAt: number | null;
     durationMs: number | null;
-    /** Short human-readable reason for non-pass outcomes. */
+    /** 非通过结果的简短可读原因。 */
     message: string | null;
-    /** Full stack when available — shown in the expanded row. */
+    /** 有则给出完整 stack —— 在展开的行里显示。 */
     stack: string | null;
-    /** Per-case `ctx.log(...)` calls, for the copy-report button. */
+    /** 每个用例的 `ctx.log(...)` 调用，供 copy-report 按钮使用。 */
     logs: string[];
 }
 
@@ -52,7 +49,7 @@ export interface TestCase {
 }
 
 /**
- * Factory — a fresh context per case guarantees zero cross-test state.
+ * 工厂 —— 每个用例一个全新 context，保证零跨测试状态。
  */
 function createContext(): { ctx: TestContext; collected: string[] } {
     const collected: string[] = [];
@@ -82,13 +79,12 @@ function pendingResult(c: TestCase): TestResult {
 }
 
 /**
- * Run all cases in declaration order. `onUpdate` fires for every state
- * transition (`pending → running → pass|fail|error`) so the UI can
- * render live progress. Returns the final snapshot.
+ * 按声明顺序运行所有用例。`onUpdate` 在每次状态转移
+ * （`pending → running → pass|fail|error`）时触发，好让 UI 渲染实时进度。
+ * 返回最终快照。
  *
- * `fail` vs `error`: a thrown `AssertionError` (or our `TestFailure`)
- * is `fail`; any other throw is `error`. The distinction is UX — a red
- * pill vs an amber one in the panel.
+ * `fail` 与 `error` 的区别：抛出 `AssertionError`（或我们的 `TestFailure`）
+ * 算 `fail`；其它任何抛出算 `error`。区别在于 UX —— 面板里一个红标、一个琥珀标。
  */
 export async function runAll(
     cases: readonly TestCase[],
@@ -150,10 +146,9 @@ export async function runAll(
 }
 
 /**
- * Marker subclass — thrown by `expect*` helpers. Anything else that
- * escapes a test body is classified as `error` (unexpected) rather than
- * `fail` (assertion). Both block the run from being green, but the UX
- * and triage paths differ.
+ * 标记子类 —— 由 `expect*` helper 抛出。其它任何逃逸出测试体的抛出都归为
+ * `error`（意外），而非 `fail`（断言）。两者都会让整轮无法变绿，但 UX 与
+ * 排查路径不同。
  */
 export class TestFailure extends Error {
     constructor(message: string) {
@@ -162,7 +157,7 @@ export class TestFailure extends Error {
     }
 }
 
-// ─── Assertions ──────────────────────────────────────────────────────────────
+// ─── 断言 ──────────────────────────────────────────────────────────────
 
 export function expect(condition: unknown, message: string): asserts condition {
     if (!condition) throw new TestFailure(message);
@@ -197,7 +192,7 @@ export async function expectThrows(
     throw new TestFailure(`${label}: expected to throw, but resolved`);
 }
 
-// ─── Report serialization ────────────────────────────────────────────────────
+// ─── Report 序列化 ────────────────────────────────────────────────────
 
 type ReportRow = Pick<TestResult, 'id' | 'name' | 'group' | 'status' | 'durationMs' | 'message' | 'logs'> & {
     stack: string | null;

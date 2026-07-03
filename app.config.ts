@@ -10,15 +10,15 @@ type VersionJson = {
 const versionJson = JSON.parse(readFileSync(join(__dirname, 'version.json'), 'utf8')) as VersionJson;
 
 /**
- * Dynamic Expo config.
+ * 动态 Expo 配置。
  *
- * Version is the single source of truth from version.json.
+ * 版本号唯一来源为 version.json。
  *
- * Build-time env var loaded from .env:
- *   accelerateUrl  – base URL of the config-URL accelerator proxy.
- *                    Add to .env to enable fallback loading for remote configs.
- *                    Example: accelerateUrl=https://your-accelerator-host.example.com
- *                    Omit or leave blank to disable acceleration entirely.
+ * 构建期从 .env 读取的环境变量：
+ *   accelerateUrl  – 配置 URL 加速代理的 base URL。
+ *                    在 .env 中填写即可为远程配置启用回落加载。
+ *                    示例：accelerateUrl=https://your-accelerator-host.example.com
+ *                    留空或不填则完全关闭加速。
  */
 export default ({ config: _config }: ConfigContext): ExpoConfig => ({
   name: 'OneBoxM',
@@ -83,8 +83,8 @@ export default ({ config: _config }: ConfigContext): ExpoConfig => ({
       {
         cameraPermission:
           'To scan QR codes for importing profile config URLs and managing network configurations.',
-        // QR scanning only — no audio/video capture anywhere in the app.
-        // false strips NSMicrophoneUsageDescription and Android RECORD_AUDIO.
+        // 仅扫码，App 全程不采集音视频。
+        // false 会移除 NSMicrophoneUsageDescription 与 Android RECORD_AUDIO。
         microphonePermission: false,
         recordAudioAndroid: false,
       },
@@ -160,7 +160,7 @@ export default ({ config: _config }: ConfigContext): ExpoConfig => ({
     bugsnag: {
       apiKey: process.env.BUGSNAG_API_KEY || null,
     },
-    // Loaded from .env at build time; null → acceleration disabled.
+    // 构建期从 .env 读取；null 表示关闭加速。
     accelerateUrl: process.env.accelerateUrl || null,
   },
   owner: 'oneoh-cloud-llc',

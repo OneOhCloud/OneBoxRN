@@ -1,15 +1,14 @@
 /**
- * Structured flow events — pure core (node:test covered).
+ * 结构化流程事件 —— 纯核心（node:test 覆盖）。
  *
- * A FlowEvent carries {event, flowId, phase, status, …} through one user
- * flow (import, refresh, toggle) so a failure can be traced end-to-end
- * by grepping `flow=<id>` in the Logs viewer. Events serialize into the
- * message string with a stable `[EVT]` prefix — LogEntry's shape stays
- * `{id, source, level, message, time}` and the Logs screen needs no
- * changes. Impure delivery (ring buffer + Bugsnag) lives in flow-log.ts.
+ * 一个 FlowEvent 携带 {event, flowId, phase, status, …} 贯穿一次用户流程
+ * （import、refresh、toggle），使失败可以通过在日志查看器里 grep `flow=<id>`
+ * 端到端追踪。事件以稳定的 `[EVT]` 前缀序列化进 message 字符串 —— LogEntry 的
+ * 形态仍是 `{id, source, level, message, time}`，日志屏无需改动。非纯的投递
+ * （环形缓冲区 + Bugsnag）在 flow-log.ts 里。
  *
- * Redaction contract: `detail` must already be redacted by the caller
- * (use log-redact.ts) — no URL, token, header value, or hostname.
+ * 脱敏契约：`detail` 必须由调用方预先脱敏（用 log-redact.ts）—— 不得含 URL、
+ * token、header 值或 hostname。
  */
 
 export type FlowEventName = 'config_import' | 'config_refresh' | 'vpn_toggle';
@@ -38,13 +37,13 @@ export interface FlowEvent {
     method?: string;
     durationMs?: number;
     errorCode?: string;
-    /** Pre-redacted free text — never raw URLs/tokens/headers. */
+    /** 预先脱敏的自由文本 —— 绝不含原始 URL/token/header。 */
     detail?: string;
 }
 
 let flowCounter = 0;
 
-/** 8-char base36 id: time-salted + monotonic within the JS runtime. */
+/** 8 字符 base36 id：时间加盐 + 在 JS 运行时内单调。 */
 export function newFlowId(now: number = Date.now()): string {
     flowCounter = (flowCounter + 1) % 1296; // 36^2
     const time = now.toString(36).slice(-6).padStart(6, '0');
@@ -65,7 +64,7 @@ const FIELD_ORDER = [
 
 /**
  * `[EVT] event=config_import flow=ab12cd34 phase=download status=fail …`
- * Stable key order, undefined fields omitted — greppable by `flow=<id>`.
+ * 稳定的 key 顺序，undefined 字段省略 —— 可用 `flow=<id>` grep。
  */
 export function formatFlowEvent(e: FlowEvent): string {
     const parts = [`[EVT] event=${e.event}`, `flow=${e.flowId}`];

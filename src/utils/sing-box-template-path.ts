@@ -1,9 +1,8 @@
 /**
- * Pure version-path resolver — no native imports, no expo-*, no react-native.
+ * 纯粹的版本路径解析器 —— 不引入原生模块、不用 expo-*、不用 react-native。
  *
- * Usable from both Node (scripts/sync-templates.ts via --experimental-strip-types)
- * and React Native runtime (src/database/helper.ts) without pulling in the
- * native bridge.
+ * Node（scripts/sync-templates.ts 经 --experimental-strip-types）与 React Native
+ * 运行时（src/database/helper.ts）都能用，无需拉入原生桥接。
  */
 
 export type SingBoxVersion = {
@@ -13,8 +12,8 @@ export type SingBoxVersion = {
 };
 
 /**
- * Parse a bare version string (e.g. `"1.13.8"`) into its components.
- * Throws on malformed input (missing patch, non-numeric, empty string).
+ * 把裸版本字符串（例如 `"1.13.8"`）解析成各组成部分。
+ * 输入格式错误（缺 patch、非数字、空串）时抛错。
  */
 export function parseSingBoxVersion(bare: string): SingBoxVersion {
     if (!bare) throw new Error(`parseSingBoxVersion: empty version string`);
@@ -31,12 +30,11 @@ export function parseSingBoxVersion(bare: string): SingBoxVersion {
 }
 
 /**
- * Map a parsed version to the `conf/<dir>/` path segment used in the
- * template repo. Rules:
+ * 把解析后的版本映射到模板仓库里 `conf/<dir>/` 使用的路径段。规则：
  *   - 1.13.x  patch >= 8  →  "1.13.8"
  *   - 1.13.x  patch <  8  →  "1.13"
  *   - 1.12.x              →  "1.12"
- *   - anything else       →  throws
+ *   - 其它                →  抛错
  */
 export function resolveVersionPath(v: SingBoxVersion): string {
     if (v.major === '1' && v.minor === '13' && v.patch >= 8) return '1.13.8';
@@ -48,17 +46,15 @@ export function resolveVersionPath(v: SingBoxVersion): string {
 }
 
 /**
- * KV key under which a per-mode config template is cached.
+ * 缓存某个模式配置模板所用的 KV key。
  *
- * The app version is part of the key so that installing a new app build
- * abandons every template the previous build cached: the cache misses, the
- * template shipped inside this build becomes the floor, and the remote is
- * refetched fresh. Without this, a remote snapshot taken before a route-rule
- * anchor (e.g. `reject-tag.oneoh.cloud`) existed could survive the upgrade and
- * silently strip the user's custom rules — `injectCustomRules` skips any
- * anchor it cannot find.
+ * app 版本是 key 的一部分，这样安装新构建会作废上一构建缓存的所有模板：
+ * 缓存未命中，本次构建内置的模板成为下限，远程也会重新拉取。否则，一份在
+ * 某个 route-rule 锚点（某条 route-rule tag）出现之前抓取的远程快照，
+ * 可能在升级后仍然存活，并静默抹掉用户的自定义规则 —— `injectCustomRules`
+ * 会跳过任何它找不到的锚点。
  *
- * The sing-box minor is also embedded so caches reset across core minors.
+ * sing-box 的 minor 也嵌进 key，使缓存在 core 的不同 minor 间重置。
  */
 export function buildTemplateCacheKey(
     appVersion: string,

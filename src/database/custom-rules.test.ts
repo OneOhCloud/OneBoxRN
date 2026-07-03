@@ -13,8 +13,8 @@ import {
     type RuleSet,
 } from './custom-rules.ts';
 
-// A type alias (not an interface) so it gains an implicit index signature and
-// stays assignable to the merger's structural RouteRuleLike.
+// 用 type 别名（而非 interface），使其获得隐式索引签名，从而仍可赋值给合并器
+// 的结构类型 RouteRuleLike。
 type TestRule = {
     domain?: string[];
     domain_suffix?: string[];
@@ -24,7 +24,7 @@ type TestRule = {
 };
 type TestConfig = { route: { rules: TestRule[] } };
 
-// Mirrors the runtime template's three anchor rules (generated.ts ~183-206).
+// 复刻运行时模板的三条锚点 rule（generated.ts）。
 function fixtureConfig(): TestConfig {
     return {
         route: {
@@ -51,7 +51,7 @@ test('hasActionAnchor detects a present anchor and a missing one', () => {
     assert.equal(hasActionAnchor(config, 'direct'), true);
     assert.equal(hasActionAnchor(config, 'proxy'), true);
 
-    // A stale template that predates the reject anchor (drop the first rule).
+    // 一个早于 reject 锚点的陈旧模板（丢掉第一条 rule）。
     const stale = { route: { rules: config.route.rules.slice(1) } };
     assert.equal(hasActionAnchor(stale, 'reject'), false);
     assert.equal(hasActionAnchor(stale, 'direct'), true);

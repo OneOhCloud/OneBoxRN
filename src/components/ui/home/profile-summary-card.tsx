@@ -48,9 +48,8 @@ export function ProfileSummaryCard({ info, name, connected = false }: ProfileSum
         fillProgress.set(withTiming(pct, { duration: 900 }));
     }, [pct, fillProgress]);
 
-    // scaleX instead of an animated width: the fill updates on every traffic
-    // refresh, and transforms skip per-frame layout. The rail clips overflow;
-    // at 3 px height the endcap distortion under scaleX is invisible.
+    // 用 scaleX 而非动画 width：填充在每次流量刷新时更新，而 transform 可跳过
+    // 逐帧 layout。轨道会裁剪溢出；在 3px 高度下，scaleX 造成的端点变形不可见。
     const fillStyle = useAnimatedStyle(() => ({
         transform: [{ scaleX: fillProgress.value }],
     }));
@@ -153,8 +152,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 8,
     },
-    // Outer lamp housing: 12px box kept constant across states so the name
-    // never shifts horizontally when toggling connected/disconnected.
+    // 外层指示灯外壳：12px 方框在各状态下保持不变，这样切换 connected/
+    // disconnected 时名称不会横向偏移。
     statusLamp: {
         width: 12,
         height: 12,

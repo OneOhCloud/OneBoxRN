@@ -1,12 +1,11 @@
 /**
- * ProfileStore core — pure, dependency-free.
+ * ProfileStore 核心 —— 纯净、无依赖。
  *
- * The KV backend (SQLite on native, localStorage on web) is injected so
- * node:test can exercise profile CRUD, active-profile selection and the
- * v1 single-profile migration against a Map-backed fake. kv.ts wraps
- * this with its real backend and re-exports the same public API —
- * persisted key formats (`sub_ids` / `active_sub_id` / `sub_<id>` /
- * `sub_migration_v1` and the legacy v1 keys) are unchanged.
+ * KV 后端（原生上是 SQLite，web 上是 localStorage）以注入方式提供，使 node:test
+ * 能对着 Map 支撑的假后端演练配置文件 CRUD、活动配置文件选择，以及 v1 单配置
+ * 迁移。kv.ts 用真实后端包装本核心并再导出同一套公开 API —— 持久化的 key 格式
+ * （`sub_ids` / `active_sub_id` / `sub_<id>` / `sub_migration_v1` 以及 v1 遗留
+ * key）是持久化契约，不可更改。
  */
 
 export interface Profile {
@@ -87,7 +86,7 @@ export function createProfileStore(
         getActive(): Profile | null {
             const id = store.getActiveId();
             if (!id) {
-                // Auto-promote first profile if no active is set
+                // 未设置活动项时，自动把第一个配置文件提升为活动项
                 const ids = store.getIds();
                 if (ids.length > 0) {
                     kv.set(ACTIVE_PROFILE_KEY, ids[0]);
@@ -128,7 +127,7 @@ export function createProfileStore(
             return store.getAll().find(s => s.url === url) ?? null;
         },
 
-        /** Update existing profile by URL, or add a new one. Sets it as active. */
+        /** 按 URL 更新已有配置文件，否则新增一个。并设为活动项。 */
         upsertByUrl(data: Omit<Profile, 'id' | 'addedAt'>): Profile {
             const existing = store.findByUrl(data.url);
             if (existing) {
@@ -146,9 +145,9 @@ export function createProfileStore(
 }
 
 /**
- * One-time migration from single-profile kv keys to ProfileStore format.
- * `deriveNameFromUrl` is injected because the URL helpers live in a module
- * with runtime expo imports.
+ * 从单配置文件 kv key 到 ProfileStore 格式的一次性迁移。
+ * `deriveNameFromUrl` 以注入方式提供，因为 URL 辅助函数所在模块带有运行时的
+ * expo import。
  */
 export function migrateV1ProfileToMultiCore(
     kv: KvBackend,

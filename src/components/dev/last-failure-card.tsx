@@ -5,10 +5,9 @@ import { Card } from './card';
 import { Row } from './row';
 
 /**
- * Read surface for the durable latest-failure snapshot (F-05): persists
- * independently of the in-memory log ring, so it survives "clear logs".
- * Grep the Logs viewer for `flow=<id>` to see the full trace (while the
- * ring still holds it).
+ * 持久化的最近一次失败快照的只读展示面。独立于内存中的日志 ring 持久化，
+ * 因此「清空日志」后依然保留。在 Logs 查看器中 grep `flow=<id>` 可看到完整
+ * trace（前提是 ring 中仍保留着）。
  */
 export function LastFailureCard() {
     const [summary, setSummary] = useState(() => LastFailure.get());

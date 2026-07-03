@@ -1,13 +1,11 @@
 /**
- * Logs Viewer — live multi-source log stream.
+ * 日志查看器 — 实时多源日志流。
  *
- * Subscribes to `log-sink`'s external store via `useLogs()`, so only this
- * screen re-renders when new lines arrive — the rest of the app is not
- * affected, even with the 1000-line buffer.
+ * 通过 `useLogs()` 监听 `log-sink` 的外部 store，因此只有本屏在新日志到达
+ * 时重渲染，即便有 1000 行缓冲区，app 其余部分也不受影响。
  *
- * FlatList (not ScrollView) virtualises the rendered rows; LogRow is
- * React.memo'd and keyed by the monotonic `entry.id` so DOM reuse is
- * stable and auto-scroll does not thrash.
+ * 用 FlatList（而非 ScrollView）虚拟化渲染行；LogRow 经 React.memo 包裹并以
+ * 单调递增的 `entry.id` 作 key，使行复用稳定、自动滚动不抖动。
  */
 import { lightImpact, selectionChanged } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
@@ -42,7 +40,7 @@ const MONO_FONT = Platform.select({
     default: 'ui-monospace',
 })!;
 
-// ─── ANSI parsing (sing-box core emits coloured lines) ──────
+// ─── ANSI 解析（sing-box 内核输出带颜色的行）──────
 
 const ANSI_FG: Record<number, string> = {
     30: '#3a3a3c', 31: '#FF3B30', 32: '#34C759', 33: '#FFCC00',
@@ -55,9 +53,8 @@ interface AnsiSpan { text: string; color?: string; bold?: boolean }
 interface AnsiState { color?: string; bold: boolean }
 
 function parseAnsiLine(line: string): AnsiSpan[] {
-    // Short-circuit for plain lines (no ESC byte). Most sing-box entries
-    // at level `info` are plain text; avoiding the regex here shaves real
-    // render time off the hot path.
+    // 对纯文本行（无 ESC 字节）短路返回。多数 `info` 级别的 sing-box
+    // 日志都是纯文本，跳过正则可省下热路径上的渲染时间。
     if (line.indexOf('\x1b') === -1) {
         return [{ text: line, bold: false }];
     }
@@ -90,7 +87,7 @@ function applyAnsiCodes(prev: AnsiState, codes: number[]): AnsiState {
     return next;
 }
 
-// ─── Filter model ───────────────────────────────────────────
+// ─── 过滤模型 ───────────────────────────────────────────────
 
 type Filter = 'all' | LogSource;
 const FILTERS: Filter[] = ['all', 'sing-box', 'native', 'js'];
@@ -124,7 +121,7 @@ function formatTime(ms: number): string {
     return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-// ─── iOS-style Segmented Control (4 segments, single-select) ─
+// ─── iOS 风格分段控件（4 段，单选）─
 
 function Segmented({ value, onChange }: { value: Filter; onChange: (f: Filter) => void }) {
     const theme = useTheme();
@@ -224,11 +221,10 @@ function Segmented({ value, onChange }: { value: Filter; onChange: (f: Filter) =
     );
 }
 
-// ─── Log row ────────────────────────────────────────────────
+// ─── 日志行 ────────────────────────────────────────────────
 
-// Row reads theme via `useTheme` inside the component so renderItem can
-// stay a stable closure — this fixes the VirtualizedList "slow update"
-// warning that showed up on high-rate core log streams.
+// Row 在组件内部通过 `useTheme` 读取主题，好让 renderItem 保持稳定闭包 ——
+// 否则高频日志流下每一行都会被判定为需要重渲染。
 const LogRow = memo(function LogRow({ entry }: { entry: LogEntry }) {
     const theme = useTheme();
     const isError = entry.level === 'error';
@@ -342,7 +338,7 @@ function AnsiMessage({ line, defaultColor }: { line: string; defaultColor: strin
     );
 }
 
-// ─── Nav bar ────────────────────────────────────────────────
+// ─── 导航栏 ────────────────────────────────────────────────
 
 function NavBar({
     title,
@@ -411,13 +407,12 @@ function NavBar({
     );
 }
 
-// ─── Screen ─────────────────────────────────────────────────
+// ─── 屏幕 ─────────────────────────────────────────────────
 
 /**
- * Rendered offset below which we treat the user as "at the newest edge".
- * In an inverted FlatList, `offset=0` is the visual bottom (most recent
- * entry); the threshold is kept small so any deliberate upward scroll
- * suppresses auto-follow.
+ * 渲染偏移低于此值即视为用户停留在"最新边缘"。
+ * 在 inverted FlatList 中，`offset=0` 是视觉底部（最新条目）；阈值取得很小，
+ * 使任何刻意的向上滚动都会关闭自动跟随。
  */
 const NEAR_LATEST_THRESHOLD = 24;
 
@@ -434,18 +429,12 @@ export default function LogsViewerScreen() {
         [logs, filter]
     );
 
-    // `scrollToEnd` is unreliable on a FlatList with dynamic row heights
-    // and no `getItemLayout` — it targets whatever end has been measured
-    // so far, which lags behind the real end as rows materialise. The
-    // canonical solution for auto-follow log viewers is an `inverted`
-    // list: the newest entry sits at `offset=0` (the visual bottom),
-    // prepending new data doesn't require scrolling, and "jump to
-    // latest" is just `scrollToOffset({ offset: 0 })`.
+    // `scrollToEnd` 在行高动态且没有 `getItemLayout` 的 FlatList 上不可靠 ——
+    // 它只能定位到目前已测量到的末端，会滞后于真正的末端。自动跟随日志视图
+    // 的惯用做法是 `inverted` 列表：最新条目位于 `offset=0`（视觉底部），追加
+    // 新数据无需滚动，"跳到最新"就是 `scrollToOffset({ offset: 0 })`。
     //
-    // `displayData` below reverses the buffer so index 0 is newest. The
-    // reverse is O(N) in memory, but N is capped at the ring-buffer size
-    // (1000) and the React notification is already throttled to ≈20fps,
-    // so the allocation rate is bounded.
+    // 下面的 `displayData` 反转缓冲区，使 index 0 为最新。
     const displayData = useMemo(() => {
         const out = new Array<LogEntry>(filtered.length);
         const last = filtered.length - 1;
@@ -460,8 +449,8 @@ export default function LogsViewerScreen() {
         setShowJumpToBottom(false);
     }, []);
 
-    // Inverted coordinates: `contentOffset.y` is distance AWAY from the
-    // newest edge (bottom visual). 0 means we're looking at the latest.
+    // 反转坐标系：`contentOffset.y` 是离最新边缘（视觉底部）的距离，
+    // 0 表示正看着最新条目。
     const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const offset = e.nativeEvent.contentOffset.y;
         const nearLatest = offset <= NEAR_LATEST_THRESHOLD;
@@ -474,10 +463,8 @@ export default function LogsViewerScreen() {
         listRef.current?.scrollToOffset({ offset: 0, animated: true });
     }, []);
 
-    // Must remain a stable closure — any dep change here forces FlatList
-    // to consider every row "new" and re-run renderItem, which is the
-    // slow path the VirtualizedList warning was flagging. LogRow pulls
-    // its own colors via useTheme.
+    // 必须保持稳定闭包 —— 这里任何依赖变化都会让 FlatList 把每一行都当成
+    // 新行、重新执行 renderItem（慢路径）。LogRow 通过 useTheme 自取颜色。
     const renderItem = useCallback(
         ({ item }: { item: LogEntry }) => <LogRow entry={item} />,
         []
@@ -566,13 +553,10 @@ export default function LogsViewerScreen() {
                             keyExtractor={keyExtractor}
                             renderItem={renderItem}
                             ItemSeparatorComponent={LogRowSeparator}
-                            // When the list is shorter than the viewport,
-                            // `justifyContent: flex-end` pushes items to the
-                            // "end" of the unflipped content (visually the
-                            // top, after the inverted transform). Without
-                            // this, items pile at the visual bottom with a
-                            // large blank above — which is how the first
-                            // iteration looked.
+                            // 列表内容短于视口时，`justifyContent: flex-end`
+                            // 把条目推到未翻转内容的"末端"（经 inverted 变换后
+                            // 视觉上是顶部）。否则条目会堆在视觉底部、上方留出
+                            // 大片空白。
                             contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
                             initialNumToRender={20}
                             maxToRenderPerBatch={10}
@@ -633,7 +617,7 @@ export default function LogsViewerScreen() {
     );
 }
 
-// ─── Body state panels ──────────────────────────────────────
+// ─── 内容区状态面板 ──────────────────────────────────────────
 
 function EmptyPanel({
     title,

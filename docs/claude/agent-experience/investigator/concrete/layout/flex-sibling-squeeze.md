@@ -10,18 +10,18 @@ last-used: null
 tags: [flex-layout, scroll-sibling, platform-diff, rn]
 ---
 
-## symptom
+## 症状
 
-multi-element flex column; one or more children resize inversely with the size of content inside another child. visible on Android + iOS. commonly: filter-chip row compresses when section below expands; re-stretches when everything collapses.
+多元素 flex 列；一个或多个子节点的尺寸与另一个子节点内部内容的大小成反比变化。在 Android + iOS 上都可见。常见情形：下方 section 展开时，过滤 chip 行被压缩；一切折叠时又重新拉伸。
 
-## lesson
+## 教训
 
-RN flex column default: `flexShrink: 1, flexGrow: 0, flexBasis: auto`. two shrinkable children negotiate space using intrinsic heights. if one child is a ScrollView with tall content, it starves the other children.
+RN flex 列的默认值：`flexShrink: 1, flexGrow: 0, flexBasis: auto`。两个可收缩的子节点用固有高度协商空间。如果其中一个子节点是内容很高的 ScrollView，它会把其它子节点"饿死"。
 
-rule: at most 1 shrinkable child per flex column. pin all non-flexing siblings with `flexGrow: 0, flexShrink: 0`. the one flexible child gets `flex: 1`.
+规则：每个 flex 列最多 1 个可收缩子节点。用 `flexGrow: 0, flexShrink: 0` 固定所有不伸缩的兄弟节点。那个唯一可伸缩的子节点用 `flex: 1`。
 
-diagnostic shortcut: `git grep -n "ScrollView" <file>` → if 2+ ScrollView siblings share a column, that's the hypothesis.
+诊断捷径：`git grep -n "ScrollView" <file>` → 如果 2 个以上 ScrollView 兄弟节点共享一列，那就是假设所在。
 
-## why model needs it
+## 为什么模型需要它
 
-base model treats RN flex as if it were web CSS. web has intrinsic height from children's natural layout + overflow scroll is additive. RN's ScrollView is flex-shrinkable by default and competes with siblings for the parent's height — the opposite of how a naive reader assumes scroll regions behave.
+基础模型会把 RN flex 当作 web CSS 对待。web 的固有高度来自子节点的自然布局，且 overflow scroll 是叠加的。RN 的 ScrollView 默认可 flex 收缩，会与兄弟节点争抢父节点的高度——与天真读者所假设的滚动区域行为恰好相反。

@@ -84,10 +84,8 @@ export function ActiveProfileCard({
         setCardSize(prev => (prev.w === width && prev.h === height ? prev : { w: width, h: height }));
     };
 
-    // While a refresh is in-flight the button is invisible but still occupies
-    // its 32×32 slot so the header row height stays constant and the card
-    // doesn't jump. The rotating border is the sole visual affordance for
-    // the in-flight state.
+    // 刷新进行中时按钮不可见，但仍占据其 32×32 的槽位，使头部行高保持不变、
+    // 卡片不跳动。旋转边框是进行中状态唯一的视觉提示。
     const refreshBtn = onRefresh ? (
         <Pressable
             onPress={() => { mediumImpact(); onRefresh(); }}

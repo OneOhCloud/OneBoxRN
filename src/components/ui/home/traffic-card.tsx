@@ -47,13 +47,13 @@ function MetricCell({ iconName, iconColor, label, value }: MetricCellProps) {
 }
 
 // ─── Traffic Card ───────────────────────────────────────────
-/** Traffic metric grid with its own backgroundElement card shell. */
+/** 流量指标网格，自带 backgroundElement 卡片外壳。 */
 export default function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPayload | null }) {
     const theme = useTheme();
 
-    // Format from the raw byte counts with the shared formatter rather than the
-    // native *Display strings, which diverge (Android Libbox.formatBytes is
-    // SI/1000-based, iOS LibboxFormatMemoryBytes is binary/1024-based) — audit C10.
+    // 用共享 formatter 从原始字节数格式化，而非原生 *Display 字符串——后者在两端
+    // 不一致（Android Libbox.formatBytes 按 SI/1000 进制，iOS
+    // LibboxFormatMemoryBytes 按二进制/1024 进制）。
     const cells: MetricCellProps[] = traffic ? [
         { iconName: 'arrow-up-outline', iconColor: '#007AFF', label: i18n.t('uplink_speed'), value: formatBytes(traffic.uplink) + '/s' },
         { iconName: 'arrow-down-outline', iconColor: '#32ADE6', label: i18n.t('downlink_speed'), value: formatBytes(traffic.downlink) + '/s' },

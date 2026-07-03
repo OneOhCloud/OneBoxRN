@@ -80,10 +80,9 @@ run-ios: _check-ios-env _sync-templates _update-tun-db _ensure-pods _inject-ios-
 	@echo ""
 	npx expo run:ios --device
 
-# Fire the /dev-smoke deep link on whichever iOS target is available.
-# Tries the booted simulator first, falls back to a connected device via
-# devicectl (Xcode 15+). Safe to call manually any time the app is
-# running — just navigates to the Import Smoke Check page.
+# 向可用的 iOS 目标触发 /dev-smoke 深链。
+# 优先尝试已启动的 simulator，再通过 devicectl（Xcode 15+）回落到已连接的真机。
+# App 运行时可随时手动调用 —— 只是跳转到 Import Smoke Check 页面。
 dev-smoke-ios:
 	@URL="oneoh-networktools://dev-smoke"; \
 	if xcrun simctl list devices 2>/dev/null | grep -q "Booted"; then \

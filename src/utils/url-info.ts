@@ -1,22 +1,20 @@
 /**
- * URL / header name-derivation helpers for profile imports — pure core.
+ * 配置文件导入用的 URL / header 名称派生辅助函数 —— 纯核心。
  *
- * Moved verbatim out of src/utils.ts (which imports native modules) so the
- * import-flow machine and node's type-stripping test runner can use them.
- * src/utils.ts re-exports them; existing call sites are unaffected.
+ * 独立于 src/utils.ts（后者会引入原生模块），使 import-flow 状态机与 Node 的
+ * 类型剥离测试运行器都能使用；src/utils.ts 再把它们 re-export，现有调用点不受影响。
  */
 
-/** Extract the hostname from a URL string; returns fallback on parse failure. */
+/** 从 URL 字符串中提取 hostname；解析失败时返回 fallback。 */
 export function urlHostname(url: string, fallback = ''): string {
     try { return new URL(url).hostname; } catch { return fallback; }
 }
 
 /**
- * Extract the last path segment (filename) from a URL, URL-decoded.
- * Used as a display-name fallback when the server does not return a
- * Content-Disposition header — e.g. raw gist URLs like
- * `/raw/abc/appstoreconnect.json` → `appstoreconnect.json`.
- * Returns null if parsing fails or the path has no filename segment.
+ * 从 URL 中提取最后一个路径段（文件名），并做 URL 解码。
+ * 当服务器不返回 Content-Disposition 头时，用作展示名的回退 —— 例如原始 gist
+ * URL `/raw/abc/appstoreconnect.json` → `appstoreconnect.json`。
+ * 解析失败或路径没有文件名段时返回 null。
  */
 export function urlFilename(url: string): string | null {
     try {
@@ -35,16 +33,15 @@ export function urlFilename(url: string): string | null {
 }
 
 /**
- * Display-name fallback derived purely from a config URL: the last path
- * segment, else the hostname, else the literal 'Profile'. Shared by the
- * import flow (the final ?? branch after Content-Disposition / stored name)
- * and the v1 → multi-profile migration, so both spell one policy.
+ * 纯粹从配置 URL 派生的展示名回退：先取最后一个路径段，否则 hostname，
+ * 再否则字面量 'Profile'。由导入流程（Content-Disposition / 存储名之后的
+ * 最后 ?? 分支）与 v1 → 多配置文件迁移共用，让两者遵循同一套策略。
  */
 export function deriveProfileNameFromUrl(url: string): string {
     return urlFilename(url) ?? urlHostname(url, 'Profile');
 }
 
-/** Parse profile name from a Content-Disposition header value. Returns null if not found. */
+/** 从 Content-Disposition 头值里解析配置文件名。未找到时返回 null。 */
 export function getRemoteNameByContentDisposition(contentDisposition: string): string | null {
     const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
     const matches = filenameRegex.exec(contentDisposition);

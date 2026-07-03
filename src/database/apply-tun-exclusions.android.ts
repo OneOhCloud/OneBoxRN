@@ -1,9 +1,8 @@
 import { mergeUserTunField, type TunConfigLike } from './tun-exclusions';
 
 /**
- * Android: carry the profile's `exclude_package` (apps that bypass the tunnel)
- * from the imported config into the active config. See the base
- * `apply-tun-exclusions.ts` for the platform-split rationale.
+ * Android：把配置文件的 `exclude_package`（绕过隧道的 app）从导入的配置带入
+ * 当前生效的配置。按平台拆分的理由见基础文件 `apply-tun-exclusions.ts`。
  */
 export function applyPlatformTunExclusions(
     userConfig: TunConfigLike,

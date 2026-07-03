@@ -1,12 +1,10 @@
 /**
- * Test doubles for the import-flow suite.
+ * import-flow 套件的测试替身（test doubles）。
  *
- * Nothing here reaches the real `ExpoOneBox` module, the real
- * `ProfileStore`, or the real network. The entire fake-VPN surface is
- * built around `start()` / `stop()` because those are the only methods
- * the apply path actually awaits — extending it later (e.g. status
- * events) should stay constrained to this file so production code is
- * never tempted to branch on "am I in a test".
+ * 这里没有任何东西会触及真实的 `ExpoOneBox` 模块、真实的 `ProfileStore`
+ * 或真实网络。整个 fake-VPN 表面都围绕 `start()` / `stop()` 构建，因为它们
+ * 是 apply 路径真正 await 的唯一方法 —— 日后扩展（如 status 事件）也应限制
+ * 在本文件内，好让生产代码永远不会被诱导去判断"我是否在测试中"。
  */
 
 import type {
@@ -20,14 +18,14 @@ export type StartBehavior =
     | { kind: 'resolve' }
     | { kind: 'reject'; message: string }
     /**
-     * `hang` never resolves or rejects on its own — callers must race it
-     * against a timeout (mirroring the production `ExpoOneBox.start()`
-     * timeout race in `src/app/config/index.tsx`).
+     * `hang` 自身永不 resolve 或 reject —— 调用方必须让它与一个 timeout
+     * 竞速（镜像 `src/app/config/index.tsx` 里生产环境 `ExpoOneBox.start()`
+     * 的 timeout 竞速）。
      */
     | { kind: 'hang' };
 
 export interface FakeVpnModule {
-    /** Mutable so individual cases can swap the behaviour mid-run. */
+    /** 可变，好让单个用例在运行中途替换行为。 */
     startBehavior: StartBehavior;
     start(config: string): Promise<void>;
     stop(): Promise<void>;
@@ -51,9 +49,8 @@ export function createFakeVpnModule(opts: { startBehavior: StartBehavior }): Fak
                 case 'reject':
                     throw new Error(b.message);
                 case 'hang':
-                    // Intentionally un-settling promise. The pattern in the
-                    // apply path wraps `start()` in Promise.race with a
-                    // timeout — tests mirror that.
+                    // 刻意永不 settle 的 promise。apply 路径的做法是把 `start()`
+                    // 包进带 timeout 的 Promise.race —— 测试镜像了这一点。
                     await new Promise<never>(() => {});
                     return;
             }
@@ -69,10 +66,9 @@ export function createFakeVpnModule(opts: { startBehavior: StartBehavior }): Fak
 }
 
 /**
- * Adapt a FakeVpnModule to the context-action result shape the
- * import-flow machine consumes (`useVpn().start/stop` contract): typed
- * results instead of rejections, with the same timeout/abort semantics
- * as `createVpnActions`.
+ * 把 FakeVpnModule 适配成 import-flow 状态机消费的 context-action 结果形状
+ * （`useVpn().start/stop` 契约）：返回带类型的结果而非抛出，且具备与
+ * `createVpnActions` 相同的 timeout/abort 语义。
  */
 export function fakeVpnAsActions(fakeVpn: FakeVpnModule): {
     start(options?: StartOptions): Promise<StartResult>;
@@ -105,9 +101,8 @@ export function fakeVpnAsActions(fakeVpn: FakeVpnModule): {
 }
 
 /**
- * Race helper used by apply-flow cases. Matches the shape of the
- * production `Promise.race` against a timeout, so a regression there
- * will manifest here identically.
+ * apply-flow 用例使用的竞速 helper。与生产环境针对 timeout 的 `Promise.race`
+ * 形状一致，因此那边一旦回归，这里会以完全相同的方式暴露出来。
  */
 export function raceWithTimeout<T>(
     p: Promise<T>,

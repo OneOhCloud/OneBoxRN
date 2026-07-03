@@ -1,13 +1,10 @@
 /**
- * Proxy-node state store core — pure, dependency-free.
+ * 代理节点状态 store 核心 —— 纯粹、无依赖。
  *
- * Owns the node list / current node / auto-resolved node / testing
- * window that `use-proxy-nodes.ts` previously kept in component state
- * with its own duplicate `onGroupUpdate` listener. The single native
- * listener in VpnContext now feeds `applyGroupUpdate`; React reads via
- * `useSyncExternalStore` (see node-store.ts), mirroring the log-sink
- * pattern so high-frequency group updates never re-render `useVpn`
- * consumers.
+ * 持有节点列表 / 当前节点 / 自动解析节点 / 测试窗口。VpnContext 中唯一的
+ * 原生监听器喂给 `applyGroupUpdate`；React 经 `useSyncExternalStore` 读取
+ *（见 node-store.ts），沿用 log-sink 模式，使高频 group 更新绝不触发
+ * `useVpn` 消费方重渲染。
  */
 
 import type { TimerHandle, TimerHost } from './types.ts';
@@ -15,14 +12,14 @@ import { defaultTimers } from './types.ts';
 
 // ─── Constants ───────────────────────────────────────────────
 
-/** Tag of the proxy selector group in the sing-box config. */
+/** sing-box 配置中代理 selector group 的 tag。 */
 export const GATEWAY_GROUP_TAG = 'ExitGateway';
-/** Tag of the URLTest auto-select group nested inside ExitGateway. */
+/** 嵌套在 ExitGateway 内的 URLTest 自动选择 group 的 tag。 */
 export const AUTO_GROUP_TAG = 'auto';
 
-/** How long we treat delay=0 as "still testing" after an explicit trigger. */
+/** 显式触发后，delay=0 被视为“仍在测试”的时长。 */
 export const TESTING_WINDOW_MS = 12_000;
-/** Loading guard to avoid an endless spinner when URLTest stalls after resume. */
+/** 加载保护：避免 URLTest 在 resume 后卡住时出现无尽 spinner。 */
 export const INITIAL_LOADING_TIMEOUT_MS = 8_000;
 
 // ─── Types ───────────────────────────────────────────────────
@@ -30,7 +27,7 @@ export const INITIAL_LOADING_TIMEOUT_MS = 8_000;
 export interface NodeItem {
     tag: string;
     delay: number;
-    /** true while waiting for first URLTest results. */
+    /** 等待首批 URLTest 结果期间为 true。 */
     testing: boolean;
 }
 
@@ -42,10 +39,10 @@ export interface NodeStoreState {
 }
 
 /**
- * Mirror of `GroupUpdateEventPayload` (src/modules/expo-onebox/src/ExpoOneBox.types.ts) —
- * a local, native-import-free copy so this pure core stays resolvable by node's
- * type-stripping test runner. Shape matches the canonical (all three platforms
- * always emit `autoNow`; the reducer maps its empty string to null).
+ * `GroupUpdateEventPayload`（src/modules/expo-onebox/src/ExpoOneBox.types.ts）的镜像
+ * —— 一份不含原生 import 的本地副本，使该纯核心仍能被 node 的类型剥离测试
+ * runner 解析。形状与权威定义一致（三端始终发出 `autoNow`；reducer 把其空
+ * 字符串映射为 null）。
  */
 export interface GroupUpdate {
     all: { tag: string; delay: number }[];
@@ -63,13 +60,12 @@ export const EMPTY_NODE_STATE: NodeStoreState = {
 // ─── Reducer ─────────────────────────────────────────────────
 
 /**
- * Pure mapping of one native group update onto the previous state.
- * Mirrors the previous use-proxy-nodes listener exactly:
- *  - delay=0 counts as "testing" only inside the explicit test window
- *    (delay=0 can also mean timeout / no sample);
- *  - an empty `now` keeps the previous selection;
- *  - `autoNow` overwrites every time ('' → null);
- *  - loading clears once any measured delay arrives or the window ends.
+ * 把一次原生 group 更新纯函数式地映射到旧状态上：
+ *  - delay=0 只在显式测试窗口内算作 “testing”（delay=0 也可能表示超时 /
+ *    无样本）；
+ *  - 空的 `now` 保留上一次选择；
+ *  - `autoNow` 每次都覆盖（'' → null）；
+ *  - 一旦有任何实测 delay 到达或窗口结束，loading 即清除。
  */
 export function reduceGroupUpdate(
     prev: NodeStoreState,
@@ -96,11 +92,11 @@ export interface NodeStore {
     getSnapshot(): NodeStoreState;
     subscribe(listener: () => void): () => void;
     applyGroupUpdate(event: GroupUpdate): void;
-    /** Marks loading, opens the 12 s testing window, (re)arms the 8 s guard. */
+    /** 标记 loading，打开 12s 测试窗口，(重新)装载 8s 保护。 */
     beginTestingWindow(): void;
-    /** Optimistic selection after a successful native selectProxyNode. */
+    /** 原生 selectProxyNode 成功后的乐观选择。 */
     markCurrentNode(tag: string): void;
-    /** Clears state + guard timer (on disconnect / profile change). */
+    /** 清空状态 + 保护 timer（断开 / 配置切换时）。 */
     reset(): void;
 }
 

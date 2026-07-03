@@ -1,6 +1,6 @@
 /**
- * Shared profile userinfo header parser.
- * Used by both the manual import screen and the background refresh task.
+ * 共享的配置文件 userinfo 头解析器。
+ * 手动导入屏与后台刷新任务都会用。
  */
 export interface ProfileTrafficInfo {
     upload: number;

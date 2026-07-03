@@ -73,8 +73,8 @@ describe('applyRefreshResult', () => {
 
         assert.equal(appended.length, 1);
         assert.equal(appended[0].url, URL);
-        // Golden KV bytes: key order and undefined-dropping are load-bearing —
-        // TaskLog persists JSON.stringify(record) into SQLite KV.
+        // Golden KV 字节：key 顺序与丢弃 undefined 都是关键 ——
+        // TaskLog 会把 JSON.stringify(record) 持久化进 SQLite KV。
         assert.equal(
             JSON.stringify(appended[0].record),
             '{"time":"2026-07-02T08:00:00.000Z","status":"success","trigger":"manual-direct",'
@@ -111,7 +111,7 @@ describe('applyRefreshResult', () => {
     });
 
     it('success with undecodable content: demoted to failed, zero setters, INVALID_CONTENT code', () => {
-        // The stripped-Content-Encoding proxy defect: 200 + gzip bytes as text.
+        // 被剥掉 Content-Encoding 的代理缺陷：200 + gzip 字节被当作文本。
         const { deps, setterCalls, appended, flowEvents, failures } = makeDeps('OLD');
         applyRefreshResult(deps, {
             result: makeResult({ content: '�' }),
@@ -166,8 +166,7 @@ describe('applyRefreshResult', () => {
         });
 
         assert.deepEqual(setterCalls, []);
-        // Current behavior locked: the record carries the failed result's
-        // traffic fields (zeros here) rather than being dropped.
+        // 锁定当前行为：记录携带失败结果的流量字段（此处为零），而不是被丢弃。
         assert.equal(appended.length, 1);
         assert.equal(appended[0].record.status, 'failed');
         assert.equal(appended[0].record.error, 'HTTP 404');

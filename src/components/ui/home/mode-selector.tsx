@@ -31,12 +31,10 @@ export function ModeSelector() {
     const thumbWidth = trackWidth > 0 ? (trackWidth - TRACK_PADDING * 2) / OPTIONS.length : 0;
 
     const translateX = useSharedValue(0);
-    // The thumb stays fully transparent until the first layout pass has
-    // computed `thumbWidth` AND we've written the correct `translateX` for
-    // the current mode. Without this gate, Android shows a single frame of
-    // the thumb (+ its elevation shadow) at the default position 0 on every
-    // remount — most noticeably when switching from the Home tab to the
-    // Profiles tab, which looked like "a rectangular ghost sliding in".
+    // thumb 保持完全透明，直到首次 layout 算出 `thumbWidth` 且已为当前 mode
+    // 写入正确的 `translateX`。没有这道闸，Android 每次 remount 都会在默认
+    // 位置 0 闪现一帧 thumb（连同它的 elevation 阴影）——从 Home tab 切到
+    // Profiles tab 时最明显，看起来像"一个矩形残影滑入"。
     const opacity = useSharedValue(0);
     const hasPositioned = useRef(false);
 
@@ -94,15 +92,13 @@ export function ModeSelector() {
                                 borderRadius: 11,
                                 backgroundColor: thumbColor,
                             },
-                            // iOS: soft frosted shadow under the active slot.
-                            // Android: DO NOT use `elevation`. The RenderNode
-                            // shadow is drawn independently of the view's
-                            // opacity / transform on Android and flashes a
-                            // rectangular ghost at the pre-animation bounds
-                            // on every remount (e.g. switching tabs). A
-                            // hairline stroke + slightly lifted fill gives an
-                            // equivalent "raised chip" read without touching
-                            // the shadow compositor at all.
+                            // iOS：活动槽位下方的柔和磨砂阴影。
+                            // Android：切勿使用 `elevation`。RenderNode 阴影在
+                            // Android 上独立于视图的 opacity / transform 绘制，
+                            // 每次 remount（如切换 tab）都会在动画前的边界处
+                            // 闪现一个矩形残影。改用 hairline 描边 + 略微抬升的
+                            // 填充色，能得到等效的"抬起芯片"观感，且完全不触碰
+                            // 阴影合成器。
                             Platform.OS === 'ios'
                                 ? {
                                       shadowColor: '#0B1628',

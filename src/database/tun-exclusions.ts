@@ -1,16 +1,15 @@
-// Carry a TUN-inbound bypass field from the user's imported config into the
-// active (template-derived) config.
+// 把一个 TUN inbound 的绕行字段从用户导入的配置带入当前生效（模板派生）的配置。
 //
-// The user's imported profile may itself be a full sing-box config that sets
-// per-profile bypass lists on its `tun` inbound. We merge those into the
-// config we actually run so the profile's intent survives template generation:
-//   Android → exclude_package       (apps whose sockets bypass the tunnel)
-//   iOS     → route_exclude_address  (CIDRs excluded from the routed range)
-// Both are array fields on the `tun` inbound. Platform selection lives in
-// `apply-tun-exclusions.*`; this core is platform-agnostic.
+// 用户导入的配置文件本身可能就是一份完整的 sing-box 配置，在其 `tun` inbound
+// 上设置了按配置文件的绕行列表。我们把它们合并进真正运行的配置，使配置文件的
+// 意图能在模板生成后存活：
+//   Android → exclude_package       （其 socket 绕过隧道的 app）
+//   iOS     → route_exclude_address  （从路由范围内排除的 CIDR）
+// 两者都是 `tun` inbound 上的数组字段。平台选择在 `apply-tun-exclusions.*`；
+// 本核心与平台无关。
 //
-// Pure module: ZERO native imports so node --experimental-strip-types can run
-// its sibling test directly.
+// 纯模块：零原生 import，使 node --experimental-strip-types 能直接运行 sibling
+// test。
 
 interface TunInboundLike {
     type?: string;
@@ -31,16 +30,14 @@ function stringArray(value: unknown): string[] {
 }
 
 /**
- * Union a string-array `field` from the user config's `tun` inbound into the
- * template config's `tun` inbound, in place.
+ * 就地把用户配置 `tun` inbound 上的字符串数组字段 `field` 并集合并进模板配置的
+ * `tun` inbound。
  *
- * - No-op when either config lacks a `tun` inbound, or the user value is
- *   absent / empty / not a string array.
- * - Union + de-dupe: values already on the template inbound are kept and keep
- *   their order (e.g. the iOS template's private-range `route_exclude_address`
- *   defaults); the user's values are appended; duplicates collapse.
+ * - 任一配置缺少 `tun` inbound，或用户值缺失 / 为空 / 非字符串数组时，为空操作。
+ * - 并集 + 去重：模板 inbound 上已有的值保留并保持顺序（例如 iOS 模板的私有
+ *   网段 `route_exclude_address` 默认值）；用户的值追加在后；重复项折叠。
  *
- * Returns the template config for call-site convenience.
+ * 返回模板配置，方便调用点使用。
  */
 export function mergeUserTunField(
     userConfig: TunConfigLike | null | undefined,

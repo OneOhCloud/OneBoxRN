@@ -1,19 +1,9 @@
 /**
- * Entry-level test cases for the import flow.
+ * 导入流程的入口级测试用例。
  *
- * Each case targets one externally-observable behaviour of the import
- * entry chain (QR parse → hash → allowlist match → VPN apply). Cases
- * deliberately avoid the ConfigScreen render loop and instead invoke
- * the underlying building blocks so a regression produces a point
- * failure rather than a generic "import is broken".
- *
- * Mapping to production bugs this suite guards against:
- *   - `crypto-expo-module-linked` + `crypto-sha256-known-digest` +
- *     `crypto-sha256-deterministic` — today's root cause
- *     ("Property 'crypto' doesn't exist") plus the fix via `expo-crypto`.
- *   - `apply-start-rejects-with-message` + `apply-start-hang-caught-by-timeout`
- *     — the behaviour the ConfigScreen depends on for surfacing errors
- *     instead of pinning `LoadingView`.
+ * 每个用例针对导入入口链（QR 解析 → hash → allowlist 匹配 → VPN apply）中
+ * 一个外部可观察的行为。用例刻意绕开 ConfigScreen 的渲染循环，直接调用底层
+ * 构件，好让回归产生一个定点失败，而非笼统的"导入坏了"。
  */
 import { resolveQRData } from '@/components/ui/camera-qr';
 import {
@@ -35,18 +25,18 @@ import {
     type TestContext,
 } from './runner';
 
-// SHA-256 of the ASCII string "abc" — used as the canary known-vector.
-// If this ever changes, the crypto implementation has a real bug.
+// ASCII 字符串 "abc" 的 SHA-256 —— 用作已知向量的金丝雀。
+// 一旦它变了，说明 crypto 实现出了真正的 bug。
 const SHA256_OF_ABC =
     'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
 
-// Fixture hostnames for allowlist tests. Must never collide with the
-// real compile-time allowlist entries — using clearly-fictional TLDs.
+// allowlist 测试用的 fixture 主机名。绝不能与真实的编译期 allowlist 条目相撞
+// —— 因此用明显虚构的 TLD。
 const FIXTURE_PARENT   = 'fixture.invalid';
 const FIXTURE_CHILD    = 'child.fixture.invalid';
 const FIXTURE_UNRELATED = 'other.invalid';
 
-// ─── Parse / recognition ─────────────────────────────────────────────────────
+// ─── 解析 / 识别 ─────────────────────────────────────────────────────
 
 const parseSchemeWithApply: TestCase = {
     id: 'parse-scheme-with-apply',
@@ -85,7 +75,7 @@ const parsePlainHttps: TestCase = {
         const out = resolveQRData(raw);
         ctx.log(`out=${JSON.stringify(out)}`);
         expect(out !== null, 'expected non-null result');
-        // `atob` round-trip proves we can decode downstream.
+        // `atob` 往返证明下游可以正常解码。
         expectEqual(atob(out!.data), raw, 'decoded');
         expectEqual(out!.apply, undefined, 'apply');
     },
@@ -107,27 +97,26 @@ const parseSpecialBase64: TestCase = {
     name: 'base64 with "/" and "==" round-trips through QR→router→atob',
     group: 'parse',
     async run(ctx) {
-        // Mirrors the real-world failing QR: the payload contains a
-        // base64-internal "/" and trailing "==" padding.
+        // 模拟真实世界中会出问题的 QR 载荷：base64 内部含 "/"、结尾带 "==" 填充。
         const innerUrl = 'https://config.example.invalid/sub/ea759de3-fb03-4371?protocol=tuic';
         const base64 = btoa(innerUrl);
         expect(base64.includes('/'), 'fixture sanity: base64 must contain "/"');
         expect(base64.endsWith('=='), 'fixture sanity: base64 must end with "=="');
 
-        // Step 1: scanner parses the scheme URL.
+        // 第 1 步：扫描器解析 scheme URL。
         const scanned = resolveQRData(`oneoh-networktools://config?data=${base64}&apply=1`);
         expect(scanned !== null, 'scanner parse failed');
         expectEqual(scanned!.data, base64, 'scanner data');
         expectEqual(scanned!.apply, '1', 'scanner apply');
 
-        // Step 2: URL-encode (what `router.push` does).
+        // 第 2 步：URL 编码（`router.push` 会做的事）。
         const encoded = encodeURIComponent(scanned!.data);
-        // Step 3: decode via URL API (what Expo Router does on the other side).
+        // 第 3 步：经 URL API 解码（Expo Router 在另一端会做的事）。
         const u = new URL(`http://dummy/config?data=${encoded}&apply=1`);
         const backAtConfig = u.searchParams.get('data');
         expectEqual(backAtConfig, base64, 'router round-trip');
 
-        // Step 4: atob.
+        // 第 4 步：atob。
         expectEqual(atob(backAtConfig!), innerUrl, 'final atob');
         ctx.log(`round-trip ok, base64Bytes=${base64.length}`);
     },
@@ -168,11 +157,9 @@ const cryptoExpoModuleLinked: TestCase = {
     name: 'expo-crypto native module loads and computes a digest',
     group: 'crypto',
     async run(ctx) {
-        // Direct-to-native path. If this fails, `sha256Hex`'s fallback
-        // branch would fail too on RN (where `crypto.subtle` is absent).
-        // The intent is to surface link / prebuild breakage with a
-        // clear message instead of letting it masquerade as a generic
-        // "verify stuck" symptom in the real flow.
+        // 直连原生的路径。若这里失败，`sha256Hex` 的 fallback 分支在 RN 上
+        // 也会失败（RN 没有 `crypto.subtle`）。目的是用清晰的信息暴露 link /
+        // prebuild 的破损，而非让它在真实流程里伪装成笼统的"verify 卡住"症状。
         let Crypto;
         try {
             Crypto = await import('expo-crypto');
@@ -194,7 +181,7 @@ const cryptoExpoModuleLinked: TestCase = {
     },
 };
 
-// ─── Hostname allowlist (pure — no KV / no network) ──────────────────────────
+// ─── 主机名 allowlist（纯函数 —— 无 KV / 无网络）──────────────────────────
 
 const hostnameSuffixMatches: TestCase = {
     id: 'hostname-suffix-matches',
@@ -232,7 +219,7 @@ const hostnameMultipleAllowlists: TestCase = {
     },
 };
 
-// ─── Apply (fake VPN) ────────────────────────────────────────────────────────
+// ─── Apply（fake VPN）────────────────────────────────────────────────────────
 
 const applyStartResolves: TestCase = {
     id: 'apply-start-resolves',
@@ -281,22 +268,19 @@ const applyStartHangCaughtByTimeout: TestCase = {
         );
         const elapsed = Date.now() - startedAt;
         ctx.log(`elapsed=${elapsed}ms, caught=${err.message}`);
-        // Give a generous ceiling — JS setTimeout has scheduling jitter
-        // on low-end devices. 1500ms means "the timeout did fire and
-        // we did not hang forever", which is the actual regression we
-        // are guarding.
+        // 给一个宽松的上限 —— 低端设备上 JS setTimeout 有调度抖动。这里要守护的
+        // 回归是"超时确实触发、没有永远挂起"，而非精确计时。
         expect(elapsed < 1500, `race took too long: ${elapsed}ms`);
     },
 };
 
-// ─── Import-flow pipeline (machine-level composition) ────────────────────────
+// ─── Import-flow 流水线（状态机级组合）────────────────────────
 //
-// The building-block cases above guard the pieces; these four drive the real
-// `createImportFlowMachine` pipeline end-to-end on Hermes with FakeVpnModule
-// adapted to the context-action shape. They exist to catch runtime-class
-// regressions (atob, microtask ordering, AbortController) that node:test on
-// V8 cannot see — the transition logic itself is covered by
-// src/hooks/import-flow-machine.test.ts.
+// 上面的构件用例守护各个零件；这四个用例把真实的 `createImportFlowMachine`
+// 流水线端到端跑在 Hermes 上，用适配成 context-action 形状的 FakeVpnModule。
+// 它们存在的意义是捕获 V8 上的 node:test 看不到的运行时级回归（atob、
+// microtask 排序、AbortController）—— 状态转移逻辑本身由
+// src/hooks/import-flow-machine.test.ts 覆盖。
 
 const FLOW_URL = 'https://fixture.invalid/raw/pro.json';
 
@@ -335,7 +319,7 @@ function flowDeps(ctx: TestContext, overrides?: Partial<ImportFlowDeps>): {
     return { deps, upserts };
 }
 
-/** Run the machine and resolve once it reaches a terminal phase. */
+/** 运行状态机，到达终态阶段后 resolve。 */
 function awaitTerminal(machine: ImportFlowMachine, timeoutMs: number): Promise<ImportPhase> {
     const terminal = new Set(['success', 'applied', 'error', 'idle']);
     return raceWithTimeout(
@@ -346,8 +330,8 @@ function awaitTerminal(machine: ImportFlowMachine, timeoutMs: number): Promise<I
             };
             machine.subscribe(check);
             machine.run();
-            // idle never notifies (run returns before any transition) —
-            // poll once after a tick for the no-op paths.
+            // idle 从不通知（run 在任何转移前就返回）——
+            // 对这类空操作路径，在一个 tick 后轮询一次。
             setTimeout(check, 50);
         }),
         timeoutMs,
@@ -444,13 +428,13 @@ const importFlowStartHangCaughtByTimeout: TestCase = {
                 && final.error.failure.kind === 'timeout',
             'expected start-failed timeout',
         );
-        // Generous ceiling — scheduling jitter on low-end devices; the
-        // regression guarded here is "hangs forever", not exact timing.
+        // 宽松的上限 —— 低端设备上的调度抖动；这里守护的回归是"永远挂起"，
+        // 而非精确计时。
         expect(elapsed < 1500, `timeout took too long: ${elapsed}ms`);
     },
 };
 
-// ─── Exported suite ──────────────────────────────────────────────────────────
+// ─── 导出的套件 ──────────────────────────────────────────────────────────
 
 export const IMPORT_TEST_CASES: readonly TestCase[] = [
     parseSchemeWithApply,

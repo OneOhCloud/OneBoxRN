@@ -129,9 +129,8 @@ run-android: _sync-templates _update-tun-db _ensure-android-codegen
 	@echo ""
 	npx expo run:android
 
-# Fire the /dev-smoke deep link on whichever adb target is current.
-# Safe to call manually any time the app is running — just navigates
-# to the Import Smoke Check page.
+# 向当前 adb 目标触发 /dev-smoke 深链。
+# App 运行时可随时手动调用 —— 只是跳转到 Import Smoke Check 页面。
 dev-smoke-android:
 	@URL="oneoh-networktools://dev-smoke"; \
 	if command -v adb >/dev/null 2>&1; then \

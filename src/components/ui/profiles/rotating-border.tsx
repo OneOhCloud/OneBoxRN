@@ -19,22 +19,20 @@ interface RotatingBorderProps {
     radius: number;
     active: boolean;
     color: string;
-    /** Milliseconds per full clockwise revolution. */
+    /** 顺时针转满一圈的毫秒数。 */
     duration?: number;
 }
 
 /**
- * Sci-fi plasma sweep border.
+ * 科幻等离子扫掠边框。
  *
- * All layers' FRONT EDGES align at the same leading point so the dense
- * core + spark tip sit at the very front of the comet, with the diffuse
- * wake trailing behind — matching real comet physics.
+ * 所有图层的前缘对齐到同一个领先点，使密集的 core + spark 尖端位于彗尾最前端，
+ * 弥散的 wake 拖在后面——契合真实彗星物理。
  *
- * Offset formula per layer:
+ * 每个图层的偏移公式：
  *   strokeDashoffset = -(progress × perimeter) − (wakeDash − layerDash)
  *
- * This shifts each shorter layer FORWARD so its end aligns with the
- * wake's end, concentrating brightness at the leading edge.
+ * 它把每个较短的图层向前推，使其末端与 wake 末端对齐，从而把亮度集中在前缘。
  */
 export function RotatingBorder({
     width,
@@ -48,8 +46,8 @@ export function RotatingBorder({
     const counterProgress = useSharedValue(0);
     const fadeOpacity     = useSharedValue(0);
 
-    // Three-phase machine replaces the visible flag: transitions are adjusted
-    // during render (guarded setState), so no setState runs inside the effect.
+    // 用三态机取代 visible 标志：状态转移在渲染期调整（guarded setState），
+    // 因此 effect 内部不会触发 setState。
     type Phase = 'hidden' | 'active' | 'winding';
     const [phase, setPhase] = useState<Phase>(active ? 'active' : 'hidden');
     if (active && phase !== 'active') {
@@ -63,7 +61,7 @@ export function RotatingBorder({
     const startedAtRef = useRef<number>(0);
 
     // ── Geometry ─────────────────────────────────────────────────────────────
-    // Computed unconditionally so hooks are always called in the same order.
+    // 无条件计算，确保 hooks 始终以相同顺序调用。
     const STROKE_W  = 1.5;
     const inset     = STROKE_W / 2;
     const innerW    = Math.max(0, width  - STROKE_W);
@@ -83,8 +81,8 @@ export function RotatingBorder({
     const gap = (d: number) => Math.max(0.0001, perimeter - d);
 
     // ── Animated props ────────────────────────────────────────────────────────
-    // Each layer's front edge = progress × perimeter + wake (the reference front).
-    // Shift each shorter layer forward by (wake − layerDash) so their ends align.
+    // 每个图层的前缘 = progress × perimeter + wake（作为参考前缘）。
+    // 把每个较短图层前移 (wake − layerDash)，使它们的末端对齐。
     const wakeProps    = useAnimatedProps(() => ({
         strokeDashoffset: -(progress.value * perimeter),
     }));
@@ -136,15 +134,15 @@ export function RotatingBorder({
 
         if (phase !== 'winding') return;
 
-        // Keep sweeping until MIN_REVOLUTIONS have played, then fade out.
+        // 持续扫掠直到播满 MIN_REVOLUTIONS 圈，然后淡出。
         const MIN_REVOLUTIONS = 1.5;
         const elapsed = Date.now() - startedAtRef.current;
         const wait    = Math.max(0, duration * MIN_REVOLUTIONS - elapsed);
         stopTimerRef.current = setTimeout(() => {
             stopTimerRef.current = null;
             fadeOpacity.set(withTiming(0, { duration: 600 }, (finished) => {
-                // Worklet completion callback (UI thread) — `.value` is the
-                // supported accessor here, and the rule does not flag it.
+                // worklet 完成回调（UI 线程）——此处 `.value` 才是受支持的访问
+                // 方式，且该规则不会对它告警。
                 if (finished) {
                     cancelAnimation(progress);
                     cancelAnimation(counterProgress);
@@ -182,7 +180,7 @@ export function RotatingBorder({
             style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}
             pointerEvents="none"
         >
-            {/* Ghost counter-arc */}
+            {/* 幽灵反向弧 */}
             <AnimatedRect
                 {...R} stroke={color} strokeOpacity={0.05} strokeWidth={STROKE_W}
                 strokeLinecap="round"
@@ -190,7 +188,7 @@ export function RotatingBorder({
                 animatedProps={counterProps}
             />
 
-            {/* Energy wake — diffuse tail */}
+            {/* 能量尾迹——弥散的拖尾 */}
             <AnimatedRect
                 {...R} stroke={color} strokeOpacity={0.06} strokeWidth={STROKE_W}
                 strokeLinecap="round"
@@ -198,7 +196,7 @@ export function RotatingBorder({
                 animatedProps={wakeProps}
             />
 
-            {/* Plasma trail */}
+            {/* 等离子拖尾 */}
             <AnimatedRect
                 {...R} stroke={color} strokeOpacity={0.15} strokeWidth={STROKE_W}
                 strokeLinecap="round"
@@ -206,7 +204,7 @@ export function RotatingBorder({
                 animatedProps={plasmaProps}
             />
 
-            {/* Focused glow halo */}
+            {/* 聚焦的光晕 */}
             <AnimatedRect
                 {...R} stroke={color} strokeOpacity={0.35} strokeWidth={STROKE_W}
                 strokeLinecap="round"
@@ -214,7 +212,7 @@ export function RotatingBorder({
                 animatedProps={glowProps}
             />
 
-            {/* Crisp core line */}
+            {/* 清晰的核心线 */}
             <AnimatedRect
                 {...R} stroke={color} strokeOpacity={0.90} strokeWidth={STROKE_W}
                 strokeLinecap="round"
@@ -222,7 +220,7 @@ export function RotatingBorder({
                 animatedProps={coreProps}
             />
 
-            {/* Deep color spark tip — full opacity, front leading edge */}
+            {/* 深色 spark 尖端——满不透明度，最前缘 */}
             <AnimatedRect
                 {...R} stroke={color} strokeOpacity={1} strokeWidth={STROKE_W}
                 strokeLinecap="round"

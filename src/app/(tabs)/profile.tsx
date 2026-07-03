@@ -26,8 +26,8 @@ export default function ProfilesScreen() {
     const theme = useTheme();
     const { requestRestart } = useVpn();
 
-    // Lazy-init from the store: first render already reflects real data,
-    // avoiding a one-frame EmptyState → populated repaint during tab crossfade.
+    // 从 store 惰性初始化：首帧就反映真实数据，
+    // 避免 tab 交叉淡入时出现一帧 EmptyState → 有数据的重绘。
     const [subs, setSubs] = useState<ReturnType<typeof ProfileStore.getAll>>(() => ProfileStore.getAll());
     const [activeId, setActiveId] = useState<string | null>(() => ProfileStore.getActiveId());
     const [pullRefreshing, setPullRefreshing] = useState(false);
@@ -64,9 +64,8 @@ export default function ProfilesScreen() {
     const handleActivate = useCallback((id: string) => {
         ProfileStore.setActiveId(id);
         setActiveId(id);
-        // Debounced + in-flight-guarded restart. Shared with VpnContext.setMode
-        // so rapid mode + profile switches coalesce into one restart per
-        // quiescent period instead of racing.
+        // 带防抖 + 进行中守卫的重启。与 VpnContext.setMode 共用，
+        // 使快速的模式 + 配置切换合并为每个静默期一次重启，而非相互竞争。
         requestRestart();
     }, [requestRestart]);
 
@@ -108,12 +107,10 @@ export default function ProfilesScreen() {
     const hasProfiles = subs.length > 0;
     const glass = useGlassSurface();
 
-    // The profiles list is virtualized (FlatList), so the single glass card
-    // is split into per-row segments: side borders everywhere, top radius on
-    // the first row, bottom radius + the iOS shadow only on the footer
-    // segment (per-segment shadows would double at the seams; the offset
-    // y=10 / radius 24 shadow reads below the card, so footer-only
-    // approximates the previous single-card look).
+    // 配置文件列表是虚拟化的（FlatList），所以把单张玻璃卡片拆成逐行的分段：
+    // 两侧边框每行都有，圆角顶部只在首行，圆角底部 + iOS 阴影只在页脚分段
+    // （逐段阴影会在接缝处叠加；offset y=10 / radius 24 的阴影落在卡片下方，
+    // 因此只在页脚放阴影即可近似单卡片的观感）。
     const glassSegment = useCallback((position: SegmentPosition) => {
         const borderColor = 'borderColor' in glass ? glass.borderColor : undefined;
         return [
@@ -156,8 +153,8 @@ export default function ProfilesScreen() {
         </View>
     ), [glassSegment, activeId, editMode, handleActivate, handleDelete]);
 
-    // Empty state matches the shape of src/app/(tabs)/index.tsx's empty state
-    // (same wrapper, same padding) so tab switches align pixel-perfectly.
+    // 空状态与 src/app/(tabs)/index.tsx 的空状态形状一致
+    // （同样的包裹、同样的 padding），使 tab 切换像素级对齐。
     if (!hasProfiles) {
         return (
             <ThemedView style={{ flex: 1, flexDirection: 'row', justifyContent: 'center' }}>
@@ -213,8 +210,8 @@ export default function ProfilesScreen() {
                     data={subs}
                     keyExtractor={(sub) => sub.id}
                     renderItem={renderProfile}
-                    // JSX elements (not inline components) so header/footer
-                    // keep type identity and never remount across renders.
+                    // 用 JSX 元素（而非内联组件），使 header/footer
+                    // 保持类型标识，跨渲染时不会重新挂载。
                     ListHeaderComponent={
                         <View style={{ gap: 24 }}>
                             {activeSub && (

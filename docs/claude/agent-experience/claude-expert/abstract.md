@@ -5,14 +5,14 @@ updated-on: new-convention
 last-consolidated: null
 ---
 
-## recurring mistakes (auto-load — skip retriever)
+## 反复出现的错误（auto-load — skip retriever）
 
 (empty)
 
-## known-hard areas (retriever matches tags)
+## 已知的困难区域（retriever matches tags）
 
 (empty)
 
-## consolidation trigger
+## 整合触发条件
 
-concrete count ≥ 20 OR 60 days since last consolidation — self-audit.
+concrete 条目数 ≥ 20 或 距上次整合满 60 天 — 自审。

@@ -3,12 +3,10 @@ import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { parseProfileUserinfo } from './profile-info.ts';
 
-// Cross-platform golden-sample lock for the `subscription-userinfo` header parser
-// (audit C6 / D3c-03 / Batch 3). The samples live in the native submodule
-// (src/modules/expo-onebox/golden/userinfo.json) so the Kotlin (ParseUserinfoTest)
-// and Swift (ParseUserinfoTests) runners load the exact same file. This is the JS
-// third of that trio: it asserts the JS reference parser against the single
-// contract. Add or change cases in the JSON, never inline here.
+// `subscription-userinfo` 头解析器的跨平台 golden 样本锁。样本放在原生子模块里
+// (src/modules/expo-onebox/golden/userinfo.json)，好让 Kotlin (ParseUserinfoTest)
+// 与 Swift (ParseUserinfoTests) 运行器加载完全相同的文件。这是这三方里的 JS 一方：
+// 用它把 JS 参考解析器对同一份契约做断言。用例增改都在 JSON 里，绝不内联到这里。
 
 interface UserinfoGolden {
     cases: {
@@ -36,9 +34,8 @@ describe('parseProfileUserinfo (cross-platform golden sample)', () => {
 
     for (const d of golden.knownDivergences) {
         it(`known divergence — JS side: ${d.name}`, () => {
-            // JS keeps a lossy large number where the native Int64 parsers overflow
-            // to 0. This locks the JS half of the documented split; the Kotlin and
-            // Swift runners assert total === 0 for the same input.
+            // 原生 Int64 解析器会溢出为 0，而 JS 保留一个有损的大数。这里锁定
+            // 该差异中 JS 的一半；Kotlin 与 Swift 运行器对同一输入断言 total === 0。
             assert.ok(
                 parseProfileUserinfo(d.header).total >= d.expect.js.totalAtLeast,
                 'JS keeps a (lossy) large number rather than 0',

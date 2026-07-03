@@ -1,11 +1,10 @@
 /**
- * Flow-event delivery — the impure counterpart of flow-events.ts.
+ * 流程事件投递 —— flow-events.ts 的非纯对应物。
  *
- * Routes structured events into the in-memory log ring (visible in the
- * Logs viewer, greppable by `flow=<id>`), Bugsnag breadcrumbs, and — for
- * failures — the durable LastFailure KV snapshot that survives
- * clearLogSink(). Payloads carry only identifiers/codes: no URL, query,
- * token, header value, or config body (config-fetch-policy § redaction).
+ * 把结构化事件路由到内存日志环（在日志查看器里可见，可用 `flow=<id>` grep）、
+ * Bugsnag 面包屑，以及针对失败的、能挺过 clearLogSink() 的持久 LastFailure KV
+ * 快照。负载只携带标识符/错误码：不含 URL、query、token、header 值或配置体
+ * （config-fetch-policy § redaction）。
  */
 
 import { LastFailure } from '@/database/kv';
@@ -15,7 +14,7 @@ import Bugsnag from '@bugsnag/expo';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// Same gating expression as the Bugsnag.start call in _layout.tsx.
+// 与 _layout.tsx 里 Bugsnag.start 调用相同的启用判定表达式。
 const bugsnagEnabled = Boolean(Constants.expoConfig?.extra?.bugsnag?.apiKey);
 
 export function logFlowEvent(event: FlowEvent): void {
@@ -35,12 +34,12 @@ export function logFlowEvent(event: FlowEvent): void {
                 durationMs: event.durationMs,
             });
         } catch {
-            // Breadcrumbs are best-effort; never let telemetry break a flow.
+            // 面包屑尽力而为；绝不让遥测拖垮流程。
         }
     }
 }
 
-/** Log the failure event AND persist it as the durable latest failure. */
+/** 记录失败事件，并把它作为持久的“最近一次失败”留存。 */
 export function recordFlowFailure(event: FlowEvent): void {
     logFlowEvent(event);
     const summary = {
@@ -57,7 +56,7 @@ export function recordFlowFailure(event: FlowEvent): void {
         try {
             Bugsnag.addMetadata('lastFailure', summary);
         } catch {
-            // best-effort
+            // 尽力而为
         }
     }
 }

@@ -1,12 +1,9 @@
 /**
- * Serialized stop→start restart machine — pure core with injected deps.
+ * 串行化的 stop→start 重启状态机 —— 依赖注入的纯核心。
  *
- * Verbatim port of the semantics of the former src/utils/vpn-restart.ts
- * (see that module's original rationale): a debounce window collapses
- * bursts of restart requests into one cycle, and an in-flight guard with
- * a `needsReRun` flag schedules exactly one follow-up when a request
- * arrives mid-cycle — so the tunnel never receives two concurrent starts
- * and always restarts with the user's final persisted choice.
+ * 防抖窗口把突发的重启请求合并为一个周期；在途保护配合 `needsReRun`
+ * 标志，在周期进行中到达请求时恰好安排一次后续 —— 使 tunnel 绝不收到两个
+ * 并发的 start，且总以用户最终持久化的选择重启。
  */
 
 import { VPN_STATUS } from '../../modules/expo-onebox/src/ExpoOneBox.types.ts';
@@ -15,7 +12,7 @@ import { defaultTimers } from './types.ts';
 
 export interface RestartMachineDeps {
     getStatus(): number;
-    /** Shared stop-wait core (actions.ts stopAndAwaitStopped). */
+    /** 共享的 stop-wait 核心（actions.ts 的 stopAndAwaitStopped）。 */
     stopAndWait(timeoutMs: number): Promise<StopResult>;
     start(config: string): Promise<void>;
     getConfig(): Promise<string>;
@@ -31,10 +28,8 @@ export interface RestartMachineOptions {
 
 export interface RestartMachine {
     /**
-     * Ask for a restart with the freshest config. Safe to call
-     * repeatedly; no-op when the tunnel is not running (the caller's
-     * own persisted write is enough — the next manual connect picks
-     * up the new state).
+     * 以最新配置请求一次重启。可重复调用；tunnel 未运行时为 no-op
+     *（调用方自身的持久化写入已足够 —— 下次手动连接会读到新状态）。
      */
     request(): void;
 }
@@ -58,7 +53,7 @@ export function createRestartMachine(
     }
 
     function runCycle(): void {
-        // Re-check status — user may have disconnected during the debounce.
+        // 重新检查状态 —— 用户可能在防抖期间已断开。
         if (!isRunning()) return;
 
         inFlight = true;
@@ -79,8 +74,7 @@ export function createRestartMachine(
                 inFlight = false;
                 if (needsReRun) {
                     needsReRun = false;
-                    // Give the freshly-started tunnel a moment to transition
-                    // into STARTING before we immediately stop it again.
+                    // 给刚启动的 tunnel 一点时间进入 STARTING，再立即停止它。
                     timers.setTimeout(runCycle, rearmDelayMs);
                 }
             });

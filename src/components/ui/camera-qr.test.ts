@@ -4,9 +4,8 @@ import { describe, it } from 'node:test';
 import { resolveQRData, type QRDataLogger } from './qr-data.ts';
 
 /**
- * Covers the QR recognition core extracted from camera-qr.tsx (`./qr-data`).
- * The scanner component itself pulls in expo-camera / expo-router, so the
- * pure parser is exercised here in isolation.
+ * 覆盖从 camera-qr.tsx 抽出的二维码识别核心（`./qr-data`）。
+ * 扫描器组件本身会引入 expo-camera / expo-router，因此这里单独测试纯 parser。
  */
 
 function createCapturingLogger(): QRDataLogger & { lines: string[] } {
@@ -39,8 +38,7 @@ describe('resolveQRData', () => {
     });
 
     it('rejects a scheme payload that is not a parseable URL', () => {
-        // Port out of range: startsWith(SCHEME) is true but `new URL` throws,
-        // exercising the catch branch.
+        // 端口越界：startsWith(SCHEME) 为真但 `new URL` 抛异常，用于覆盖 catch 分支。
         assert.equal(resolveQRData('oneoh-networktools://config:99999'), null);
     });
 

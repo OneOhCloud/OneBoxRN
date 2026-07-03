@@ -5,14 +5,14 @@ updated-on: new-convention
 last-consolidated: null
 ---
 
-## recurring mistakes (auto-load — skip retriever)
+## 反复出现的错误（auto-load — skip retriever）
 
-(empty — this agent has not accumulated project-specific recurring mistakes yet)
+(empty — 该 agent 尚未积累项目专属的反复错误)
 
-## known-hard areas (retriever matches tags)
+## 已知的困难区域（retriever matches tags）
 
-(empty — populated as concrete entries accumulate under `concrete/<category>/`)
+(empty — 随着 concrete 条目在 `concrete/<category>/` 下累积而填充)
 
-## consolidation trigger
+## 整合触发条件
 
-concrete count ≥ 20 OR 60 days since last consolidation — claude-expert Audit 6.
+concrete 条目数 ≥ 20 或 距上次整合满 60 天 — claude-expert Audit 6。

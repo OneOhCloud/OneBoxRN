@@ -1,12 +1,9 @@
 /**
- * Config-refresh result applier — pure core with injected dependencies.
+ * 配置刷新结果的应用器 —— 依赖注入式纯核心。
  *
- * Verbatim port of the former `applyResultToSBConfig` in config-refresh.ts:
- * the ProfileConfig / TaskLog / flow-log globals became injected deps and the four
- * positional parameters became the `RefreshApplyInput` envelope, so the
- * apply-side of a refresh (KV writes, TaskRecord append, [EVT] emission) is
- * node:test coverable. The native fetch/registration surface stays in
- * config-refresh.ts.
+ * ProfileConfig / TaskLog / flow-log 以注入依赖的形式传入，刷新的应用侧
+ * （KV 写入、TaskRecord 追加、[EVT] 发射）因而可被 node:test 覆盖。原生的
+ * 拉取/注册面留在 config-refresh.ts。
  */
 
 import type { TaskRecord, TriggerSource } from '../database/kv.ts';
@@ -20,7 +17,7 @@ import type { FlowEvent } from '../utils/flow-events.ts';
 import { djb2Hash, redactUrl } from '../utils/log-redact.ts';
 
 export interface RefreshApplyDeps {
-    /** ProfileConfig satisfies this structurally — pass it as-is. */
+    /** ProfileConfig 在结构上满足此接口 —— 原样传入即可。 */
     sbConfig: {
         getConfigContent(): string;
         setConfigContent(content: string): void;
@@ -28,7 +25,7 @@ export interface RefreshApplyDeps {
         setTotalTraffic(n: number): void;
         setExpireTime(t: number): void;
     };
-    /** TaskLog satisfies this structurally. */
+    /** TaskLog 在结构上满足此接口。 */
     taskLog: { append(url: string, record: TaskRecord): void };
     logFlowEvent(event: FlowEvent): void;
     recordFlowFailure(event: FlowEvent): void;
@@ -44,9 +41,8 @@ export interface RefreshApplyInput {
 export function applyRefreshResult(deps: RefreshApplyDeps, input: RefreshApplyInput): void {
     const { result, url, trigger, flowId } = input;
 
-    // Acceptance gate: a "success" whose body is not a config (e.g. a proxy
-    // handing through undecodable bytes) is demoted to a failure — nothing
-    // is persisted, so the engine never restarts on a corrupted config.
+    // 准入闸门：响应体不是配置的“成功”（例如代理透传了无法解码的字节）
+    // 会被降级为失败 —— 什么都不持久化，引擎因而绝不会用一份损坏的配置重启。
     const verdict = result.status === 'success' && result.content
         ? validateConfigContent(result.content)
         : ({ ok: true } as const);

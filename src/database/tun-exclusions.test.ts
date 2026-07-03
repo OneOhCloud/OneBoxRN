@@ -3,8 +3,8 @@ import { test } from 'node:test';
 
 import { mergeUserTunField, type TunConfigLike } from './tun-exclusions.ts';
 
-// Type aliases (not interfaces) so they gain implicit index signatures and stay
-// assignable to the merger's structural TunConfigLike.
+// 用 type 别名（而非 interface），使其获得隐式索引签名，从而仍可赋值给合并器
+// 的结构类型 TunConfigLike。
 type TunInbound = {
     type?: string;
     exclude_package?: string[];
@@ -27,7 +27,7 @@ test('merges route_exclude_address (iOS) on top of template defaults, deduped', 
     const user = cfg({ route_exclude_address: ['10.0.0.0/8', '1.2.3.4/32'] });
     const tpl = cfg({ route_exclude_address: ['10.0.0.0/8', '192.168.0.0/16'] });
     mergeUserTunField(user, tpl, 'route_exclude_address');
-    // Template entries keep their order; new user CIDR appended; 10.0.0.0/8 collapses.
+    // 模板条目保持顺序；用户新增的 CIDR 追加在后；10.0.0.0/8 折叠。
     assert.deepEqual(tpl.inbounds[0].route_exclude_address, [
         '10.0.0.0/8', '192.168.0.0/16', '1.2.3.4/32',
     ]);

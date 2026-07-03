@@ -36,11 +36,11 @@ type SettingsRowProps = {
     iconName: IconGlyph;
     iconColor: string;
     label: string;
-    /** Simple string value shown at the right in secondary color. */
+    /** 显示在右侧的简单字符串值，使用次要色。 */
     value?: string;
-    /** Custom trailing content replaces `value` + chevron when provided. */
+    /** 提供时，自定义尾部内容会替换 `value` + chevron。 */
     trailing?: React.ReactNode;
-    /** Font family override for the value. Defaults to SF sans. */
+    /** value 的字体族覆盖。默认 SF sans。 */
     valueMono?: boolean;
     onPress?: () => void;
     onLongPress?: () => void;

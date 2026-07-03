@@ -1,7 +1,7 @@
 /**
- * Camera QR Scanner — full-screen camera for scanning config QR codes.
- * Handles permission flow: auto-request → manual settings → scan.
- * All styles via NativeWind className, zero StyleSheet.
+ * 相机二维码扫描 — 全屏相机，用于扫描配置二维码。
+ * 处理权限流程：自动请求 → 手动跳设置 → 扫描。
+ * 全部样式走 NativeWind className，不使用 StyleSheet。
  */
 import { lightImpact } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
@@ -13,9 +13,8 @@ import { Alert, Linking, Pressable, Text, View } from 'react-native';
 
 import { resolveQRData } from './qr-data';
 
-// Re-exported so the developer-tools import-flow test panel can exercise the
-// exact recognition branch the scanner uses. The parser itself lives in the
-// dependency-free `./qr-data` module so it can be unit-tested off-device.
+// 重新导出，供开发者工具的导入流程测试面板复用扫描器实际走的识别分支。
+// parser 本体放在无依赖的 `./qr-data` 模块，可脱离设备做单元测试。
 export { resolveQRData } from './qr-data';
 
 type CameraQRProps = {
@@ -26,8 +25,8 @@ type CameraQRProps = {
 export default function CameraQR({ onHandleClose, onBeforeNavigate }: CameraQRProps) {
     const [facing] = useState<CameraType>('back');
     const [permission, requestPermission] = useCameraPermissions();
-    // Never rendered — only guards the one-shot auto-request, so a ref
-    // (not state) is the right home; no re-render is wanted when it flips.
+    // 从不参与渲染 — 仅用于守卫一次性的自动请求，因此该用 ref 而非 state；
+    // 翻转时不希望触发重渲染。
     const requestedOnceRef = useRef(false);
     const scannedRef = useRef(false);
 
@@ -51,12 +50,12 @@ export default function CameraQR({ onHandleClose, onBeforeNavigate }: CameraQRPr
         jsLog.info(`[QR] permission state: granted=${permission.granted}, canAskAgain=${permission.canAskAgain}`);
     }, [permission]);
 
-    // Loading: permissions still being checked
+    // 加载中：权限仍在检查
     if (!permission) {
         return <View className="flex-1 bg-black" />;
     }
 
-    // Permission denied permanently — show settings prompt
+    // 权限被永久拒绝 — 展示跳转设置的提示
     if (!permission.granted && !permission.canAskAgain) {
         async function openSettings() {
             try {
@@ -91,7 +90,7 @@ export default function CameraQR({ onHandleClose, onBeforeNavigate }: CameraQRPr
         );
     }
 
-    // Permission not yet granted but can re-ask
+    // 尚未授权但仍可再次询问
     if (!permission.granted && permission.canAskAgain) {
         return (
             <View className="flex-1 bg-black justify-center items-center px-8">
@@ -109,7 +108,7 @@ export default function CameraQR({ onHandleClose, onBeforeNavigate }: CameraQRPr
         );
     }
 
-    // Scan handler
+    // 扫描回调
     function handleBarCodeScanned(result: BarcodeScanningResult) {
         if (scannedRef.current) {
             jsLog.debug('[QR] barcode event ignored, scannedRef already latched');
@@ -128,10 +127,9 @@ export default function CameraQR({ onHandleClose, onBeforeNavigate }: CameraQRPr
 
             onBeforeNavigate?.();
             onHandleClose();
-            // Inline template literal preserves the typed-route pattern match
-            // that the Expo Router `typedRoutes` experiment depends on —
-            // hoisting the string to a local widens it to `string` and breaks
-            // the overload resolution on `router.push`.
+            // 内联模板字面量保留 Expo Router `typedRoutes` 实验所依赖的类型化
+            // 路由模式匹配 — 把字符串提取到局部变量会退化为 `string`，破坏
+            // `router.push` 的重载解析。
             router.push(`/config?data=${encodedData}${applyParam}`);
         } else {
             jsLog.warn('[QR] payload unrecognized, prompting user');
@@ -144,7 +142,7 @@ export default function CameraQR({ onHandleClose, onBeforeNavigate }: CameraQRPr
         }
     }
 
-    // Camera view with scan overlay
+    // 相机视图 + 扫描浮层
     return (
         <View style={{ flex: 1, backgroundColor: '#000' }}>
             <CameraView
@@ -153,7 +151,7 @@ export default function CameraQR({ onHandleClose, onBeforeNavigate }: CameraQRPr
                 barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                 onBarcodeScanned={handleBarCodeScanned}
             />
-            {/* Bottom controls */}
+            {/* 底部控件 */}
             <View style={{ position: 'absolute', bottom: 64, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', paddingHorizontal: 64 }}>
                 <Pressable
                     onPress={() => { lightImpact(); onHandleClose(); }}

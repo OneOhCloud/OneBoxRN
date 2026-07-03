@@ -1,11 +1,10 @@
 /**
- * Sing-box config template subsystem — fetch, cache and inspect the
- * per-mode config templates the merge pipeline builds on.
+ * Sing-box 配置模板子系统 —— 拉取、缓存并检视合并流水线所依赖的按模式区分的
+ * 配置模板。
  *
- * Moved verbatim out of helper.ts: remote fetch (app-owned template host),
- * the three-tier supply chain (memory cache → KV snapshot → bundled
- * fallback), startup prefetch, cache wipe, and the dev-screen probe.
- * `mode` is this module's domain parameter — every entry point varies on it.
+ * 职责：远程拉取（app 自有的模板 host）、三级供给链（内存缓存 → KV 快照 →
+ * 内置 fallback）、启动预取、缓存清除，以及 dev 页面探针。`mode` 是本模块的
+ * 领域参数 —— 每个入口都随它而变。
  */
 
 import { ConfigType } from '@/definition';
@@ -22,24 +21,23 @@ import { deleteStoreValue, getStoreValue, setStoreValue } from './store';
 import { BUILT_IN_TEMPLATE_OBJECTS } from './template/generated';
 import { templateMemoryCache } from './template-cache';
 
-// ─── Config template cache key ───────────────────────────────────────────────
+// ─── 配置模板缓存 key ───────────────────────────────────────────────
 
-// App version is baked at build time from version.json via app.config.ts, so
-// every release rotates the template cache key (see buildTemplateCacheKey).
+// app 版本在构建期由 app.config.ts 从 version.json 烘焙进来，因此每次发布都会
+// 轮换模板缓存 key（见 buildTemplateCacheKey）。
 const APP_VERSION = Constants.expoConfig?.version ?? 'unknown';
 
 export function getConfigTemplateCacheKey(mode: ConfigType): string {
     return buildTemplateCacheKey(APP_VERSION, getSingBoxMajorVersion(), mode);
 }
 
-// ─── Local bundled templates ──────────────────────────────────────────────────
+// ─── 本地内置模板 ──────────────────────────────────────────────────
 
 /**
- * `majorVersion` is the `MAJOR.MINOR` form returned by
- * `getSingBoxMajorVersion()` (e.g. `"1.13"`). Only the supported minor
- * lines gate the lookup — the actual template body is frozen at build
- * time by `scripts/sync-templates.ts` against `SING_BOX_TAG` in
- * `modules/expo-onebox/helper/Makefile`.
+ * `majorVersion` 是 `getSingBoxMajorVersion()` 返回的 `MAJOR.MINOR` 形式
+ * （如 `"1.13"`）。查找只按受支持的 minor 线路把关 —— 模板正文本身在构建期由
+ * `scripts/sync-templates.ts` 依据 `modules/expo-onebox/helper/Makefile` 里的
+ * `SING_BOX_TAG` 冻结。
  */
 export function getDefaultConfigTemplate(mode: ConfigType, majorVersion: string): string {
     if (majorVersion === '1.12' || majorVersion === '1.13') {
@@ -50,7 +48,7 @@ export function getDefaultConfigTemplate(mode: ConfigType, majorVersion: string)
     throw new Error(`Unsupported version: ${majorVersion}`);
 }
 
-// ─── Remote template URLs ─────────────────────────────────────────────────────
+// ─── 远程模板 URL ─────────────────────────────────────────────────────
 
 const TEMPLATE_MODES: ConfigType[] = ['tun-rules', 'tun-global'];
 
@@ -68,9 +66,9 @@ function getTemplateCacheTimestampKey(mode: ConfigType): string {
     return `${getConfigTemplateCacheKey(mode)}-ts`;
 }
 
-// `templateMemoryCache` is imported from ./template-cache.
-// Stored as serialized JSON so every `get` returns an independent object
-// graph — see that module's comment for the mutation-safety rationale.
+// `templateMemoryCache` 从 ./template-cache 导入。
+// 以序列化 JSON 存储，使每次 `get` 都返回独立的对象图 —— 变更安全的理由见该
+// 模块的注释。
 
 async function fetchRemoteTemplate(mode: ConfigType): Promise<string | null> {
     let url: string;
@@ -97,8 +95,8 @@ async function fetchRemoteTemplate(mode: ConfigType): Promise<string | null> {
     } catch (e) {
         clearTimeout(timer);
         const elapsed = Date.now() - startMs;
-        // Shared errorCode vocabulary (config-fetch-policy). The full URL is a
-        // documented exemption: compile-time app-owned host, not user data.
+        // 共享的 errorCode 词表（config-fetch-policy）。完整 URL 属于已记录的
+        // 豁免：编译期确定的 app 自有 host，非用户数据。
         const code = errorCodeOf(classifyFetchError(e as Error));
         jsLog.warn(`[Template] Remote fetch failed for "${mode}": errorCode=${code} after ${elapsed}ms (limit=${REMOTE_FETCH_TIMEOUT_MS}ms) url=${url}`, e);
         return null;
@@ -106,37 +104,34 @@ async function fetchRemoteTemplate(mode: ConfigType): Promise<string | null> {
 }
 
 export async function getConfigTemplate(mode: ConfigType): Promise<SingBoxConfigLike> {
-    // All three paths return a fresh object graph — the merge pipeline
-    // (config-merge-core buildSingBoxConfig) mutates it in place (pushes
-    // server nodes into `outbounds` / selector / urltest). A shared
-    // reference would accumulate across profile switches.
-    //   - templateMemoryCache.get: parses from stored JSON string each call.
-    //   - getStoreValue: store.get parses raw KV string fresh each call.
-    //   - bundled fallback: JSON.parse on each call.
+    // 三条路径都返回全新的对象图 —— 合并流水线（config-merge-core 的
+    // buildSingBoxConfig）会就地修改它（把服务器节点 push 进 `outbounds` /
+    // selector / urltest）。共享引用会在切换配置文件时累积。
+    //   - templateMemoryCache.get：每次调用从存储的 JSON 字符串解析。
+    //   - getStoreValue：store.get 每次调用重新解析原始 KV 字符串。
+    //   - 内置 fallback：每次调用做 JSON.parse。
 
-    // 1. In-memory (populated by prefetchConfigTemplates at startup)
+    // 1. 内存缓存（启动时由 prefetchConfigTemplates 填充）
     const inMemory = templateMemoryCache.get(mode);
     if (inMemory) return inMemory;
 
-    // 2. KV cache (survives restarts, written by prefetchConfigTemplates).
+    // 2. KV 缓存（可跨重启，由 prefetchConfigTemplates 写入）。
     //
-    // `getStoreValue` auto-parses the raw KV string (see store.ts), so
-    // `cached` is already the deserialised object graph — DO NOT
-    // `JSON.parse(cached)` again. The previous iteration did, which
-    // produced "[object Object]" and threw `Unexpected character: o`
-    // on every cold start with a populated cache.
+    // `getStoreValue` 会自动解析原始 KV 字符串（见 store.ts），因此 `cached`
+    // 已是反序列化后的对象图 —— 切勿再 `JSON.parse(cached)`。二次解析会得到
+    // "[object Object]" 并抛出 `Unexpected character: o`。
     const cacheKey = getConfigTemplateCacheKey(mode);
     const cached = await getStoreValue(cacheKey, null);
     if (cached && typeof cached === 'object') {
         return cached as SingBoxConfigLike;
     }
 
-    // 3. Bundled fallback
+    // 3. 内置 fallback
     jsLog.info(`[Template] Using local bundled template for "${mode}"`);
     return JSON.parse(getDefaultConfigTemplate(mode, getSingBoxMajorVersion()));
 }
 
-/** Prefetch all config templates at app startup. Skips fetch if cache is fresh (< 1 hour old). */
+/** 在 app 启动时预取所有配置模板。缓存新鲜（< 1 小时）时跳过拉取。 */
 export async function prefetchConfigTemplates(): Promise<void> {
     await Promise.all(
         TEMPLATE_MODES.map(async (mode) => {
@@ -156,9 +151,9 @@ export async function prefetchConfigTemplates(): Promise<void> {
                     return;
                 }
                 const cacheKey = getConfigTemplateCacheKey(mode);
-                // Pass the object directly — store.set JSON-stringifies it once;
-                // store.get JSON-parses once. Writing JSON.stringify(parsed)
-                // here would double-encode and break the reader.
+                // 直接传对象 —— store.set 会做一次 JSON 序列化，store.get 做
+                // 一次 JSON 解析。这里写 JSON.stringify(parsed) 会双重编码，
+                // 破坏读取端。
                 await setStoreValue(cacheKey, parsed);
                 await setStoreValue(tsKey, String(Date.now()));
                 templateMemoryCache.set(mode, parsed);
@@ -171,14 +166,13 @@ export async function prefetchConfigTemplates(): Promise<void> {
 }
 
 /**
- * Wipe every cached config template: the persisted KV snapshot and its
- * freshness timestamp for each mode, plus the in-memory copy. The next
- * getConfigTemplate() then falls back to the built-in bundled template, and
- * the next prefetchConfigTemplates() refetches the remote fresh.
+ * 清除所有缓存的配置模板：每个模式持久化的 KV 快照及其新鲜度时间戳，加上内存
+ * 副本。此后下一次 getConfigTemplate() 会回落到内置模板，下一次
+ * prefetchConfigTemplates() 会重新拉取远程。
  *
- * Escape hatch for a stale remote snapshot that predates a route-rule anchor —
- * the same failure the app-versioned cache key (buildTemplateCacheKey) prevents
- * across upgrades, exposed here for on-device recovery without reinstalling.
+ * 用于应对早于某个 route-rule 锚点的陈旧远程快照 —— 与按 app 版本轮换的缓存
+ * key（buildTemplateCacheKey）在升级时防止的是同一类故障，这里暴露出来是为了
+ * 无需重装即可在设备上恢复。
  */
 export async function clearConfigTemplateCache(): Promise<void> {
     templateMemoryCache.clear();
@@ -191,18 +185,17 @@ export async function clearConfigTemplateCache(): Promise<void> {
 
 export interface TemplateCacheInfo {
     mode: ConfigType;
-    /** A remote snapshot is persisted in KV (vs. falling back to built-in). */
+    /** KV 中持久化了远程快照（而非回落到内置模板）。 */
     cached: boolean;
-    /** Age of the cached snapshot in ms, or null when not cached. */
+    /** 缓存快照的年龄（毫秒），未缓存时为 null。 */
     ageMs: number | null;
-    /** The effective template (cache or built-in) carries the reject anchor. */
+    /** 当前生效的模板（缓存或内置）携带 reject 锚点。 */
     hasRejectAnchor: boolean;
 }
 
 /**
- * Read-only probe of the template cache for the dev screen: for each mode,
- * whether a remote snapshot is cached, its age, and whether the *effective*
- * template still carries the reject anchor `injectCustomRules` depends on.
+ * 供 dev 页面用的只读模板缓存探针：对每个模式，报告是否缓存了远程快照、其年龄，
+ * 以及*当前生效的*模板是否仍携带 injectCustomRules 所依赖的 reject 锚点。
  */
 export async function inspectConfigTemplateCache(): Promise<TemplateCacheInfo[]> {
     const out: TemplateCacheInfo[] = [];

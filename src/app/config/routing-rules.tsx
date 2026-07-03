@@ -1,11 +1,10 @@
 /**
- * Routing Rules — user-managed custom (action, kind, value) matchers.
+ * 路由规则 — 用户自定义的 (action, kind, value) 匹配器。
  *
- * One RuleSet per action (reject / direct / proxy) is loaded from the KV
- * store, flattened + sorted for display, and edited through a shared bottom
- * sheet composer. Any mutation persists via setCustomRuleSet and then asks the
- * tunnel to restart with the fresh config (requestRestart no-ops when the
- * tunnel is down). The screen never touches the native module directly.
+ * 每个 action（reject / direct / proxy）对应一个 RuleSet，从 KV store 加载，
+ * 展开 + 排序后展示，并通过共享的 bottom sheet composer 编辑。任何改动都经
+ * setCustomRuleSet 持久化，随后请求隧道用新配置重启（隧道关闭时 requestRestart
+ * 空操作）。本屏从不直接触碰原生模块。
  */
 import { SectionAction } from '@/components/ui/ios26/section';
 import { HelpSheet } from '@/components/ui/routing-rules/help-sheet';
@@ -42,15 +41,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Rules are flattened from the three action sets, so search is enabled only
-// once the list is long enough to be worth scanning.
+// 规则从三个 action 集合展开而来，因此仅当列表长到值得逐条浏览时才开启搜索。
 const SEARCH_THRESHOLD = 12;
 
 function makeEmptySets(): Record<RuleAction, RuleSet> {
     return { reject: emptyRuleSet(), direct: emptyRuleSet(), proxy: emptyRuleSet() };
 }
 
-/** Replace one kind's values inside a RuleSet, leaving the others untouched. */
+/** 替换 RuleSet 中某个 kind 的值，其余 kind 保持不变。 */
 function withKind(set: RuleSet, kind: RuleKind, values: string[]): RuleSet {
     return { ...set, [kind]: values };
 }
@@ -155,8 +153,8 @@ export default function RoutingRulesScreen() {
             next.direct = { ...sets.direct };
             next.proxy = { ...sets.proxy };
 
-            // An edit can move a rule across action/kind, so drop the original
-            // value from its old set before merging into the target set.
+            // 一次编辑可能把规则跨 action/kind 移动，所以先从原集合删掉旧值，
+            // 再合并进目标集合。
             if (editing) {
                 next[editing.action] = withKind(
                     next[editing.action],
@@ -272,9 +270,8 @@ export default function RoutingRulesScreen() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: Spacing.six }}
                 keyboardShouldPersistTaps="handled"
-                // Header is a JSX ELEMENT, not an inline component: a component
-                // would get a new type identity per keystroke and remount the
-                // search TextInput, dropping focus while typing.
+                // Header 是 JSX 元素而非内联组件：内联组件每次按键都会得到新的
+                // 类型标识，从而重挂载搜索 TextInput，导致输入时丢失焦点。
                 ListHeaderComponent={
                     <>
                 <View style={{ paddingHorizontal: 20, paddingTop: Spacing.two }}>

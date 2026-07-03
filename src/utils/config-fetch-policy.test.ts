@@ -11,35 +11,35 @@ import {
 } from './config-fetch-policy.ts';
 
 describe('classifyFetchError', () => {
-    // One row per signature branch in ERROR_SIGNATURES, so every substring /
-    // name / regex signal is locked against silent drift.
+    // ERROR_SIGNATURES 里每个特征分支各一行，让每个 substring / name / regex
+    // 信号都被锁定，防止悄悄漂移。
     const cases: [{ name?: string; message?: string }, FetchErrorKind][] = [
-        // cancelled — both spellings
+        // cancelled —— 两种拼法
         [{ message: 'CANCELLED' }, 'cancelled'],
         [{ message: 'Job was cancelled' }, 'cancelled'],
         [{ message: 'operation was canceled' }, 'cancelled'],
-        // timeout — name signal + both substrings
+        // timeout —— name 信号 + 两个 substring
         [{ name: 'AbortError' }, 'timeout'],
         [{ message: 'Request timed out' }, 'timeout'],
         [{ message: 'connect timeout elapsed' }, 'timeout'],
-        // dns — each substring in isolation
+        // dns —— 每个 substring 单独测
         [{ message: 'DNS server unreachable' }, 'dns'],
         [{ message: 'name resolution error' }, 'dns'],
         [{ message: 'could not resolve host' }, 'dns'],
-        // tls — each substring in isolation
+        // tls —— 每个 substring 单独测
         [{ message: 'certificate chain validation failed' }, 'tls'],
         [{ message: 'Trust anchor for certification path not found' }, 'tls'],
         [{ message: 'tls alert received' }, 'tls'],
         [{ message: 'SSL handshake aborted' }, 'tls'],
-        // http — only 4xx/5xx match the kind regex
+        // http —— 只有 4xx/5xx 匹配该 kind 的正则
         [{ message: 'HTTP 502' }, 'http'],
         [{ message: 'server returned HTTP 404' }, 'http'],
         [{ message: 'HTTP 302 redirect' }, 'unknown'],
-        // network — name signal and substring, each in isolation
+        // network —— name 信号与 substring，各自单独测
         [{ name: 'TypeError', message: 'Network request failed' }, 'network'],
         [{ name: 'TypeError', message: 'boom' }, 'network'],
         [{ message: 'network is unreachable' }, 'network'],
-        // fallthrough
+        // 兜底
         [{ message: 'something else entirely' }, 'unknown'],
         [{}, 'unknown'],
     ];
@@ -136,8 +136,8 @@ describe('validateConfigContent', () => {
         ['object with whitespace', '  {"dns":{}}\n', { ok: true }],
         ['empty string', '', { ok: false, reason: 'empty' }],
         ['whitespace only', '  \n\t', { ok: false, reason: 'empty' }],
-        // The stripped-Content-Encoding proxy defect: gzip magic bytes
-        // decoded as text — must never persist as a config.
+        // 被剥掉 Content-Encoding 的代理缺陷：gzip 魔数字节被当作文本解码 ——
+        // 绝不能作为配置持久化。
         ['gzip bytes as text', '�', { ok: false, reason: 'not-json' }],
         ['truncated json', '{"outbounds":[', { ok: false, reason: 'not-json' }],
         ['yaml body', 'proxies:\n  - name: a\n', { ok: false, reason: 'not-json' }],

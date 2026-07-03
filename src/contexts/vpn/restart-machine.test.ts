@@ -77,7 +77,7 @@ describe('createRestartMachine', () => {
         h.machine.request();
         h.machine.request();
         h.machine.request();
-        assert.equal(h.timers.pendingCount(), 1); // one debounce timer
+        assert.equal(h.timers.pendingCount(), 1); // 一个防抖 timer
 
         h.timers.fireAll();
         await flushMicrotasks();
@@ -87,7 +87,7 @@ describe('createRestartMachine', () => {
     it('re-checks status after the debounce — disconnect aborts the cycle', async () => {
         const h = makeHarness();
         h.machine.request();
-        h.setStatus(VPN_STATUS.STOPPED); // user tapped Disconnect mid-debounce
+        h.setStatus(VPN_STATUS.STOPPED); // 用户在防抖中点了断开
         h.timers.fireAll();
         await flushMicrotasks();
         assert.deepEqual(h.calls, []);
@@ -119,17 +119,17 @@ describe('createRestartMachine', () => {
         const machine = createRestartMachine(deps);
 
         machine.request();
-        h.timers.fireAll(); // debounce fires; cycle now blocked on stop gate
+        h.timers.fireAll(); // 防抖触发；周期此刻阻塞在 stop gate 上
         await flushMicrotasks();
         assert.deepEqual(h.calls, ['stopAndWait']);
 
-        machine.request(); // lands in-flight → needsReRun
-        machine.request(); // still exactly one rerun
-        assert.equal(h.timers.pendingCount(), 0); // no new debounce while in flight
+        machine.request(); // 落在在途中 → needsReRun
+        machine.request(); // 仍恰好一次 rerun
+        assert.equal(h.timers.pendingCount(), 0); // 在途期间不新建防抖
 
         releaseStop({ outcome: 'stopped' });
         await flushMicrotasks();
-        // rerun scheduled once after rearm delay
+        // rearm 延迟后安排一次 rerun
         assert.deepEqual(h.timers.pendingDelays(), [400]);
         h.timers.fireAll();
         await flushMicrotasks();
@@ -141,7 +141,7 @@ describe('createRestartMachine', () => {
             'getConfig',
             'start:{}',
         ]);
-        assert.equal(h.timers.pendingCount(), 0); // no third cycle
+        assert.equal(h.timers.pendingCount(), 0); // 没有第三个周期
     });
 
     it('stop timeout still proceeds to start and logs a warning', async () => {
@@ -162,7 +162,7 @@ describe('createRestartMachine', () => {
         await flushMicrotasks();
         assert.ok(h.log.lines.some((l) => l.includes('Restart failed') && l.includes('boot failed')));
 
-        // Guard released: a fresh request debounces and runs a new cycle.
+        // 保护已释放：新请求会防抖并运行一个新周期。
         h.machine.request();
         h.timers.fireAll();
         await flushMicrotasks();

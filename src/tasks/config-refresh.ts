@@ -1,13 +1,12 @@
 /**
- * Background config refresh — native implementation.
+ * 后台配置刷新 —— 原生实现。
  *
- * The actual periodic background work runs fully natively:
+ * 真正的周期性后台工作完全在原生侧运行：
  *   iOS:     BGAppRefreshTask (BackgroundConfigRefresh.swift)
  *   Android: WorkManager CoroutineWorker (BackgroundConfigWorker.kt)
  *
- * This module provides the JS-facing API to register/unregister the native task,
- * trigger a foreground refresh, and sync native results into ProfileConfig when
- * the app foregrounds.
+ * 本模块提供面向 JS 的 API：注册/注销原生任务、触发前台刷新，并在应用回到
+ * 前台时把原生结果同步进 ProfileConfig。
  */
 import type { ConfigRefreshResult } from '@/modules/expo-onebox/src/ExpoOneBox.types';
 import Constants from 'expo-constants';
@@ -25,13 +24,12 @@ const ACCELERATE_URL: string | null =
 
 export const CONFIG_REFRESH_TASK = 'config-refresh';
 
-// ─── Initialization ───────────────────────────────────────────────────────────
+// ─── 初始化 ───────────────────────────────────────────────────────────
 
 /**
- * Mirror the refresh options into the native background worker's shared
- * store (AppGroup UserDefaults / SharedPreferences). The worker must never
- * read the JS-owned SQLite database directly — a second SQLite library on
- * the same WAL file breaks in-process POSIX locking and crashes with SIGBUS.
+ * 把刷新选项镜像进原生后台 worker 的共享存储（AppGroup UserDefaults /
+ * SharedPreferences）。worker 绝不能直接读取 JS 拥有的 SQLite 数据库 ——
+ * 同一 WAL 文件上再挂一个 SQLite 库会破坏进程内 POSIX 锁，并以 SIGBUS 崩溃。
  */
 async function pushRefreshOptionsToNative(): Promise<void> {
     await ExpoOneBox.setBackgroundConfigRefreshOptions({
@@ -41,14 +39,12 @@ async function pushRefreshOptionsToNative(): Promise<void> {
 }
 
 /**
- * Initialize config refresh system on app startup.
- * Pushes refresh options to native, then fetches and caches domain
- * verification data.
+ * 应用启动时初始化配置刷新系统。
+ * 先把刷新选项推入原生，再拉取并缓存域名验证数据。
  */
 export async function initializeConfigRefresh(): Promise<void> {
-    // Independent startup work — run concurrently so the native options push
-    // does not delay the verification-data fetch. Each keeps its own catch so
-    // one failing never rejects the other.
+    // 两项互不依赖的启动工作 —— 并发执行，让原生选项推送不拖慢验证数据拉取。
+    // 各自保留 catch，任一失败都不会拖累另一个 reject。
     await Promise.all([
         pushRefreshOptionsToNative().catch((e) =>
             console.warn('[ConfigRefresh] refresh options mirror push error:', e)),
@@ -57,7 +53,7 @@ export async function initializeConfigRefresh(): Promise<void> {
     ]);
 }
 
-// ─── Dev settings ─────────────────────────────────────────────────────────────
+// ─── 开发设置 ─────────────────────────────────────────────────────────────
 
 export function getTestPrimaryUrlUnavailable(): boolean {
     return kvGet(CONFIG_REFRESH_KEYS.TEST_PRIMARY_URL_UNAVAILABLE) === 'true';
@@ -69,15 +65,15 @@ export function setTestPrimaryUrlUnavailable(enabled: boolean): void {
         console.warn('[ConfigRefresh] refresh options mirror push error:', e));
 }
 
-// ─── Registration ─────────────────────────────────────────────────────────────
+// ─── 注册 ─────────────────────────────────────────────────────────────
 
 /**
- * Register (or update) the native periodic background config refresh.
- * No-ops if no config URL is stored yet.
- * Native reads the accelerate URL from the JS-pushed shared options.
- * Native tries primary first; on network-level error (not HTTP error), if the
- * domain is on the SHA256 allowlist, it retries via the accelerate URL.
- * See ios/core/BackgroundConfigRefresh.swift + android/.../BackgroundConfigWorker.kt.
+ * 注册（或更新）原生的周期性后台配置刷新。
+ * 尚未存储配置 URL 时无操作。
+ * 原生从 JS 推入的共享选项里读取加速代理 URL。
+ * 原生先试主 URL；遇到网络层错误（非 HTTP 错误）时，若域名在 sha256 白名单上，
+ * 就改走加速代理 URL 重试。
+ * 详见 ios/core/BackgroundConfigRefresh.swift + android/.../BackgroundConfigWorker.kt。
  */
 export async function registerConfigRefreshTask(): Promise<void> {
     const url = ProfileConfig.getConfigLink();
@@ -94,16 +90,16 @@ export async function registerConfigRefreshTask(): Promise<void> {
     }
 }
 
-// ─── Foreground execution ─────────────────────────────────────────────────────
+// ─── 前台执行 ─────────────────────────────────────────────────────
 
 /**
- * Execute a config refresh immediately (foreground / dev screen).
- * Core logic (unified):
- *   1. Try primary URL
- *   2. If fails and domain is verified → fallback to accelerate URL
- *   3. Return result with method info
+ * 立即执行一次配置刷新（前台 / dev 屏）。
+ * 核心逻辑（统一）：
+ *   1. 试主 URL
+ *   2. 失败且域名已验证 → 回落到加速代理 URL
+ *   3. 返回带方式信息的结果
  *
- * Test mode: simulates primary URL unavailable to test fallback path.
+ * 测试模式：模拟主 URL 不可用，用于测试回落路径。
  */
 export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null> {
     const url = ProfileConfig.getConfigLink();
@@ -123,12 +119,11 @@ export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null
     return result;
 }
 
-// ─── Foreground sync ──────────────────────────────────────────────────────────
+// ─── 前台同步 ──────────────────────────────────────────────────────────
 
 /**
- * Read and clear the last result stored by the native background task, then
- * apply it to ProfileConfig. Call this whenever the app returns to foreground
- * so UI state reflects background-executed refreshes.
+ * 读取并清除原生后台任务存储的最近一次结果，然后应用到 ProfileConfig。
+ * 每次应用回到前台时调用，让 UI 状态反映后台执行过的刷新。
  */
 export function syncNativeResultToJS(): void {
     try {
@@ -145,10 +140,10 @@ export function syncNativeResultToJS(): void {
     }
 }
 
-// ─── Internal ─────────────────────────────────────────────────────────────────
+// ─── 内部 ─────────────────────────────────────────────────────────────────
 
-// Apply logic lives in config-refresh-core.ts (pure, node:test covered);
-// this is its one production wiring point.
+// 应用逻辑在 config-refresh-core.ts（纯函数，node:test 覆盖）；
+// 这里是它唯一的生产接线点。
 const refreshApplyDeps: RefreshApplyDeps = {
     sbConfig: ProfileConfig,
     taskLog: TaskLog,

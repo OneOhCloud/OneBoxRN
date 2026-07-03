@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// inject-ios-team.js — Ensure Xcode project contains DEVELOPMENT_TEAM
+// inject-ios-team.js — 确保 Xcode 工程包含 DEVELOPMENT_TEAM
 //
-// Usage: node scripts/inject-ios-team.js <TEAM_ID> <APP_NAME>
+// 用法：node scripts/inject-ios-team.js <TEAM_ID> <APP_NAME>
 
 'use strict';
 
@@ -25,10 +25,10 @@ if (!fs.existsSync(pbxprojPath)) {
 
 let txt = fs.readFileSync(pbxprojPath, 'utf8');
 
-// Replace existing DEVELOPMENT_TEAM entries
+// 替换已有的 DEVELOPMENT_TEAM 条目
 txt = txt.replace(/DEVELOPMENT_TEAM = [^;]*;/g, `DEVELOPMENT_TEAM = ${teamId};`);
 
-// If a buildSettings block lacks DEVELOPMENT_TEAM, inject after CURRENT_PROJECT_VERSION
+// 若某个 buildSettings 块缺少 DEVELOPMENT_TEAM，在 CURRENT_PROJECT_VERSION 之后注入
 txt = txt.replace(
   /(buildSettings\s*=\s*\{[^}]*?CURRENT_PROJECT_VERSION\s*=\s*[^;]*;)\n((?!\s*DEVELOPMENT_TEAM))/g,
   `$1\n\t\t\t\tDEVELOPMENT_TEAM = ${teamId};\n$2`

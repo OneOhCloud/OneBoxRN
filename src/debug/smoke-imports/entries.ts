@@ -1,37 +1,29 @@
 /**
- * Smoke-import registry — every runtime-loaded package with a native
- * side has one entry here.
+ * Smoke-import 注册表 —— 每个运行时加载、且带原生侧的包在这里都有一条条目。
  *
- * The intent is NOT to verify business behaviour, it is to catch
- * "this import assumes a Node/browser API that Hermes+RN does not
- * provide" the instant the app starts in dev, instead of days later
- * when a user hits the feature path. Today's `crypto.subtle` hit is
- * the canonical example.
+ * 目的不是验证业务行为，而是在 dev 下 app 一启动就抓出"这个 import 假定了
+ * Hermes+RN 并不提供的 Node/浏览器 API"，而非几天后用户走到功能路径才发现。
+ * `crypto.subtle` 就是这类失败的典型例子。
  *
- * Conventions:
- *   - Every direct dependency in `package.json` that reaches the
- *     native layer (`expo-*`, `react-native-*`, `@/modules/*`) needs
- *     one entry.
- *   - Pure-JS libs (i18n-js, jsonc-parser …) do NOT
- *     need entries — their failure mode is a bundler / import error
- *     that is already visible at app launch.
- *   - The check should NOT mutate observable state:
- *        ✗ `Haptics.selectionAsync()` (vibrates the device)
- *        ✗ `Clipboard.setStringAsync('x')` (clobbers the user clipboard)
- *        ✓ `Clipboard.hasStringAsync()` (read-only)
- *        ✓ accessing a property getter
- *   - The check need only prove the bridge is reachable — return
- *     value is NOT asserted. If the call resolves, entry passes.
- *   - Dynamic `await import(...)` instead of static imports so the
- *     Node-side `node --test` runner never tries to resolve native
- *     modules when the other suites run.
+ * 约定：
+ *   - `package.json` 里每个触及原生层的直接依赖（`expo-*`、`react-native-*`、
+ *     `@/modules/*`）都需要一条条目。
+ *   - 纯 JS 库（i18n-js、jsonc-parser …）不需要条目 —— 它们的失败模式是
+ *     bundler / import 错误，在 app 启动时就已可见。
+ *   - 检查不应改变可观察状态：
+ *        ✗ `Haptics.selectionAsync()`（会震动设备）
+ *        ✗ `Clipboard.setStringAsync('x')`（会覆盖用户剪贴板）
+ *        ✓ `Clipboard.hasStringAsync()`（只读）
+ *        ✓ 访问某个属性 getter
+ *   - 检查只需证明 bridge 可达 —— 不对返回值做断言。只要调用 resolve，条目即通过。
+ *   - 用动态 `await import(...)` 而非静态 import，好让 Node 侧的 `node --test`
+ *     runner 在跑其它套件时永远不会尝试解析原生模块。
  *
- * Adding a new entry:
- *   1. Add an object to `SMOKE_IMPORT_ENTRIES` below, sorted by id.
- *   2. Make the `run()` body tiny — one dynamic import + one call.
- *   3. Run the app via `make run-ios` / `make run-android` — the
- *      deep-link `oneoh-networktools://dev-smoke` auto-fires and
- *      any regression shows in the panel immediately.
+ * 新增一条条目：
+ *   1. 在下方 `SMOKE_IMPORT_ENTRIES` 里加一个对象，按 id 排序。
+ *   2. 让 `run()` 体尽量小 —— 一次动态 import + 一次调用。
+ *   3. 通过 `make run-ios` / `make run-android` 运行 app —— deep-link
+ *      `oneoh-networktools://dev-smoke` 会自动触发，任何回归立即显示在面板上。
  */
 import type { TestCase } from '@/debug/import-tests/runner';
 import { expect } from '@/debug/import-tests/runner';
@@ -41,7 +33,7 @@ function smoke(id: string, name: string, run: (ctx: { log: (m: string) => void }
 }
 
 export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
-    // ── Custom native module ─────────────────────────────────────────────────
+    // ── 自定义原生模块 ─────────────────────────────────────────────────
     smoke('module-expo-onebox', '@/modules/expo-onebox', async (ctx) => {
         const ExpoOneBox = (await import('@/modules/expo-onebox')).default;
         const status = ExpoOneBox.getStatus();
@@ -49,15 +41,15 @@ export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
         expect(typeof status === 'number', 'getStatus must return a number');
     }),
 
-    // ── Crash reporting (native) ─────────────────────────────────────────────
+    // ── 崩溃上报（原生）─────────────────────────────────────────────
     smoke('bugsnag-expo', '@bugsnag/expo', async (ctx) => {
         const Bugsnag = (await import('@bugsnag/expo')).default;
-        // Read-only shape check — never call start()/notify() in a smoke probe.
+        // 只读形状检查 —— 冒烟探针里绝不调用 start()/notify()。
         ctx.log(`notify is function=${typeof Bugsnag.notify === 'function'}`);
         expect(typeof Bugsnag.notify === 'function', 'Bugsnag.notify must exist');
     }),
 
-    // ── Expo native modules ──────────────────────────────────────────────────
+    // ── Expo 原生模块 ──────────────────────────────────────────────────
     smoke('expo-application', 'expo-application', async (ctx) => {
         const Application = await import('expo-application');
         ctx.log(`nativeApplicationVersion=${Application.nativeApplicationVersion}`);
@@ -71,16 +63,15 @@ export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
 
     smoke('expo-camera', 'expo-camera', async (ctx) => {
         const mod = await import('expo-camera');
-        // `CameraView` is the canonical runtime surface; proving the
-        // module loaded is enough — a permission probe is out of
-        // scope for a smoke check.
+        // `CameraView` 是标志性的运行时表面；证明模块已加载就够了 ——
+        // 权限探测超出冒烟检查的范围。
         ctx.log(`CameraView defined=${!!mod.CameraView}`);
         expect(!!mod.CameraView, 'CameraView export must exist');
     }),
 
     smoke('expo-clipboard', 'expo-clipboard', async (ctx) => {
         const Clipboard = await import('expo-clipboard');
-        // Read-only — never call setStringAsync in a smoke check.
+        // 只读 —— 冒烟检查里绝不调用 setStringAsync。
         const has = await Clipboard.hasStringAsync();
         ctx.log(`hasStringAsync=${has}`);
     }),
@@ -114,7 +105,7 @@ export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
 
     smoke('expo-haptics', 'expo-haptics', async (ctx) => {
         const mod = await import('expo-haptics');
-        // Do NOT fire — a smoke check must not buzz the device.
+        // 不要触发 —— 冒烟检查绝不能震动设备。
         const hasImpact = typeof mod.impactAsync === 'function';
         ctx.log(`impactAsync is function=${hasImpact}`);
         expect(hasImpact, 'impactAsync must be a function');
@@ -142,9 +133,8 @@ export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
     smoke('expo-notifications', 'expo-notifications', async (ctx) => {
         const Notifications = await import('expo-notifications');
         const perm = await Notifications.getPermissionsAsync();
-        // Permission-response shape varies across Expo SDKs; dumping
-        // the object rather than reading a named field keeps the entry
-        // resilient to future SDK upgrades.
+        // 权限响应的形状在不同 Expo SDK 间会变化；直接 dump 整个对象而非读取
+        // 具名字段，可让此条目在未来 SDK 升级时更稳健。
         ctx.log(`perm=${JSON.stringify(perm).slice(0, 120)}`);
         expect(typeof perm === 'object' && perm !== null, 'perm object must be returned');
     }),
@@ -157,15 +147,15 @@ export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
 
     smoke('expo-splash-screen', 'expo-splash-screen', async (ctx) => {
         const mod = await import('expo-splash-screen');
-        // hideAsync is idempotent and safe if splash is already hidden.
-        // Not invoking it here though — just checking shape.
+        // hideAsync 是幂等的，即便 splash 已隐藏也安全。
+        // 但这里不调用它 —— 只检查形状。
         ctx.log(`hideAsync is function=${typeof mod.hideAsync === 'function'}`);
         expect(typeof mod.hideAsync === 'function', 'hideAsync must exist');
     }),
 
     smoke('expo-sqlite', 'expo-sqlite', async (ctx) => {
         const SQLite = await import('expo-sqlite');
-        // Open an in-memory DB — leaves no trace on disk.
+        // 打开内存数据库 —— 不在磁盘上留下痕迹。
         const db = await SQLite.openDatabaseAsync(':memory:');
         await db.execAsync('SELECT 1');
         await db.closeAsync();
@@ -181,12 +171,12 @@ export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
     smoke('expo-system-ui', 'expo-system-ui', async (ctx) => {
         const SystemUI = await import('expo-system-ui');
         const bg = await SystemUI.getBackgroundColorAsync();
-        // `ColorValue` may be a RN symbol opaque wrapper — stringify
-        // so the log stays printable across platforms.
+        // `ColorValue` 可能是 RN 的 symbol 不透明包装 —— 转成字符串，
+        // 好让日志在各平台都可打印。
         ctx.log(`backgroundColor=${bg === null ? '(null)' : String(bg)}`);
     }),
 
-    // ── React Native add-ons (all self-install on import) ────────────────────
+    // ── React Native 附加组件（import 时都会自安装）────────────────────
     smoke('react-native-gesture-handler', 'react-native-gesture-handler', async (ctx) => {
         const mod = await import('react-native-gesture-handler');
         ctx.log(`GestureHandlerRootView defined=${!!mod.GestureHandlerRootView}`);
@@ -223,7 +213,7 @@ export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
         expect(Object.keys(mod).length > 0, 'module must export at least one symbol');
     }),
 
-    // ── Heavy pure-JS UI kits (self-install worklets/handlers on import) ─────
+    // ── 重量级纯 JS UI 套件（import 时自安装 worklets/handlers）─────
     smoke('gorhom-bottom-sheet', '@gorhom/bottom-sheet', async (ctx) => {
         const mod = await import('@gorhom/bottom-sheet');
         ctx.log(`BottomSheetModal defined=${!!mod.BottomSheetModal}`);
@@ -236,13 +226,13 @@ export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
         expect(!!mod.Ionicons, 'Ionicons must exist');
     }),
 
-    // ── Hermes globals the production path expects to exist ──────────────────
+    // ── 生产路径预期存在的 Hermes 全局 ──────────────────
     smoke('global-texts', 'globalThis: TextEncoder / atob / btoa / URL', async (ctx) => {
         expect(typeof TextEncoder === 'function', 'TextEncoder must exist');
         expect(typeof atob === 'function', 'atob must exist');
         expect(typeof btoa === 'function', 'btoa must exist');
         expect(typeof URL === 'function', 'URL must exist');
-        // Smoke the actual behaviours — Hermes has historically missed methods.
+        // 冒烟测试实际行为 —— Hermes 有时会缺方法。
         const u = new URL('https://example.invalid/a/b?x=1');
         expect(u.searchParams.get('x') === '1', 'URL.searchParams must work');
         const round = atob(btoa('abc'));

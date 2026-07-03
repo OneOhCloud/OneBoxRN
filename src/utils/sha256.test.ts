@@ -3,10 +3,9 @@ import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { sha256Hex } from './domain-suffix.ts';
 
-// JS third of the SHA-256 hex golden-sample lock (audit C4 / Batch 3). Loads the
-// shared golden/sha256.json (in the native submodule) — the same file the Kotlin
-// (Sha256Test) and Swift (Sha256GoldenCheck) runners use — and asserts the JS
-// sha256Hex against it. Locks the UTF-8 encoding + lowercase-hex formatting.
+// SHA-256 十六进制 golden 样本锁的 JS 一方。加载共享的 golden/sha256.json
+// （在原生子模块里）—— 与 Kotlin (Sha256Test) 和 Swift (Sha256GoldenCheck) 运行器
+// 使用的是同一个文件 —— 并据此断言 JS 的 sha256Hex。锁定 UTF-8 编码 + 小写十六进制格式。
 
 const golden = JSON.parse(
     readFileSync(new URL('../modules/expo-onebox/golden/sha256.json', import.meta.url), 'utf8'),

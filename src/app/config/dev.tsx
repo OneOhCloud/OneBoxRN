@@ -1,8 +1,7 @@
 /**
- * Developer Tools — hidden page, accessible by tapping "About" section 3 times.
- * Shows background task status, profile config state, and task execution history.
- * Visual language mirrors the iOS 26 tab screens (glass cards, 17pt rounded rows,
- * hairline separators).
+ * 开发者工具 — 隐藏页，连点三次"关于"分区进入。
+ * 展示后台任务状态、配置文件状态以及任务执行历史。
+ * 视觉语言沿用 iOS 26 tab 屏（玻璃卡片、17pt 圆角行、hairline 分隔线）。
  */
 import { BackgroundTaskCard } from '@/components/dev/background-task-card';
 import { ConfigStateCard } from '@/components/dev/config-state-card';
@@ -51,11 +50,11 @@ export default function DevScreen() {
     const [templateCache, setTemplateCache] = useState<TemplateCacheInfo[] | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Pure reads, zero setState — safe to invoke from the mount effect
-    // without tripping react-hooks/set-state-in-effect.
+    // 纯读取、零 setState —— 可安全地从 mount effect 调用，
+    // 不会触发 react-hooks/set-state-in-effect。
     const readDevSnapshot = useCallback(async () => {
-        // Sync any background task results into JS state before reading KV,
-        // so WorkerRunLog entries are immediately reflected in ExecutionHistory.
+        // 读取 KV 前先把后台任务结果同步进 JS 状态，
+        // 使 WorkerRunLog 条目立即反映到 ExecutionHistory 中。
         Task.syncNativeResultToJS();
         const isRegistered = await ExpoOneBox.isBackgroundConfigRefreshRegistered().catch(() => false);
         const link = ProfileConfig.getConfigLink();
@@ -85,7 +84,7 @@ export default function DevScreen() {
 
     useEffect(() => {
         let cancelled = false;
-        // `loading` starts true, so the mount path only clears it when done.
+        // `loading` 初值为 true，因此 mount 路径只在完成时清除它。
         readDevSnapshot().then((s) => {
             if (cancelled) return;
             setTaskInfo(s.taskInfo);

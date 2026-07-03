@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// sync-version-ios.js — Sync version from version.json to iOS Info.plist
+// sync-version-ios.js — 将 version.json 的版本号同步到 iOS Info.plist
 //
-// Usage: node scripts/sync-version-ios.js <APP_NAME>
+// 用法：node scripts/sync-version-ios.js <APP_NAME>
 
 'use strict';
 

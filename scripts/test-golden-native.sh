@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Cross-platform golden-sample runners for the native pure cores (audit Batch 3).
+# 原生纯核心的跨平台 golden 样本运行器。
 #
-# The pure cores share one language-agnostic contract file per core under
-# src/modules/expo-onebox/golden/. Three runners assert against the SAME file:
-#   - JS    : src/utils/*.test.ts        (runs under `make test`)
-#   - Kotlin: JVM unit test              (this script; no device)
-#   - Swift : host `swiftc` binary       (this script; no simulator)
+# 每个纯核心在 src/modules/expo-onebox/golden/ 下共享一份语言无关的契约文件。
+# 三个运行器断言同一份文件：
+#   - JS    : src/utils/*.test.ts        （随 make test 运行）
+#   - Kotlin: JVM 单元测试               （本脚本；无需设备）
+#   - Swift : 宿主 swiftc 二进制         （本脚本；无需模拟器）
 #
-# Neither native runner needs an emulator/simulator. Run after `make prebuild`.
+# 两个原生运行器都不需要 emulator/simulator。请在 make prebuild 之后运行。
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MOD="$ROOT/src/modules/expo-onebox"

@@ -1,8 +1,8 @@
-// Pure input helpers for the routing-rules editor: normalize, classify and
-// validate a user-typed matcher, plus bulk-paste parsing.
+// 路由规则编辑器的纯输入辅助函数：对用户输入的 matcher 做归一化、分类与
+// 校验，外加批量粘贴解析。
 //
-// Pure module: the only import is a type, erased at runtime, so node's
-// --experimental-strip-types runner resolves nothing native.
+// 纯模块：唯一的 import 是类型，运行时被擦除，因此 node 的
+// --experimental-strip-types 运行器不需要解析任何原生依赖。
 
 import type { RuleKind } from '@/database/custom-rules';
 
@@ -26,8 +26,8 @@ function isIPv6(value: string): boolean {
         const left = halves[0] === '' ? [] : halves[0].split(':');
         const right = halves[1] === '' ? [] : halves[1].split(':');
         if (!valid(left) || !valid(right)) return false;
-        // `::` collapses at least one zero group, so the explicit halves
-        // together must leave room (≤ 7 of the 8 groups).
+        // `::` 至少折叠一个全零组，因此两个显式半段加起来必须留有余地
+        // （8 组里最多占 7 组）。
         return left.length + right.length <= 7;
     }
 
@@ -54,12 +54,12 @@ function isIpCidr(value: string): boolean {
     return false;
 }
 
-/** Trim and lowercase; a blank input collapses to "". */
+/** 去空白并转小写；空白输入折叠为 ""。 */
 export function normalizeToken(raw: string): string {
     return raw.trim().toLowerCase();
 }
 
-/** True when `value` is a well-formed matcher for the given kind. */
+/** 当 `value` 是给定 kind 的合法 matcher 时返回 true。 */
 export function validateToken(kind: RuleKind, value: string): boolean {
     switch (kind) {
         case 'domain':
@@ -72,8 +72,8 @@ export function validateToken(kind: RuleKind, value: string): boolean {
 }
 
 /**
- * Split a pasted blob on newlines AND commas, normalize each token, drop
- * blanks, and dedupe while preserving first-seen order.
+ * 按换行和逗号切分粘贴的文本块，对每个 token 归一化，丢弃空白，并在保留
+ * 首次出现顺序的前提下去重。
  */
 export function parseBulkInput(text: string): string[] {
     const seen = new Set<string>();
