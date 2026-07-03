@@ -48,8 +48,11 @@ Template for future rows: advisory · package · exposure class
 
 ### Known non-issues (pre-existing, unrelated to overrides)
 
-- `@bugsnag/expo` declares peer `expo ^55`, installed `expo 57` — pre-existing peer-range
-  lag; `expo-doctor` passes; revisit when Bugsnag publishes an SDK-57 line.
+- `@bugsnag/expo` declares peer `expo ^55`, installed `expo 57` — Bugsnag's latest release
+  is `55.0.0` (no SDK-57 line exists yet), and 55 works on 57 (dev-smoke bridge check
+  passes). A nested `overrides["@bugsnag/expo"]` pins its `expo`/`expo-constants` peers to
+  the root versions to silence the install warning (audit D6a-10). Drop the override when
+  Bugsnag ships an SDK-57 line and bump the dependency.
 - `npm ls ws` shows `@expo/ws-tunnel` (wants `^8.0.0`) deduped onto the v7 instance and
   flagged `invalid` — pre-existing hoisting quirk (present before overrides, then at
   7.5.10); `ws@8.21.0` also present in tree; dev-tunnel only.
@@ -69,3 +72,17 @@ reader/writer, `use-profiles.ts`, was dead code deleted in this remediation). Ru
 profile CRUD lives exclusively in `ProfileStore` (`src/database/kv.ts`). See comments in
 `src/database/sqlite3.tsx`. Table names are a documented terminology exemption
 (`docs/claude/terminology-exceptions.md`).
+
+## C15 cross-platform background-store key naming
+
+The iOS App Group `UserDefaults` and the Android `SharedPreferences`
+(`expo_onebox_background_config`) are **separate, never-interoperating stores** — each
+platform only ever reads its own keys, never the other's. Their key names differ (iOS
+`bg_`-prefixed: `bg_config_url`, `bg_accelerate_url`, `bg_last_result_json`, …; Android
+unprefixed: `config_url`, `accelerate_url`, `last_result`, …) and their structure differs
+(iOS stores the domain-verification cache as one atomic JSON blob
+`bg_domain_verification_cache_json`; Android uses two separate keys). Aligning the names
+would require a persisted-key migration on installed devices for **zero functional
+benefit** — there is no cross-platform key sharing — so the per-platform naming is kept
+as-is (audit C15). This is a **native runtime** exemption; revisit only if the two stores
+are ever unified (e.g. behind a shared Go-side store).
