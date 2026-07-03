@@ -43,4 +43,10 @@ swiftc -parse-as-library \
   -o "$TMP/domain-suffix-golden"
 "$TMP/domain-suffix-golden" "$MOD/golden/domain-suffix.json"
 
+swiftc -parse-as-library \
+  "$MOD/ios/core/HttpChunked.swift" \
+  "$MOD/ios/tests/HttpChunkedGoldenCheck.swift" \
+  -o "$TMP/http-chunked-golden"
+"$TMP/http-chunked-golden" "$MOD/golden/http-chunked.json"
+
 echo "✅ native golden runners passed"
