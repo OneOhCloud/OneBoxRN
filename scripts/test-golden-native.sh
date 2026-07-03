@@ -16,11 +16,16 @@ echo "▶ Kotlin golden (JVM unit test)…"
 ( cd "$ROOT/android" && ./gradlew :expo-onebox:testDebugUnitTest --console=plain )
 
 echo "▶ Swift golden (host swiftc)…"
-BIN="$(mktemp -d)/userinfo-golden"
+TMP="$(mktemp -d)"
 swiftc -parse-as-library \
   "$MOD/ios/core/UserinfoParser.swift" \
   "$MOD/ios/tests/UserinfoGoldenCheck.swift" \
-  -o "$BIN"
-"$BIN" "$MOD/golden/userinfo.json"
+  -o "$TMP/userinfo-golden"
+"$TMP/userinfo-golden" "$MOD/golden/userinfo.json"
+swiftc -parse-as-library \
+  "$MOD/ios/core/Sha256.swift" \
+  "$MOD/ios/tests/Sha256GoldenCheck.swift" \
+  -o "$TMP/sha256-golden"
+"$TMP/sha256-golden" "$MOD/golden/sha256.json"
 
 echo "✅ native golden runners passed"
