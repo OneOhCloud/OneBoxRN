@@ -32,5 +32,10 @@ swiftc -parse-as-library \
   "$MOD/ios/tests/DnsParseGoldenCheck.swift" \
   -o "$TMP/dns-golden"
 "$TMP/dns-golden" "$MOD/golden/dns-arecord.json"
+swiftc -parse-as-library \
+  "$MOD/ios/core/ExitGatewayParse.swift" \
+  "$MOD/ios/tests/ExitGatewayGoldenCheck.swift" \
+  -o "$TMP/exitgateway-golden"
+"$TMP/exitgateway-golden" "$MOD/golden/exitgateway.json"
 
 echo "✅ native golden runners passed"
