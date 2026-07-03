@@ -33,7 +33,7 @@ async function getBestDnsWithTimeout(fallback: string): Promise<string> {
 /**
  * Single source of truth for the "direct" DNS server.
  *
- * Used by both the merge pipeline (updateDNS2Config) and the Settings
+ * Used by both the merge pipeline (updateDNSToConfig) and the Settings
  * InfoCard. Callers MUST route through here instead of calling
  * ExpoOneBox.getBestDns / setStoreValue('directDNS', …) on their own, so
  * the value in `dns.servers[tag='system'].server` of the merged config

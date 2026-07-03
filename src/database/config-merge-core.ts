@@ -2,7 +2,7 @@
  * Sing-box config merge pipeline — pure core with injected dependencies.
  *
  * Verbatim assembly of the former helper.ts chain (getTunConfig /
- * getGlobalTunConfig / rewriteConfig / updateDNS2Config /
+ * getGlobalTunConfig / rewriteConfig / updateDNSToConfig /
  * updateVPNServerConfigFromDB): parse user profile → template → [custom
  * rules] → DNS/log rewrite → TUN exclusions → server-node injection →
  * JSON string. Statement order and log lines are preserved byte-for-byte —
@@ -112,7 +112,7 @@ export function extractSystemDns(configJson: string): string | null {
     }
 }
 
-async function updateDNS2Config(deps: ConfigMergeDeps, newConfig: SingBoxConfigLike): Promise<void> {
+async function updateDNSToConfig(deps: ConfigMergeDeps, newConfig: SingBoxConfigLike): Promise<void> {
     for (let i = 0; i < newConfig.dns!.servers.length; i++) {
         const server = newConfig.dns!.servers[i];
         if (server.tag === 'system') {
@@ -130,7 +130,7 @@ async function updateDNS2Config(deps: ConfigMergeDeps, newConfig: SingBoxConfigL
 async function rewriteConfig(deps: ConfigMergeDeps, newConfig: SingBoxConfigLike): Promise<void> {
     deps.log.info('[Config] rewriteConfig: 注入 DNS，清理未用字段');
     try {
-        await updateDNS2Config(deps, newConfig);
+        await updateDNSToConfig(deps, newConfig);
     } catch (error) {
         deps.log.error('[Config] 更新 DNS 配置失败:', error);
         throw error;

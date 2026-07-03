@@ -21,7 +21,7 @@ import { createFakeVpnModule, type FakeVpnModule } from './mocks';
 
 export type TestStatus = 'pending' | 'running' | 'pass' | 'fail' | 'error';
 
-export type TestGroup = 'parse' | 'crypto' | 'verify' | 'apply' | 'import';
+export type TestGroup = 'smoke' | 'parse' | 'crypto' | 'verify' | 'apply' | 'import';
 
 export interface TestResult {
     id: string;

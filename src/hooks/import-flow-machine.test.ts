@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { flushMicrotasks } from '../contexts/vpn/test-doubles.ts';
 import type { StartResult, StopResult } from '../contexts/vpn/types.ts';
 import type { Profile } from '../database/profile-store-core.ts';
 import type { ConfigFetchResult } from '../modules/expo-onebox/src/ExpoOneBox.types.ts';
@@ -97,7 +98,7 @@ async function runToEnd(
     machine.run();
     // The pipeline is a chain of already-resolved promises; a few microtask
     // turns settle it.
-    for (let i = 0; i < 20; i++) await Promise.resolve();
+    await flushMicrotasks();
     return { machine, final: machine.getSnapshot() };
 }
 
@@ -286,12 +287,12 @@ describe('createImportFlowMachine', () => {
         const machine = createImportFlowMachine({ data: DATA_OK, apply: '1' }, h.deps);
         machine.subscribe(() => h.phases.push(machine.getSnapshot().phase));
         machine.run();
-        for (let i = 0; i < 10; i++) await Promise.resolve();
+        await flushMicrotasks();
         assert.equal(machine.getSnapshot().phase, 'downloading');
 
         machine.cancel();
         release(okResponse());
-        for (let i = 0; i < 10; i++) await Promise.resolve();
+        await flushMicrotasks();
 
         assert.equal(machine.getSnapshot().phase, 'downloading');
         assert.ok(!h.calls.includes('start'));
@@ -303,7 +304,7 @@ describe('createImportFlowMachine', () => {
         const machine = createImportFlowMachine({ data: DATA_OK, apply: undefined }, h.deps);
         machine.run();
         machine.run();
-        for (let i = 0; i < 20; i++) await Promise.resolve();
+        await flushMicrotasks();
         assert.equal(h.calls.filter((c) => c.startsWith('fetch:')).length, 1);
         assert.equal(h.upserts.length, 1);
     });

@@ -37,7 +37,7 @@ import type { TestCase } from '@/debug/import-tests/runner';
 import { expect } from '@/debug/import-tests/runner';
 
 function smoke(id: string, name: string, run: (ctx: { log: (m: string) => void }) => Promise<void>): TestCase {
-    return { id, name, group: 'import', run: async (ctx) => { await run(ctx); } };
+    return { id, name, group: 'smoke', run: async (ctx) => { await run(ctx); } };
 }
 
 export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [

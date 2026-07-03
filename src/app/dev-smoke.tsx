@@ -59,11 +59,12 @@ const STATUS_LABEL: Record<TestStatus, string> = {
     error: 'ERROR',
 };
 
-// Fixed group order; unknown groups fall to the end. `import` first
-// because its failure invalidates every flow-level case below it.
-const GROUP_ORDER: readonly TestGroup[] = ['import', 'parse', 'crypto', 'verify', 'apply'];
+// Fixed group order; unknown groups fall to the end. `smoke` first because a
+// bridge-reachability failure invalidates every flow-level case below it.
+const GROUP_ORDER: readonly TestGroup[] = ['smoke', 'import', 'parse', 'crypto', 'verify', 'apply'];
 const GROUP_LABEL: Record<TestGroup, string> = {
-    import: 'Native Imports',
+    smoke: 'Native Imports',
+    import: 'Import Flow',
     parse: 'Parse',
     crypto: 'Crypto',
     verify: 'Verify',

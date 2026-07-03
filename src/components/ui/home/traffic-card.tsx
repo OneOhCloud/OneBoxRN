@@ -63,7 +63,7 @@ export default function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPa
         { iconName: 'cloud-upload-outline', iconColor: '#3A82F7', label: i18n.t('uplink_total'), value: traffic.uplinkTotalDisplay || fmt(traffic.uplinkTotal) },
         { iconName: 'cloud-download-outline', iconColor: '#5AC8FA', label: i18n.t('downlink_total'), value: traffic.downlinkTotalDisplay || fmt(traffic.downlinkTotal) },
         { iconName: 'hardware-chip-outline', iconColor: '#5856D6', label: i18n.t('memory_usage'), value: traffic.memoryDisplay || fmt(traffic.memory) },
-        { iconName: 'git-branch-outline', iconColor: '#7B61FF', label: i18n.t('goroutines'), value: String(traffic.goroutines) },
+        { iconName: 'git-branch-outline', iconColor: '#7B61FF', label: i18n.t('active_tasks'), value: String(traffic.goroutines) },
         { iconName: 'enter-outline', iconColor: '#4A90D9', label: i18n.t('inbound_connections'), value: String(traffic.connectionsIn) },
         { iconName: 'exit-outline', iconColor: '#6E8FC9', label: i18n.t('outbound_connections'), value: String(traffic.connectionsOut) },
     ] : [];

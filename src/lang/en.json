@@ -21,7 +21,7 @@
     "empty_title": "Get Started",
     "error": "Error",
     "expire_time": "Expiry Date",
-    "goroutines": "Goroutines",
+    "active_tasks": "Active Tasks",
     "import_config_url": "Import Config URL",
     "import_profile": "Import Profile",
     "import_url": "Import URL",

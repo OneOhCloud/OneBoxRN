@@ -41,9 +41,10 @@ export function getSingBoxUserAgent(): string {
     return formatUA;
 }
 
-// URL / header name-derivation helpers live in utils/url-info.ts (pure core);
-// re-exported here so existing call sites keep their import path.
-export { deriveProfileNameFromUrl, getRemoteNameByContentDisposition, urlFilename, urlHostname } from './utils/url-info';
+// deriveProfileNameFromUrl lives in utils/url-info.ts (pure core); re-exported
+// here so its remaining '@/utils' call site keeps its import path. The sibling
+// url-info helpers are imported from that module directly by their call sites.
+export { deriveProfileNameFromUrl } from './utils/url-info';
 
 /**
  * Fetch with automatic timeout via AbortController.

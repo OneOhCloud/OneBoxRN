@@ -16,7 +16,7 @@ constraint: hex digests are the entire public surface. reviewer flags any plaint
 
 ## how to add a new trusted domain/suffix
 1. compute sha256 offline (never in-session output, never "sha256 of X is Y" recipes in chat or commit bodies)
-2. add hex digest to `KNOWN_DOMAIN_SHA256` + both native mirrors (Kotlin, Swift)
+2. add hex digest to `DEFAULT_KNOWN_DOMAIN_SHA256_LIST` + both native mirrors (Kotlin, Swift)
 3. commit message describes as "expanded supported servers" — no hostname
 4. update this doc's `updated-on` with reason category if the convention shifts
 
