@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { useVpn } from '@/contexts/vpn-context';
+import { formatBytes } from '@/utils/format-bytes';
 import { Platform, View } from 'react-native';
 
 const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
@@ -7,8 +8,10 @@ const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 /** Real-time uplink/downlink speed display */
 export function SpeedRow() {
     const { traffic } = useVpn();
-    const uplink = traffic?.uplinkDisplay || '0 B/s';
-    const downlink = traffic?.downlinkDisplay || '0 B/s';
+    // Format from raw with the shared formatter, not the divergent native
+    // *Display strings (audit C10).
+    const uplink = traffic ? formatBytes(traffic.uplink) + '/s' : '0 B/s';
+    const downlink = traffic ? formatBytes(traffic.downlink) + '/s' : '0 B/s';
     return (
         <View style={{ flexDirection: 'row', gap: 24 }}>
             {[

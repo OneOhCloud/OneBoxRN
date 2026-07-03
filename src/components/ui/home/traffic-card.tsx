@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import i18n from '@/constants/language';
 import { useTheme } from '@/hooks/use-theme';
 import { TrafficUpdateEventPayload } from '@/modules/expo-onebox';
+import { formatBytes } from '@/utils/format-bytes';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, Text, View } from 'react-native';
 
@@ -50,19 +51,15 @@ function MetricCell({ iconName, iconColor, label, value }: MetricCellProps) {
 export default function TrafficCard({ traffic }: { traffic: TrafficUpdateEventPayload | null }) {
     const theme = useTheme();
 
-    function fmt(n: number) {
-        if (n < 1024) return `${n} B`;
-        if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-        if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
-        return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
-    }
-
+    // Format from the raw byte counts with the shared formatter rather than the
+    // native *Display strings, which diverge (Android Libbox.formatBytes is
+    // SI/1000-based, iOS LibboxFormatMemoryBytes is binary/1024-based) — audit C10.
     const cells: MetricCellProps[] = traffic ? [
-        { iconName: 'arrow-up-outline', iconColor: '#007AFF', label: i18n.t('uplink_speed'), value: traffic.uplinkDisplay || fmt(traffic.uplink) + '/s' },
-        { iconName: 'arrow-down-outline', iconColor: '#32ADE6', label: i18n.t('downlink_speed'), value: traffic.downlinkDisplay || fmt(traffic.downlink) + '/s' },
-        { iconName: 'cloud-upload-outline', iconColor: '#3A82F7', label: i18n.t('uplink_total'), value: traffic.uplinkTotalDisplay || fmt(traffic.uplinkTotal) },
-        { iconName: 'cloud-download-outline', iconColor: '#5AC8FA', label: i18n.t('downlink_total'), value: traffic.downlinkTotalDisplay || fmt(traffic.downlinkTotal) },
-        { iconName: 'hardware-chip-outline', iconColor: '#5856D6', label: i18n.t('memory_usage'), value: traffic.memoryDisplay || fmt(traffic.memory) },
+        { iconName: 'arrow-up-outline', iconColor: '#007AFF', label: i18n.t('uplink_speed'), value: formatBytes(traffic.uplink) + '/s' },
+        { iconName: 'arrow-down-outline', iconColor: '#32ADE6', label: i18n.t('downlink_speed'), value: formatBytes(traffic.downlink) + '/s' },
+        { iconName: 'cloud-upload-outline', iconColor: '#3A82F7', label: i18n.t('uplink_total'), value: formatBytes(traffic.uplinkTotal) },
+        { iconName: 'cloud-download-outline', iconColor: '#5AC8FA', label: i18n.t('downlink_total'), value: formatBytes(traffic.downlinkTotal) },
+        { iconName: 'hardware-chip-outline', iconColor: '#5856D6', label: i18n.t('memory_usage'), value: formatBytes(traffic.memory) },
         { iconName: 'git-branch-outline', iconColor: '#7B61FF', label: i18n.t('active_tasks'), value: String(traffic.goroutines) },
         { iconName: 'enter-outline', iconColor: '#4A90D9', label: i18n.t('inbound_connections'), value: String(traffic.connectionsIn) },
         { iconName: 'exit-outline', iconColor: '#6E8FC9', label: i18n.t('outbound_connections'), value: String(traffic.connectionsOut) },
