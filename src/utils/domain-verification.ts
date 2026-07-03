@@ -67,8 +67,14 @@ export function getVerifiedDomainsList(): string[] {
  * considered in one suffix traversal.
  */
 export async function verifyHostname(hostname: string): Promise<boolean> {
-    const known    = new Set<string>(getKnownDomainSha256List());
-    const verified = new Set<string>(getVerifiedDomainsList());
+    // Fail-closed like the native verifiers (audit D3c-02): the KV-cached lists
+    // (JS-pushed known + remote verified) are trusted only within the TTL; once
+    // stale, fall back to the always-available compile-time list until the
+    // non-blocking refresh below repopulates the cache. Previously the stale
+    // cache was trusted indefinitely, diverging from native.
+    const cacheValid = isCacheValid();
+    const known    = new Set<string>(cacheValid ? getKnownDomainSha256List() : [...DEFAULT_KNOWN_DOMAIN_SHA256_LIST]);
+    const verified = new Set<string>(cacheValid ? getVerifiedDomainsList() : []);
     const ok       = await hostnameMatchesAnyAllowlist(hostname, known, verified);
     if (!ok) void updateVerificationData(false);
     return ok;
