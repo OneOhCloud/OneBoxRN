@@ -5,6 +5,7 @@ import { SBConfig } from '@/database/kv';
 import { getStoreValue } from '@/database/store';
 import { ConfigType } from '@/definition';
 import { emitLog, jsLog } from '@/utils/log-sink';
+import { startupErrorTokenToKey } from '@/utils/startup-error-tokens';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import ExpoOneBox, { ErrorEventPayload, GroupUpdateEventPayload, StatusChangeEventPayload, TrafficUpdateEventPayload, VPN_STATUS } from '@/modules/expo-onebox';
@@ -138,7 +139,12 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const presentStartupFailure = useCallback((info: Omit<StartupFailureInfo, 'occurredAt'>) => {
-        const message = info.message?.trim() || i18n.t('startup_error_empty_message');
+        // Native emits a language-neutral token for user-facing failures; map it
+        // to the user's language. Non-token messages are raw binary error detail,
+        // shown verbatim (audit C9).
+        const raw = info.message?.trim();
+        const tokenKey = startupErrorTokenToKey(raw);
+        const message = tokenKey ? i18n.t(tokenKey) : (raw || i18n.t('startup_error_empty_message'));
         jsLog.warn('[VPN] Start failed:', message);
         emitLog({ source: 'native', level: 'error', message: `[StartFailed] ${message}` });
         setStartupFailure({
