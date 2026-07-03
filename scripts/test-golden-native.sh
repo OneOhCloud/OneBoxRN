@@ -37,5 +37,10 @@ swiftc -parse-as-library \
   "$MOD/ios/tests/ExitGatewayGoldenCheck.swift" \
   -o "$TMP/exitgateway-golden"
 "$TMP/exitgateway-golden" "$MOD/golden/exitgateway.json"
+swiftc -parse-as-library \
+  "$MOD/ios/core/DomainSuffix.swift" \
+  "$MOD/ios/tests/DomainSuffixGoldenCheck.swift" \
+  -o "$TMP/domain-suffix-golden"
+"$TMP/domain-suffix-golden" "$MOD/golden/domain-suffix.json"
 
 echo "✅ native golden runners passed"
