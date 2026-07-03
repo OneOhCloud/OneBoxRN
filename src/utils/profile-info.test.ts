@@ -1,46 +1,48 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { parseProfileUserinfo } from './profile-info.ts';
 
-// Golden-sample lock for the `subscription-userinfo` header parser. This is the
-// reference spec that the four implementations of the same parse must agree on
-// (JS here, the web-stub mirror in ExpoOneBoxModule.web.ts, and the Kotlin /
-// Swift native workers). A change here that the native copies don't mirror is a
-// cross-platform contract break (audit C6 / D3c-03 / D8-07).
+// Cross-platform golden-sample lock for the `subscription-userinfo` header parser
+// (audit C6 / D3c-03 / Batch 3). The samples live in the native submodule
+// (src/modules/expo-onebox/golden/userinfo.json) so the Kotlin (ParseUserinfoTest)
+// and Swift (ParseUserinfoTests) runners load the exact same file. This is the JS
+// third of that trio: it asserts the JS reference parser against the single
+// contract. Add or change cases in the JSON, never inline here.
+
+interface UserinfoGolden {
+    cases: {
+        name: string;
+        header: string | null;
+        expect: { upload: number; download: number; total: number; expire: number };
+    }[];
+    knownDivergences: {
+        name: string;
+        header: string;
+        expect: { js: { totalAtLeast: number } };
+    }[];
+}
+
+const golden = JSON.parse(
+    readFileSync(new URL('../modules/expo-onebox/golden/userinfo.json', import.meta.url), 'utf8'),
+) as UserinfoGolden;
 
 describe('parseProfileUserinfo (cross-platform golden sample)', () => {
-    it('parses the standard quad', () => {
-        assert.deepEqual(
-            parseProfileUserinfo('upload=100; download=300; total=1000; expire=1735689600'),
-            { upload: 100, download: 300, total: 1000, expire: 1735689600 },
-        );
-    });
+    for (const c of golden.cases) {
+        it(c.name, () => {
+            assert.deepEqual(parseProfileUserinfo(c.header), c.expect);
+        });
+    }
 
-    it('order-independent and tolerant of extra whitespace/fields', () => {
-        assert.deepEqual(
-            parseProfileUserinfo('expire=1; total=2;   download=3; upload=4; foo=bar'),
-            { upload: 4, download: 3, total: 2, expire: 1 },
-        );
-    });
-
-    it('missing fields and null default to 0', () => {
-        assert.deepEqual(parseProfileUserinfo('upload=5'), { upload: 5, download: 0, total: 0, expire: 0 });
-        assert.deepEqual(parseProfileUserinfo(''), { upload: 0, download: 0, total: 0, expire: 0 });
-        assert.deepEqual(parseProfileUserinfo(null), { upload: 0, download: 0, total: 0, expire: 0 });
-    });
-
-    it('the left boundary is anchored — `total=` does not match `subtotal=`', () => {
-        // All 4 implementations use `total=(\d+)` without a left boundary, so a
-        // `subtotal=` prefix WOULD be captured. Locked as a known shared quirk:
-        // the header spec never emits `subtotal`, and drift must stay in lockstep.
-        assert.equal(parseProfileUserinfo('subtotal=99; total=7').total, 99);
-    });
-
-    it('KNOWN cross-platform divergence: values beyond 2^53 lose precision (JS) — natives clamp/overflow', () => {
-        // Airports encode "unlimited" as total=2^64-1. JS parseInt keeps a lossy
-        // float; Kotlin `toLongOrNull()?:0` / Swift `Int64()??0` overflow to 0.
-        // Documented, not yet unified (needs the native single-source; audit C6).
-        const r = parseProfileUserinfo('total=18446744073709551615');
-        assert.ok(r.total > 1e19, 'JS keeps a (lossy) large number rather than 0');
-    });
+    for (const d of golden.knownDivergences) {
+        it(`known divergence — JS side: ${d.name}`, () => {
+            // JS keeps a lossy large number where the native Int64 parsers overflow
+            // to 0. This locks the JS half of the documented split; the Kotlin and
+            // Swift runners assert total === 0 for the same input.
+            assert.ok(
+                parseProfileUserinfo(d.header).total >= d.expect.js.totalAtLeast,
+                'JS keeps a (lossy) large number rather than 0',
+            );
+        });
+    }
 });
