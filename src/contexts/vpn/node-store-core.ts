@@ -74,10 +74,10 @@ export const EMPTY_NODE_STATE: NodeStoreState = {
 export function reduceGroupUpdate(
     prev: NodeStoreState,
     event: GroupUpdate,
-    now: number,
+    nowMs: number,
     testWindowUntil: number,
 ): NodeStoreState {
-    const inTestingWindow = now < testWindowUntil;
+    const inTestingWindow = nowMs < testWindowUntil;
     const hasAnyMeasuredDelay = event.all.some((n) => n.delay > 0);
     return {
         nodes: event.all.map((n) => ({

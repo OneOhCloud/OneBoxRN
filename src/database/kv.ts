@@ -43,7 +43,12 @@ function getDB(): SQLiteDatabase {
     }
     if (!_db) {
         _db = SQLite!.openDatabaseSync('config.db');
-        // 确保 kv_store 表存在（SQLiteProvider 的 onInit 可能尚未运行）
+        // Runtime-defensive create in case getDB() is called before the
+        // SQLiteProvider onInit migration has run. Intentionally NOT shared with
+        // the v1→2 CREATE in sqlite3.tsx: that copy is a frozen migration step
+        // (shipped history that must never change), whereas this one tracks the
+        // live schema — a shared const would let a future schema change silently
+        // rewrite migration history (D9-10).
         _db.execSync(`
             CREATE TABLE IF NOT EXISTS kv_store (
                 key   TEXT PRIMARY KEY NOT NULL,
