@@ -211,6 +211,27 @@ describe('createImportFlowMachine', () => {
         assert.equal(h.upserts.length, 0);
     });
 
+    it('2xx with undecodable body: error(invalid-content), nothing stored, start never reached', async () => {
+        // The stripped-Content-Encoding proxy defect: 200 + gzip bytes as text.
+        const h = makeHarness({ fetchConfig: () => Promise.resolve(okResponse({ body: '�' })) });
+        const { final } = await runToEnd({ data: DATA_OK, apply: '1' }, h);
+
+        assert.deepEqual(final, { phase: 'error', error: { kind: 'invalid-content', reason: 'not-json' } });
+        assert.equal(h.upserts.length, 0);
+        assert.ok(!h.calls.includes('start'));
+        assert.equal(h.failures[0].phase, 'download');
+        assert.equal(h.failures[0].errorCode, 'INVALID_CONTENT');
+        assert.deepEqual(h.haptics, ['error']);
+    });
+
+    it('2xx with a non-object JSON body fails validation on the manual path too', async () => {
+        const h = makeHarness({ fetchConfig: () => Promise.resolve(okResponse({ body: '[]' })) });
+        const { final } = await runToEnd({ data: DATA_OK, apply: undefined }, h);
+
+        assert.deepEqual(final, { phase: 'error', error: { kind: 'invalid-content', reason: 'not-object' } });
+        assert.equal(h.upserts.length, 0);
+    });
+
     it('network failure: error(download-network) with the classified errorCode', async () => {
         const h = makeHarness({ fetchConfig: () => Promise.reject(new Error('request timed out')) });
         const { final } = await runToEnd({ data: DATA_OK, apply: undefined }, h);

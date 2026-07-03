@@ -30,6 +30,7 @@ between foreground/background is a bug unless listed under exemptions.
 | accelerator HTTP non-2xx / error | fail `primary=<e> accelerated=<e>`, `method=fallback` (`BOTH_FAILED`) |
 | cancellation (coroutine cancel / BGTask expiry / user abort) | **distinct from timeout; never fallback.** Kotlin rethrows `CancellationException`; Swift checks `Task.isCancelled` → `CANCELLED` |
 | empty/unparseable URL | `skipped` (Swift) / IllegalArgument (Kotlin, JS guards empty before calling) |
+| 2xx but body fails config-content validation (empty / not JSON / not a JSON object) | JS-side store gate (`validateConfigContent`): import errors `invalid-content`, refresh success demoted to `failed` — nothing persisted, engine never restarts on a corrupted config. Code `INVALID_CONTENT` |
 | redirects | follow ≤5 re-resolving per hop (Swift). Kotlin: OkHttp auto-redirect + SNI factory pins the original hostname → cross-host redirect fails closed via the hostname verifier. **Known divergence, deferred** |
 | template fetch (JS-T) | 15 s timeout, returns null → KV cache → bundled fallback; never throws |
 
@@ -47,7 +48,7 @@ against the ORIGINAL hostname. iOS uses Network.framework with SNI only — no
   ACCELERATOR_SKIPPED · ACCELERATOR_UNAVAILABLE · BOTH_FAILED · CANCELLED`
 - JS structured `errorCode` (`src/utils/config-fetch-policy.ts`, the executable mirror
   of this table): `TIMEOUT | DNS | NETWORK | TLS | HTTP_<n> | CANCELLED |
-  UNVERIFIED_DOMAIN | ACCELERATOR_UNAVAILABLE | UNKNOWN`
+  UNVERIFIED_DOMAIN | ACCELERATOR_UNAVAILABLE | INVALID_CONTENT | UNKNOWN`
 
 ## result-persistence contract (F-02)
 The native last-result slot (iOS AppGroup `group.cloud.oneoh.networktools` key

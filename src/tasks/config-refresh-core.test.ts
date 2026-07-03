@@ -110,6 +110,43 @@ describe('applyRefreshResult', () => {
         assert.equal(appended[0].record.trigger, 'auto');
     });
 
+    it('success with undecodable content: demoted to failed, zero setters, INVALID_CONTENT code', () => {
+        // The stripped-Content-Encoding proxy defect: 200 + gzip bytes as text.
+        const { deps, setterCalls, appended, flowEvents, failures } = makeDeps('OLD');
+        applyRefreshResult(deps, {
+            result: makeResult({ content: '�' }),
+            url: URL,
+            trigger: 'auto',
+            flowId: 'flow0009',
+        });
+
+        assert.deepEqual(setterCalls, []);
+        assert.equal(appended.length, 1);
+        assert.equal(appended[0].record.status, 'failed');
+        assert.equal(appended[0].record.contentChanged, false);
+        assert.equal(appended[0].record.error, 'invalid config content (not-json)');
+        assert.equal(flowEvents.length, 0);
+        assert.equal(failures.length, 1);
+        assert.equal(failures[0].status, 'fail');
+        assert.equal(failures[0].errorCode, 'INVALID_CONTENT');
+    });
+
+    it('success with no content: gate does not fire — traffic still applied', () => {
+        const { deps, setterCalls, appended, failures } = makeDeps();
+        applyRefreshResult(deps, {
+            result: makeResult({ content: undefined }),
+            url: URL,
+            trigger: 'auto',
+            flowId: 'flow0010',
+        });
+
+        assert.deepEqual(setterCalls.map(([name]) => name), [
+            'setUsedTraffic', 'setTotalTraffic', 'setExpireTime',
+        ]);
+        assert.equal(appended[0].record.status, 'success');
+        assert.equal(failures.length, 0);
+    });
+
     it('failed: zero setters, TaskRecord still appended with the failed traffic fields, routed to recordFlowFailure', () => {
         const { deps, setterCalls, appended, flowEvents, failures } = makeDeps();
         applyRefreshResult(deps, {

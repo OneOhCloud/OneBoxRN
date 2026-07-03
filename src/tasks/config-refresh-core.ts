@@ -11,7 +11,11 @@
 
 import type { TaskRecord, TriggerSource } from '../database/kv.ts';
 import type { ConfigRefreshResult } from '../modules/expo-onebox/src/ExpoOneBox.types.ts';
-import { errorCodeFromMessage } from '../utils/config-fetch-policy.ts';
+import {
+    ERROR_CODE_INVALID_CONTENT,
+    errorCodeFromMessage,
+    validateConfigContent,
+} from '../utils/config-fetch-policy.ts';
 import type { FlowEvent } from '../utils/flow-events.ts';
 import { djb2Hash, redactUrl } from '../utils/log-redact.ts';
 
@@ -40,8 +44,17 @@ export interface RefreshApplyInput {
 export function applyRefreshResult(deps: RefreshApplyDeps, input: RefreshApplyInput): void {
     const { result, url, trigger, flowId } = input;
 
+    // Acceptance gate: a "success" whose body is not a config (e.g. a proxy
+    // handing through undecodable bytes) is demoted to a failure — nothing
+    // is persisted, so the engine never restarts on a corrupted config.
+    const verdict = result.status === 'success' && result.content
+        ? validateConfigContent(result.content)
+        : ({ ok: true } as const);
+    const status = verdict.ok ? (result.status as 'success' | 'failed' | 'skipped') : 'failed';
+    const error = verdict.ok ? result.error : `invalid config content (${verdict.reason})`;
+
     let contentChanged = false;
-    if (result.status === 'success') {
+    if (result.status === 'success' && verdict.ok) {
         deps.sbConfig.setUsedTraffic(result.subscriptionUpload + result.subscriptionDownload);
         deps.sbConfig.setTotalTraffic(result.subscriptionTotal);
         deps.sbConfig.setExpireTime(result.subscriptionExpire);
@@ -53,12 +66,12 @@ export function applyRefreshResult(deps: RefreshApplyDeps, input: RefreshApplyIn
 
     deps.taskLog.append(url, {
         time: result.timestamp,
-        status: result.status as 'success' | 'failed' | 'skipped',
+        status,
         trigger,
         duration: result.durationMs,
         method: result.method ?? 'primary',
         contentChanged,
-        error: result.error,
+        error,
         acceleratedUrlRedacted: result.actualUrl ? redactUrl(result.actualUrl) : undefined,
         flowId,
         upload: result.subscriptionUpload,
@@ -71,10 +84,10 @@ export function applyRefreshResult(deps: RefreshApplyDeps, input: RefreshApplyIn
         event: 'config_refresh' as const,
         flowId,
         phase: 'refresh' as const,
-        status: result.status === 'success' ? ('ok' as const) : result.status === 'skipped' ? ('skip' as const) : ('fail' as const),
+        status: status === 'success' ? ('ok' as const) : status === 'skipped' ? ('skip' as const) : ('fail' as const),
         method: result.method ?? 'primary',
         durationMs: result.durationMs,
-        errorCode: errorCodeFromMessage(result.error),
+        errorCode: verdict.ok ? errorCodeFromMessage(result.error) : ERROR_CODE_INVALID_CONTENT,
         profileIdHash: djb2Hash(url),
         detail: `trigger=${trigger} contentChanged=${contentChanged}`,
     };

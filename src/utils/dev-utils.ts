@@ -51,3 +51,8 @@ export function triggerColor(trigger: TriggerSource | undefined): string {
         default: return '#8E8E93';
     }
 }
+
+// Fallback loads stand out (orange); primary stays neutral.
+export function methodColor(method: string): string {
+    return method === 'primary' ? '#8E8E93' : '#FF9500';
+}

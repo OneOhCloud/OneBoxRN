@@ -77,6 +77,33 @@ export function errorCodeFromMessage(message: string | undefined): string | unde
     return errorCodeOf(kind, httpStatus ? Number(httpStatus[1]) : undefined);
 }
 
+export type ConfigContentVerdict =
+    | { ok: true }
+    | { ok: false; reason: 'empty' | 'not-json' | 'not-object' };
+
+/** Shared errorCode for a 2xx response whose body fails validation. */
+export const ERROR_CODE_INVALID_CONTENT = 'INVALID_CONTENT';
+
+/**
+ * Acceptance gate for downloaded config bodies: a sing-box config is a
+ * JSON object at the top level. Guards the store step of import and
+ * refresh — an HTTP 200 with an undecodable body (e.g. a proxy handing
+ * through compressed bytes) must fail the flow, not silently persist.
+ */
+export function validateConfigContent(content: string): ConfigContentVerdict {
+    if (content.trim() === '') return { ok: false, reason: 'empty' };
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(content);
+    } catch {
+        return { ok: false, reason: 'not-json' };
+    }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        return { ok: false, reason: 'not-object' };
+    }
+    return { ok: true };
+}
+
 export type FallbackDenialReason =
     | 'network-fault'
     | 'http-no-fallback'

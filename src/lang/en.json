@@ -186,6 +186,7 @@
     "config_download_failed_title": "Download Failed",
     "config_download_failed_hint": "Unable to fetch the profile. Check your link and try again.",
     "config_error_status": "Request failed (HTTP %{code})",
+    "config_invalid_content": "Downloaded content is not a valid config (%{reason})",
     "config_verify_failed": "Domain verification failed: %{message}",
     "config_apply_failed": "Failed to apply config: %{message}",
     "config_apply_timeout": "Starting VPN timed out after %{seconds}s. The tunnel may not have fully released from the previous session.",

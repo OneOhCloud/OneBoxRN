@@ -5,6 +5,8 @@ import {
     errorCodeFromMessage,
     errorCodeOf,
     shouldFallbackToAccelerator,
+    validateConfigContent,
+    type ConfigContentVerdict,
     type FetchErrorKind,
 } from './config-fetch-policy.ts';
 
@@ -108,4 +110,26 @@ describe('shouldFallbackToAccelerator (policy table rows)', () => {
             { fallback: false, reason: 'accelerator-unavailable' },
         );
     });
+});
+
+describe('validateConfigContent', () => {
+    const cases: [string, string, ConfigContentVerdict][] = [
+        ['valid sing-box object', '{"outbounds":[]}', { ok: true }],
+        ['object with whitespace', '  {"dns":{}}\n', { ok: true }],
+        ['empty string', '', { ok: false, reason: 'empty' }],
+        ['whitespace only', '  \n\t', { ok: false, reason: 'empty' }],
+        // The stripped-Content-Encoding proxy defect: gzip magic bytes
+        // decoded as text — must never persist as a config.
+        ['gzip bytes as text', '�', { ok: false, reason: 'not-json' }],
+        ['truncated json', '{"outbounds":[', { ok: false, reason: 'not-json' }],
+        ['yaml body', 'proxies:\n  - name: a\n', { ok: false, reason: 'not-json' }],
+        ['top-level array', '[1,2]', { ok: false, reason: 'not-object' }],
+        ['top-level null', 'null', { ok: false, reason: 'not-object' }],
+        ['top-level scalar', '"ok"', { ok: false, reason: 'not-object' }],
+    ];
+    for (const [label, content, expected] of cases) {
+        it(`${label} → ${expected.ok ? 'ok' : expected.reason}`, () => {
+            assert.deepEqual(validateConfigContent(content), expected);
+        });
+    }
 });

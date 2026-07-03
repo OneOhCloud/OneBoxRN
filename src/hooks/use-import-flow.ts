@@ -51,6 +51,8 @@ function mapImportError(error: ImportError): string {
             return i18n.t('config_error_status', { code: error.statusCode });
         case 'download-network':
             return error.message;
+        case 'invalid-content':
+            return i18n.t('config_invalid_content', { reason: error.reason });
         case 'start-failed':
             return i18n.t('config_apply_failed', { message: mapStartFailureMessage(error.failure) });
     }

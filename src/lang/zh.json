@@ -186,6 +186,7 @@
     "config_download_failed_title": "下载失败",
     "config_download_failed_hint": "无法获取配置文件，请检查链接后重试",
     "config_error_status": "请求失败（HTTP %{code}）",
+    "config_invalid_content": "下载内容不是有效配置（%{reason}）",
     "config_verify_failed": "域名校验失败：%{message}",
     "config_apply_failed": "配置应用失败：%{message}",
     "config_apply_timeout": "启动 VPN 超过 %{seconds} 秒未响应，可能上一次通道尚未释放。",

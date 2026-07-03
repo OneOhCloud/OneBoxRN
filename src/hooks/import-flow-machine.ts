@@ -31,7 +31,12 @@ import type {
     VpnLogger,
 } from '../contexts/vpn/types.ts';
 import { startFailureErrorCode } from '../contexts/vpn/actions.ts';
-import { classifyFetchError, errorCodeOf } from '../utils/config-fetch-policy.ts';
+import {
+    classifyFetchError,
+    ERROR_CODE_INVALID_CONTENT,
+    errorCodeOf,
+    validateConfigContent,
+} from '../utils/config-fetch-policy.ts';
 import { newFlowId, type FlowEvent } from '../utils/flow-events.ts';
 import { djb2Hash } from '../utils/log-redact.ts';
 import { parseProfileUserinfo, type ProfileTrafficInfo } from '../utils/profile-info.ts';
@@ -43,6 +48,7 @@ export type ImportError =
     | { kind: 'verify-failed'; message: string }
     | { kind: 'download-http'; statusCode: number }
     | { kind: 'download-network'; message: string }
+    | { kind: 'invalid-content'; reason: string }
     | { kind: 'start-failed'; failure: Exclude<StartFailure, { kind: 'aborted' }> };
 
 export type ImportPhase =
@@ -261,7 +267,23 @@ export function createImportFlowMachine(
         }
 
         // ── Store ────────────────────────────────────────────
+        // Acceptance gate: an HTTP 200 whose body is not a config (e.g. a
+        // proxy handing through undecodable bytes) must fail here — never
+        // persist and never reach start().
         const content = response.body;
+        const verdict = validateConfigContent(content);
+        if (!verdict.ok) {
+            deps.log.warn(`[Config] download rejected: invalid config content (reason=${verdict.reason}, bytes=${content.length})`);
+            deps.recordFlowFailure(event({
+                phase: 'download', status: 'fail',
+                errorCode: ERROR_CODE_INVALID_CONTENT,
+                durationMs: now() - downloadStartedAt,
+                detail: `reason=${verdict.reason} bytes=${content.length}`,
+            }));
+            deps.haptics.notifyError();
+            setPhase({ phase: 'error', error: { kind: 'invalid-content', reason: verdict.reason } });
+            return;
+        }
         const getHeader = (name: string): string | null => {
             const headers = response.headers ?? {};
             return headers[name] ?? headers[name.toLowerCase()] ?? null;

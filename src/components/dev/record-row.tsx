@@ -3,7 +3,7 @@ import { useHairlineColor } from '@/constants/ios26-palette';
 import { Fonts, TabularNums } from '@/constants/theme';
 import type { TaskRecord } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDuration, formatTime, taskStatusColor, triggerColor, triggerLabel } from '@/utils/dev-utils';
+import { formatDuration, formatTime, methodColor, taskStatusColor, triggerColor, triggerLabel } from '@/utils/dev-utils';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -87,6 +87,18 @@ export function RecordRow({ record, isLast, onPress }: RecordRowProps) {
                         }}
                     >
                         {triggerLabel(record.trigger)}
+                    </Text>
+                    <Text
+                        style={{
+                            fontSize: 10,
+                            color: methodColor(record.method),
+                            fontFamily: Fonts?.mono,
+                            fontWeight: '700',
+                            letterSpacing: 0.3,
+                            textTransform: 'uppercase',
+                        }}
+                    >
+                        {record.method}
                     </Text>
                     <Text
                         style={{
