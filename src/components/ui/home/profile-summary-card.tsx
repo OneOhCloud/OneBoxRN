@@ -2,7 +2,8 @@ import { useAccentBlue, useGlassSurface, useHairlineColor } from '@/constants/io
 import i18n from '@/constants/language';
 import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { fmtBytes, SubInfo } from '@/utils';
+import { ProfileQuota } from '@/utils';
+import { formatBytes } from '@/utils/format-bytes';
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -12,7 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 interface ProfileSummaryCardProps {
-    info: SubInfo;
+    info: ProfileQuota;
     name?: string | null;
     connected?: boolean;
 }
@@ -40,7 +41,7 @@ export function ProfileSummaryCard({ info, name, connected = false }: ProfileSum
         )
         : i18n.t('no_expire_info');
 
-    const remainingText = hasQuota ? fmtBytes(remaining) : i18n.t('no_expire_info');
+    const remainingText = hasQuota ? formatBytes(remaining) : i18n.t('no_expire_info');
 
     const fillProgress = useSharedValue(pct);
     useEffect(() => {
@@ -65,16 +66,16 @@ export function ProfileSummaryCard({ info, name, connected = false }: ProfileSum
                     numberOfLines={1}
                     style={[styles.name, { color: theme.text, fontFamily: Fonts?.rounded }]}
                 >
-                    {name ?? i18n.t('sub_section_info')}
+                    {name ?? i18n.t('profile_section_info')}
                 </Text>
             </View>
 
             <View style={styles.hero}>
                 {hasQuota ? (
                     <Text style={[styles.heroUsed, { color: theme.text, fontFamily: Fonts?.mono }]}>
-                        {fmtBytes(used)}
+                        {formatBytes(used)}
                         <Text style={[styles.heroTotal, { color: theme.textSecondary }]}>
-                            {` / ${fmtBytes(total)}`}
+                            {` / ${formatBytes(total)}`}
                         </Text>
                     </Text>
                 ) : (

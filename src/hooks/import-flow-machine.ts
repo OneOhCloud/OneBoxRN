@@ -73,7 +73,7 @@ export interface ImportFlowDeps {
     /** Context actions — the machine orchestrates intents, never the bridge. */
     stop(options?: StopOptions): Promise<StopResult>;
     start(options?: StartOptions): Promise<StartResult>;
-    /** ExpoOneBox.fetchSubscription (sanctioned bridge name). */
+    /** Native config download for the import flow (ExpoOneBox.fetchProfileConfig). */
     fetchConfig(url: string, userAgent: string): Promise<ConfigFetchResult>;
     userAgent: string;
     profiles: Pick<ProfileStoreApi, 'findByUrl' | 'upsertByUrl'>;

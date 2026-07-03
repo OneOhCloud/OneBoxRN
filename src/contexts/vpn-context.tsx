@@ -7,7 +7,7 @@ import { configType } from '@/definition';
 import { emitLog, jsLog } from '@/utils/log-sink';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
-import ExpoOneBox, { TrafficUpdateEventPayload, VPN_STATUS } from '../modules/expo-onebox';
+import ExpoOneBox, { ErrorEventPayload, StatusChangeEventPayload, TrafficUpdateEventPayload, VPN_STATUS } from '../modules/expo-onebox';
 import { createVpnActions, stopAndAwaitStopped } from './vpn/actions';
 import { expoOneBoxBridge } from './vpn/bridge';
 import { parseCoreLineLevel, sbLevelToEntryLevel } from './vpn/core-log';
@@ -194,7 +194,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             presentStartupFailure(info);
         };
 
-        const statusSub = ExpoOneBox.addListener('onStatusChange', (event: { status: number; statusName: string; message: string }) => {
+        const statusSub = ExpoOneBox.addListener('onStatusChange', (event: StatusChangeEventPayload) => {
             jsLog.info(`[VPN] Status changed: ${event.statusName}(${event.status}), isStartingUp=${isStartingUp.current}`);
 
             setStatus(event.status);
@@ -250,7 +250,7 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             }
         });
 
-        const errorSub = ExpoOneBox.addListener('onError', (event: { type: string; message: string; status?: number }) => {
+        const errorSub = ExpoOneBox.addListener('onError', (event: ErrorEventPayload) => {
             emitLog({
                 source: 'native',
                 level: 'error',
@@ -303,17 +303,6 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             });
         });
 
-        // Background config refresh results — fire from the native task
-        // (BGTaskScheduler / WorkManager). Log errors as error-level so
-        // the red pill is visible on the row.
-        const refreshSub = ExpoOneBox.addListener('onConfigRefreshResult', (event: { status: 'success' | 'failed' | 'skipped'; error?: string; durationMs: number; method?: string }) => {
-            emitLog({
-                source: 'native',
-                level: event.status === 'failed' ? 'error' : 'info',
-                message: `[ConfigRefresh] status=${event.status}${event.method ? `, method=${event.method}` : ''}, ${event.durationMs}ms${event.error ? `, error=${event.error}` : ''}`,
-            });
-        });
-
         const trafficSub = ExpoOneBox.addListener('onTrafficUpdate', (event: TrafficUpdateEventPayload) => {
             setTraffic(event);
         });
@@ -326,7 +315,6 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
             logSub.remove();
             nativeLogSub.remove();
             groupSub.remove();
-            refreshSub.remove();
             trafficSub.remove();
         };
     }, [presentStartupFailure, syncStatus]);

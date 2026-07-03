@@ -23,7 +23,7 @@ import React, { useEffect } from 'react';
 import { AppState, Platform, Text, useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '../global.css';
-import ExpoOneBox from '../modules/expo-onebox';
+import ExpoOneBox, { VPN_STATUS } from '../modules/expo-onebox';
 
 const bugsnagApiKey = Constants.expoConfig?.extra?.bugsnag?.apiKey;
 const bugsnagEnabled = typeof bugsnagApiKey === 'string' && bugsnagApiKey.length > 0;
@@ -178,7 +178,7 @@ export default function RootLayout() {
                 // only if the tunnel is not routing traffic (otherwise the
                 // request stalls on the TUN interface). Both calls are
                 // TTL-gated internally so frequent app switches are cheap.
-                if (ExpoOneBox.getStatus() === 0 /* VPN_STATUS.STOPPED */) {
+                if (ExpoOneBox.getStatus() === VPN_STATUS.STOPPED) {
                     prefetchConfigTemplates().catch((e) => {
                         jsLog.warn('[RootLayout] prefetchConfigTemplates on active error:', e);
                     });
@@ -192,7 +192,7 @@ export default function RootLayout() {
         // Prefetch config templates only when VPN is stopped.
         // When VPN is running, all traffic routes through the TUN interface — HTTP requests
         // made before the tunnel is stable will hang until the 5s timeout fires.
-        if (ExpoOneBox.getStatus() === 0 /* VPN_STATUS.STOPPED */) {
+        if (ExpoOneBox.getStatus() === VPN_STATUS.STOPPED) {
             prefetchConfigTemplates().catch((e) => {
                 jsLog.warn('[RootLayout] prefetchConfigTemplates error:', e);
             });
@@ -235,6 +235,16 @@ export default function RootLayout() {
                                     opens it. */}
                                 <Stack.Screen
                                     name="dev-smoke"
+                                    options={{
+                                        headerShown: false,
+                                        presentation: 'card',
+                                        animation: 'slide_from_bottom',
+                                    }}
+                                />
+                                {/* DEV-only automation harness — oneoh-networktools://dev-harness?op=…
+                                    Actions are __DEV__-gated inside the screen; emits [[HARNESS]] logcat markers. */}
+                                <Stack.Screen
+                                    name="dev-harness"
                                     options={{
                                         headerShown: false,
                                         presentation: 'card',

@@ -7,7 +7,7 @@ import { mediumImpact } from '@/components/ui/haptics';
 import i18n from '@/constants/language';
 import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { fmtBytes } from '@/utils';
+import { formatBytes } from '@/utils/format-bytes';
 import type { ProfileTrafficInfo } from '@/utils/profile-info';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -177,7 +177,7 @@ export function SuccessView({
                                 {i18n.t('config_traffic_label')}
                             </Text>
                             <Text style={{ fontSize: 13, fontWeight: '600', color: isNearLimit ? '#FF3B30' : theme.text }}>
-                                {i18n.t('config_traffic_remaining', { amount: fmtBytes(left) })}
+                                {i18n.t('config_traffic_remaining', { amount: formatBytes(left) })}
                             </Text>
                         </View>
                         {/* Progress track */}
@@ -203,10 +203,10 @@ export function SuccessView({
                             }}
                         >
                             <Text style={{ fontSize: 12, color: theme.textSecondary }}>
-                                {i18n.t('config_traffic_used_label', { amount: fmtBytes(used), percent: usedPercent.toFixed(1) })}
+                                {i18n.t('config_traffic_used_label', { amount: formatBytes(used), percent: usedPercent.toFixed(1) })}
                             </Text>
                             <Text style={{ fontSize: 12, color: theme.textSecondary }}>
-                                {i18n.t('config_traffic_total_label', { amount: fmtBytes(total) })}
+                                {i18n.t('config_traffic_total_label', { amount: formatBytes(total) })}
                             </Text>
                         </View>
                     </View>

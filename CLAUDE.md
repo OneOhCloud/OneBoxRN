@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-React Native VPN app. Expo SDK 55 + Expo Router. Core engine: sing-box v1.13.0. Targets iOS, Android, Web.
+React Native VPN app. Expo SDK 57 + Expo Router. Core engine: sing-box v1.13.14 (single source: `SING_BOX_TAG` in `src/modules/expo-onebox/helper/Makefile`). Targets iOS, Android, Web.
 
 ---
 
@@ -125,7 +125,7 @@ Convention: every new runtime dep with a native side → one smoke entry in the 
 |---|---|
 | `expo-*`, `react-native-*`, `@/modules/*`, `@gorhom/*`, native turbo/nitro | yes |
 | `@expo-google-fonts/*`, icon packs (possibly reach native font loader) | yes |
-| pure JS (`i18n-js`, `jsonc-parser`, `tailwind-merge`, `nativewind`, …) | no — bundler-time failure |
+| pure JS (`i18n-js`, `jsonc-parser`, `nativewind`, …) | no — bundler-time failure |
 | devDeps (`eslint`, `typescript`, `husky`, …) | no — not runtime |
 | libs covered transitively | no |
 
@@ -139,11 +139,51 @@ Green row → proceed. Red/orange → usually "forgot `make prebuild`" or "packa
 
 ### Import-entry flow tests
 
-Appended to native-import suite on the same `/dev-smoke` page. Cases: `src/debug/import-tests/cases.ts`. Target: `QR → verify → stop → download → apply` entry chain (regression guard for Nov 2026 work). Uses `FakeVpnModule` + pure helpers — never touches real `ExpoOneBox` / `ProfileStore` / network. Groups: `import`, `parse`, `crypto`, `verify`, `apply` — per-group pass/total headers + filter chips on page.
+Appended to native-import suite on the same `/dev-smoke` page. Cases: `src/debug/import-tests/cases.ts`. Target: `QR → verify → stop → download → apply` entry chain (regression guard for the config-import flow-machine refactor). Uses `FakeVpnModule` + pure helpers — never touches real `ExpoOneBox` / `ProfileStore` / network. Groups: `import`, `parse`, `crypto`, `verify`, `apply` — per-group pass/total headers + filter chips on page.
 
 ### End-of-session curation
 
 After task complete, list new tests + propose which belong in permanent `make test` target. Wait for user OK before wiring into `make/test.mk`.
+
+---
+
+## On-device acceptance & verification (dev environment)
+
+This machine has a working native build + device loop. **"Verified" means built and
+observed on a device — never inferred from `tsc`/lint alone** (§ debugging discipline in
+`~/.claude/CLAUDE.md`). Use the tools; do not defer to manual runs or ask.
+
+### Available environment
+- **Android emulator running** — `adb devices` → `emulator-5554` (AVD `Pixel_9`); Android Studio installed.
+- **Xcode 26.6** + CocoaPods; `ios/` prebuilt (Podfile present).
+- SDK at `~/Library/Android/sdk` (`ANDROID_HOME`); NDK / build-tools / platforms present; JDK 21.
+- `~/.gradle/init.gradle` pins Aliyun mirrors (Maven Central flakes through the proxy — see memory).
+
+### Verification tools (all via Makefile / adb — never fabricate)
+
+| tool | purpose |
+|---|---|
+| `make prebuild-android` / `make prebuild-ios` | regenerate the native project from the submodule after **any** native change |
+| `make run-android` | `expo run:android` — build + install + launch on the current adb target |
+| `cd android && ./gradlew :app:compileDebugKotlin` (after prebuild) | fast compile-only check of Kotlin native changes |
+| `make dev-smoke-android` / `-ios` | fire deep link `oneoh-networktools://dev-smoke` → runs native-import smoke + import-flow suite on device |
+| `make screenshot-android` | `adb exec-out screencap` → `target/screenshots/android-<ts>.png` (multi-device: `ADB_SERIAL=<serial>`) |
+| `adb logcat` | primary observation channel — RN `console.*`/`jsLog` → tag `ReactNativeJS`; native `android.util.Log` / `onNativeLog` → per-subsystem tags |
+
+### Native verification loop (mandatory after native edits)
+
+1. `make prebuild-android` → `cd android && ./gradlew :app:compileDebugKotlin` (or `assembleDebug`) — **must compile clean**.
+2. install + launch on the emulator; `make dev-smoke-android`; read `adb logcat` for the harness markers; `make screenshot-android` to confirm UI.
+3. drive the behavior under test via the dev harness signals below; assert on the log markers.
+4. IDE/SourceKit diagnostics on `.swift` (e.g. `No such module 'ExpoModulesCore'`, `BGTaskScheduler is unavailable in macOS`, cross-file `Cannot find … in scope`) are **noise without a build context — ignore them; trust `gradlew` / `xcodebuild`.**
+
+### Dev harness — interaction interface & signals (DEV-ONLY)
+
+For autonomous, non-manual acceptance the app exposes signals driven over `adb`. **No blind spots**: if a behavior under acceptance cannot be seen in logcat, add a marker before claiming it verified.
+
+- **Signal in** — deep link `oneoh-networktools://dev-harness?op=<op>&…` (registered **only under `__DEV__`**) drives VPN actions (start / stop / select-node / refresh) and diagnostics without touching production UI. Fire via `adb shell am start -a android.intent.action.VIEW -d '<url>'`.
+- **Log out** — every harness action and every observable state transition emits one machine-parseable line `[[HARNESS]] op=… key=value …` to logcat (JS via `jsLog`, native via `Log`/`onNativeLog`).
+- **Guard** — all `dev-harness` deep links and `[[HARNESS]]` logging are compiled/registered **only when `__DEV__` (JS) / `BuildConfig.DEBUG` (native)**; they must never reach a release build or be user-visible.
 
 ---
 
@@ -189,12 +229,14 @@ src/
 │   ├── _layout.tsx        # root layout (providers, theme, init)
 │   ├── (tabs)/            # bottom tab nav
 │   │   ├── index.tsx      # home (VPN control)
-│   │   ├── subscriptions.tsx  # profile/config management  (route name retained; see terminology rules)
+│   │   ├── profile.tsx    # profile/config management
 │   │   └── settings.tsx
 │   └── config/            # config / debug stack
 ├── components/ui/         # feature UI, grouped by screen
+├── constants/             # theme colours, palette, language, cache keys
 ├── contexts/              # React Context (VPN runtime state)
 ├── database/              # SQLite + KV store
+├── debug/                 # dev-smoke + import-test harnesses
 ├── hooks/                 # business-logic hooks
 ├── modules/expo-onebox/   # native module (sing-box bridge)
 ├── lang/                  # i18n (en.json / zh.json)
@@ -208,10 +250,10 @@ src/
 |---|---|---|
 | VPN runtime | `VpnContext` (`src/contexts/vpn-context.tsx`) | connection status, traffic, logs, mode |
 | persistent config | SQLite KV (`src/database/kv.ts`) | prefs, rules, DNS |
-| profile data | `expo-sqlite` tables | profiles, profile_configs |
+| profile data | `ProfileStore` over the KV store (`src/database/kv.ts` + `profile-store-core.ts`) | profiles + their configs, as `kv_store` rows |
 | local UI state | component state + hooks | modals, sheets, forms |
 
-No new state libs. All persistent state via SQLite (`kvGet`/`kvSet`) + `expo-sqlite`.
+No new state libs. All persistent state lives in the single `kv_store` SQLite table via `kvGet`/`kvSet`. (The legacy `subscriptions` / `subscription_configs` tables in `sqlite3.tsx` are migration-frozen and empty — no readers or writers; see the comment there.)
 
 ### Navigation
 
@@ -245,14 +287,14 @@ See `docs/claude/comet-animation.md`. Any new animated border / loading indicato
 - official Expo Tailwind guide: https://docs.expo.dev/guides/tailwind/
 - NativeWind v5 + Tailwind v4 (`@tailwindcss/postcss`) via `className`
 - CSS-based config in `src/global.css` (no `tailwind.config.js` for Tailwind v4)
-- theme colours via CSS variables + `useTheme()` hook — never hardcode
+- theme colours via the `Colors` object in `src/constants/theme.ts`, resolved through the `useTheme()` hook — never hardcode (there are no theme CSS variables; `var(--…)` is used only for web font families)
 - do not use lines, dividers, hairlines, or border strokes to create visual hierarchy; use color and tonal contrast instead
 - no new styling libs
 
 ### Data fetching
 
-- profile fetching: `src/utils/profile-loader.ts` + fallback acceleration proxy
-- all `fetch` calls: 10-second timeout via `AbortController`
+- profile fetching: the import flow (`src/hooks/import-flow-machine.ts` + `use-import-flow.ts`) downloads via the native bridge `ExpoOneBox.fetchSubscription`, which applies the fallback acceleration proxy. Fetch-error/fallback policy: `src/utils/config-fetch-policy.ts` (canonical policy table: `docs/claude/config-fetch-policy.md`).
+- timeouts are per-path, not one global value: JS generic `fetchWithTimeout` = 10 s (`src/utils.ts`); remote template fetch = 15 s (`src/database/config-template.ts`); DNS probe = 2 s (`src/database/helper.ts`); native config fetch = 30 s wall-clock (see config-fetch-policy.md). All via `AbortController` / native call timeouts.
 - parse `subscription-userinfo` response header (HTTP header name — allowed despite terminology ban) for traffic/expiry
 
 ### Localization
@@ -265,14 +307,14 @@ See `docs/claude/comet-animation.md`. Any new animated border / loading indicato
 ### Versioning
 
 - single source: `version.json`
-- build scripts auto-sync to iOS Info.plist + Android manifest
+- build scripts auto-sync to iOS `Info.plist` (`scripts/sync-version-ios.js`) and Android `android/app/build.gradle` (`scripts/sync-version-android.js`) — not the Android manifest
 
 ---
 
 ## Domain rules (VPN-specific)
 
 - VPN state changes go through `VpnContext` — never direct `ExpoOneBoxModule` from UI. See `docs/claude/vpn-context.md`.
-- sing-box config changes use template system in `src/database/config.ts`.
+- sing-box config changes use the template system: `src/database/config-template.ts` (fetch/cache/inspect) + `src/database/config-merge-core.ts` (pure merge), with bundled templates in `src/database/template/generated.ts` (regenerated by `scripts/sync-templates.ts`).
 - native module (`src/modules/expo-onebox`) changes require `make prebuild` before running.
 - background tasks (config refresh) register only via iOS BGTaskScheduler / Android WorkManager — no JS timers.
 

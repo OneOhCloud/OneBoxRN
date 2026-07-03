@@ -1,4 +1,4 @@
-import { fmtBytes } from '@/utils';
+import { formatBytes } from '@/utils/format-bytes';
 import { mediumImpact } from '@/components/ui/haptics';
 import { RotatingBorder } from '@/components/ui/profiles/rotating-border';
 import {
@@ -94,7 +94,7 @@ export function ActiveProfileCard({
             hitSlop={8}
             disabled={refreshing}
             accessibilityRole="button"
-            accessibilityLabel={i18n.t('sub_refresh')}
+            accessibilityLabel={i18n.t('profile_refresh')}
             style={({ pressed }) => ({
                 width: 32,
                 height: 32,
@@ -161,8 +161,8 @@ export function ActiveProfileCard({
 
     const displayName = sub.name || i18n.t('remote_config');
 
-    const usedFmt = hasTraffic ? fmtBytes(sub.usedTraffic) : i18n.t('no_expire_info');
-    const totalFmt = hasTraffic ? fmtBytes(sub.totalTraffic) : i18n.t('no_expire_info');
+    const usedFmt = hasTraffic ? formatBytes(sub.usedTraffic) : i18n.t('no_expire_info');
+    const totalFmt = hasTraffic ? formatBytes(sub.totalTraffic) : i18n.t('no_expire_info');
     const pctLabel = hasTraffic ? `${Math.round(pct)}%` : i18n.t('no_expire_info');
 
     const a11yLabel = hasTraffic
@@ -204,7 +204,7 @@ export function ActiveProfileCard({
                         letterSpacing: 0.1,
                     }}
                 >
-                    {i18n.t('sub_active')}
+                    {i18n.t('profile_active')}
                 </Text>
                 {refreshBtn}
             </View>

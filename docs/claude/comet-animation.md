@@ -24,7 +24,7 @@ unified sci-fi comet sweep across all loading + active-state indicators. front-e
 - all layers `strokeWidth` equal — comet gradient is opacity-driven, not thickness-driven
 - offset formula: `strokeDashoffset = -(progress × perimeter) − (wakeDash − layerDash)`
 - single shared `progress` value (0 → 1 linear, `withRepeat`)
-- min 1.5 revolutions before hide (`SPIN_MIN_REVOLUTIONS` constant pattern)
+- min 1.2 revolutions before hide (`SPIN_MIN_REVOLUTIONS` constant in `connect-button.tsx`)
 - `useAnimatedProps` for every layer called unconditionally BEFORE any early `return null` (rules-of-hooks; violating throws at runtime)
 
 ## rounded-rect geometry (RotatingBorder)

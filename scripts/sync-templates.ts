@@ -7,8 +7,8 @@
  *     latest snapshot at build/install time and bakes it into
  *     `src/database/template/generated.ts` as real TS object literals.
  *   - The runtime template loader (`getDefaultConfigTemplate` in
- *     `src/database/helper.ts`) reads from that file as its fallback
- *     when the user's template cache is empty.
+ *     `src/database/config-template.ts`) reads from that file as its
+ *     fallback when the user's template cache is empty.
  *   - The generated file is NOT committed (`.gitignore`d). Every fresh
  *     checkout re-runs this script via `postinstall` + Makefile hooks.
  *
@@ -16,12 +16,12 @@
  *   - Clients that never update must still have a sane fallback — they get
  *     whatever snapshot was baked into the binary they installed.
  *   - Clients that can reach the network pick up fresher templates via
- *     `prefetchConfigTemplates()` in `src/database/helper.ts`. Build-time
+ *     `prefetchConfigTemplates()` in `src/database/config-template.ts`. Build-time
  *     snapshot and live-fetched content share the same source of truth,
  *     so they never diverge in shape — only in freshness.
  *
  * Version resolution is shared with the runtime — both this script and the
- * runtime URL resolver in `helper.ts` call `resolveVersionPath` from
+ * runtime URL resolver in `config-template.ts` call `resolveVersionPath` from
  * `src/utils/sing-box-template-path.ts`, so snapshot and live fetch always
  * agree on which `conf/<version>/zh-cn/` directory to use.
  *
@@ -191,7 +191,7 @@ ${constants}
 /**
  * Built-in template fallbacks, baked at build time from a snapshot of the
  * conf-template repo. Values are real JS objects — the runtime consumer
- * (\`getDefaultConfigTemplate\` in \`src/database/helper.ts\`) stringifies
+ * (\`getDefaultConfigTemplate\` in \`src/database/config-template.ts\`) stringifies
  * them when seeding the cache, so the store sees the same JSON-string
  * form every other read path does.
  *

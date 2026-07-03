@@ -176,14 +176,6 @@ export function expectEqual<T>(actual: T, expected: T, label: string): void {
     }
 }
 
-export function expectDeepEqual(actual: unknown, expected: unknown, label: string): void {
-    const a = JSON.stringify(actual);
-    const b = JSON.stringify(expected);
-    if (a !== b) {
-        throw new TestFailure(`${label}: expected ${b}, got ${a}`);
-    }
-}
-
 export async function expectThrows(
     fn: () => Promise<unknown>,
     label: string,

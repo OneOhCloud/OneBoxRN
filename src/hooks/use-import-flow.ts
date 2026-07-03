@@ -77,7 +77,7 @@ export function useImportFlow(input: { data?: string; apply?: string }): ImportF
                 verifyHostname,
                 stop,
                 start,
-                fetchConfig: (url, userAgent) => ExpoOneBox.fetchSubscription(url, userAgent),
+                fetchConfig: (url, userAgent) => ExpoOneBox.fetchProfileConfig(url, userAgent),
                 userAgent: getSingBoxUserAgent(),
                 profiles: ProfileStore,
                 logFlowEvent,

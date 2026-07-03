@@ -145,7 +145,6 @@ export default ({ config: _config }: ConfigContext): ExpoConfig => ({
     'expo-status-bar',
     'expo-localization',
     'expo-image',
-    'expo-web-browser',
     'expo-font',
     'expo-secure-store',
   ],

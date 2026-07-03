@@ -9,6 +9,7 @@ import {
 import React from 'react';
 import { Pressable, View } from 'react-native';
 
+import i18n from '@/constants/language';
 import { ThemedText } from './themed-text';
 
 export default function AppTabs() {
@@ -18,13 +19,13 @@ export default function AppTabs() {
       <TabList asChild>
         <CustomTabList>
           <TabTrigger name="index" href="/" asChild>
-            <TabButton>连接</TabButton>
+            <TabButton>{i18n.t('tab_connect')}</TabButton>
           </TabTrigger>
           <TabTrigger name="profile" href="/profile" asChild>
-            <TabButton>配置</TabButton>
+            <TabButton>{i18n.t('tab_profiles')}</TabButton>
           </TabTrigger>
           <TabTrigger name="settings" href="/settings" asChild>
-            <TabButton>设置</TabButton>
+            <TabButton>{i18n.t('tab_settings')}</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>

@@ -55,9 +55,9 @@ export function applyRefreshResult(deps: RefreshApplyDeps, input: RefreshApplyIn
 
     let contentChanged = false;
     if (result.status === 'success' && verdict.ok) {
-        deps.sbConfig.setUsedTraffic(result.subscriptionUpload + result.subscriptionDownload);
-        deps.sbConfig.setTotalTraffic(result.subscriptionTotal);
-        deps.sbConfig.setExpireTime(result.subscriptionExpire);
+        deps.sbConfig.setUsedTraffic(result.profileUpload + result.profileDownload);
+        deps.sbConfig.setTotalTraffic(result.profileTotal);
+        deps.sbConfig.setExpireTime(result.profileExpire);
         if (result.content && result.content !== deps.sbConfig.getConfigContent()) {
             deps.sbConfig.setConfigContent(result.content);
             contentChanged = true;
@@ -74,10 +74,10 @@ export function applyRefreshResult(deps: RefreshApplyDeps, input: RefreshApplyIn
         error,
         acceleratedUrlRedacted: result.actualUrl ? redactUrl(result.actualUrl) : undefined,
         flowId,
-        upload: result.subscriptionUpload,
-        download: result.subscriptionDownload,
-        total: result.subscriptionTotal,
-        expire: result.subscriptionExpire,
+        upload: result.profileUpload,
+        download: result.profileDownload,
+        total: result.profileTotal,
+        expire: result.profileExpire,
     });
 
     const event = {

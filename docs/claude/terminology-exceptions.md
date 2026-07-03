@@ -21,17 +21,14 @@ Expected matches: exactly the entries in § app-code exceptions.
 ## app-code exceptions (inside the grep scope)
 | where | term | why it stays |
 |---|---|---|
-| `src/hooks/use-import-flow.ts` (`ExpoOneBox.fetchSubscription` call, moved from `src/app/config/index.tsx`) | `fetchSubscription` | bridge method name — 4-layer contract (docs/claude/bridge-signature.md); renaming requires synchronized Kotlin/Swift/TS/Web edits + prebuild + device smoke. Explicit keep decision, 2026-07 audit. |
-| `src/components/dev/tls-trust-probe-card.tsx` (2× `ExpoOneBox.fetchSubscription`) | `fetchSubscription` | same bridge method; dev-only probe surface. |
-| `src/hooks/import-flow-machine.ts` (`getHeader('subscription-userinfo')`, moved from `src/app/config/index.tsx`; plus the deps-doc comment naming `fetchSubscription`) | `subscription-userinfo`, `fetchSubscription` | standard HTTP response header name (protocol, cannot change) + sanctioned bridge method referenced in the injected-dep doc comment. |
+| `src/hooks/import-flow-machine.ts` (`getHeader('subscription-userinfo')`, moved from `src/app/config/index.tsx`) | `subscription-userinfo` | standard HTTP response header name (protocol, cannot change). |
 | `src/hooks/import-flow-machine.test.ts` (2× `'subscription-userinfo'` fixture header) | `subscription-userinfo` | test fixture mirroring the protocol header the machine parses. |
 
 ## out-of-grep-scope exceptions (documented for completeness)
-- **Bridge surface** (`src/modules/expo-onebox`, `src/tasks/config-refresh.ts`,
-  `src/tasks/config-refresh-core.ts` + its `.test.ts`):
-  `fetchSubscription`, `fetchSubscriptionWithFallback`, result fields
-  `subscriptionUpload/Download/Total/Expire/UserinfoHeader` — same 4-layer
-  contract rationale. Never user-visible.
+- **Bridge surface**: no `subscription`-prefixed identifiers remain — the
+  `fetchSubscription` bridge method (→ `fetchProfileConfig`) and the
+  `ConfigRefreshResult.subscription*` result fields (→ `profile{Upload,Download,
+  Total,Expire,UserinfoHeader}`) were renamed in the 2026-07 audit remediation.
 - **Protocol strings**: `'subscription-userinfo'` literals in `src/utils.ts`
   (web mock), `src/utils/profile-info.ts` (parser),
   `src/debug/import-tests/cases.ts` (pipeline-case fixture), Kotlin/Swift workers.
@@ -42,8 +39,12 @@ Expected matches: exactly the entries in § app-code exceptions.
   names in `src/database/sqlite3.tsx` — shipped v0→1 migration, no readers or
   writers (see the LEGACY comment there and the F-08 decision in
   `docs/audits/2026-07-02-audit-exceptions.md`).
-- **i18n keys prefixed `sub_`** (`sub_title`, `sub_delete`, …): "sub" reads as
-  shorthand for the profile entity, values are compliant; not banned terms.
+- **Persisted KV keys `sub_ids` / `active_sub_id` / `sub_migration_v1` / `sub_<id>`**
+  (`src/database/profile-store-core.ts`): profile storage keys on installed
+  devices — renaming needs a data migration, so they are frozen like the SQL
+  tables. Not banned terms (`sub` ≠ `subscription`), and outside the acceptance
+  grep. (The user-facing `sub_*` i18n keys and the `SubInfo` type were renamed to
+  `profile_*` / `ProfileQuota` in the 2026-07 remediation.)
 - **Audit documents** (`docs/audits/*`) quote banned terms by necessity.
 
 ## animation exemptions (audit F-09, recorded here for grep stability)

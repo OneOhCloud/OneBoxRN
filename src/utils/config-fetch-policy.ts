@@ -1,9 +1,14 @@
 /**
  * Config-fetch policy core — the executable mirror of
  * docs/claude/config-fetch-policy.md. Pure and dependency-free
- * (node:test covered); JS consumers classify native/fetch errors into
- * the shared errorCode vocabulary and evaluate fallback eligibility
- * with the same rules the native fetchers implement.
+ * (node:test covered). Two roles:
+ *   - `classifyFetchError` / `errorCodeOf` run in production to map
+ *     native/fetch errors into the shared errorCode vocabulary.
+ *   - `shouldFallbackToAccelerator` encodes the fallback-eligibility rules
+ *     the native fetchers implement. It has no production JS caller — it is
+ *     a spec mirror the test suite locks against, so drift from the
+ *     documented policy surfaces as a test failure. Keep it in sync when
+ *     native fallback behavior changes.
  */
 
 export type FetchErrorKind =

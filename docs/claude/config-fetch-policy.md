@@ -1,5 +1,5 @@
 ---
-applies-to: src/modules/expo-onebox/android/src/main/java/expo/modules/onebox/oneoh/cloud/helper/ConfigFetcher.kt, src/modules/expo-onebox/android/src/main/java/expo/modules/onebox/oneoh/cloud/helper/BackgroundConfigWorker.kt, src/modules/expo-onebox/ios/core/ConfigFetcher.swift, src/modules/expo-onebox/ios/core/BackgroundConfigRefresh.swift, src/tasks/config-refresh.ts, src/database/helper.ts, src/utils/config-fetch-policy.ts
+applies-to: src/modules/expo-onebox/android/src/main/java/expo/modules/onebox/oneoh/cloud/helper/ConfigFetcher.kt, src/modules/expo-onebox/android/src/main/java/expo/modules/onebox/oneoh/cloud/helper/BackgroundConfigWorker.kt, src/modules/expo-onebox/ios/core/ConfigFetcher.swift, src/modules/expo-onebox/ios/core/BackgroundConfigRefresh.swift, src/tasks/config-refresh.ts, src/database/helper.ts, src/database/config-template.ts, src/utils/config-fetch-policy.ts
 loaded-when: any change to config fetching, accelerator fallback, refresh persistence, or fetch error handling on either platform
 updated-on: 2026-07 F-03/F-04 remediation
 ---
@@ -11,10 +11,10 @@ Every config-fetch path follows ONE policy table. A divergence between platforms
 between foreground/background is a bug unless listed under exemptions.
 
 ## paths
-- **K-FG** Kotlin `fetchSubscriptionWithFallback` (import screen via bridge `fetchSubscription`)
+- **K-FG** Kotlin `fetchProfileConfigWithFallback` (import screen via bridge `fetchProfileConfig`)
 - **K-RM/K-BG** Kotlin `executeRefreshWith` (foreground `executeConfigRefreshNow` / WorkManager)
 - **S-FG / S-RM / S-BG** Swift equivalents (`BackgroundConfigRefresh.swift`)
-- **JS-T** template fetch (`src/database/helper.ts fetchRemoteTemplate`)
+- **JS-T** template fetch (`src/database/config-template.ts fetchRemoteTemplate`)
 - **WEB** `src/utils.ts fetchWithTimeout` web branch (exemption: always mock success)
 
 ## policy table

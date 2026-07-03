@@ -269,6 +269,16 @@ describe('createVpnActions node actions', () => {
         assert.equal(nodeStore.getSnapshot().currentNode, '');
     });
 
+    it('selectNode treats a native false (Android failure) as failure and leaves the store alone', async () => {
+        const timers = createFakeTimers();
+        const bridge = createFakeBridge(VPN_STATUS.STARTED);
+        bridge.behaviors.selectProxyNode = () => Promise.resolve(false);
+        const nodeStore = createNodeStore({ timers: timers.host });
+        const actions = createVpnActions(makeDeps(bridge, timers, { nodeStore }));
+        assert.deepEqual(await actions.selectNode('nope'), { ok: false, message: '' });
+        assert.equal(nodeStore.getSnapshot().currentNode, '');
+    });
+
     it('triggerNodeTests opens the window and fires both group tests', async () => {
         const timers = createFakeTimers();
         const bridge = createFakeBridge(VPN_STATUS.STARTED);

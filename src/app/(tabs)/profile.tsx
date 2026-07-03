@@ -71,9 +71,9 @@ export default function ProfilesScreen() {
     }, [requestRestart]);
 
     const handleDelete = useCallback((sub: { id: string; name: string }) => {
-        Alert.alert(i18n.t('sub_delete'), i18n.t('sub_delete_confirm'), [
+        Alert.alert(i18n.t('profile_delete'), i18n.t('profile_delete_confirm'), [
             { text: i18n.t('cancel'), style: 'cancel' },
-            { text: i18n.t('sub_delete'), style: 'destructive', onPress: () => { ProfileStore.delete(sub.id); loadData(); } },
+            { text: i18n.t('profile_delete'), style: 'destructive', onPress: () => { ProfileStore.delete(sub.id); loadData(); } },
         ]);
     }, [loadData]);
 
@@ -88,11 +88,11 @@ export default function ProfilesScreen() {
                 loadData();
             } else {
                 notifyError();
-                Alert.alert(i18n.t('sub_refresh_failed'), result?.error ?? '');
+                Alert.alert(i18n.t('profile_refresh_failed'), result?.error ?? '');
             }
         } catch (e: unknown) {
             notifyError();
-            Alert.alert(i18n.t('sub_refresh_failed'), e instanceof Error ? e.message : '');
+            Alert.alert(i18n.t('profile_refresh_failed'), e instanceof Error ? e.message : '');
         } finally {
             refreshingRef.current = false;
             setPending(false);
@@ -205,7 +205,7 @@ export default function ProfilesScreen() {
                             lineHeight: 41,
                         }}
                     >
-                        {i18n.t('sub_title')}
+                        {i18n.t('profile_title')}
                     </ThemedText>
                 </View>
 
@@ -231,7 +231,7 @@ export default function ProfilesScreen() {
                                 </View>
                             </View>
                             <SectionHeader
-                                label={i18n.t('sub_section_list')}
+                                label={i18n.t('profile_section_list')}
                                 trailing={
                                     <SectionAction
                                         label={editMode ? i18n.t('done') : i18n.t('edit')}

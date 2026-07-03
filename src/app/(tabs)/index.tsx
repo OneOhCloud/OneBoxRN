@@ -199,7 +199,7 @@ export default function HomeScreen() {
         connected,
         loading,
         hasConfig,
-        subInfo,
+        profileQuota,
         profileName,
         importUrlVisible,
         setImportUrlVisible,
@@ -331,7 +331,7 @@ export default function HomeScreen() {
 
                             {/* Profile card — always mounted, connected prop varies */}
                             <ProfileSummaryCard
-                                info={subInfo}
+                                info={profileQuota}
                                 name={profileName}
                                 connected={connected}
                             />

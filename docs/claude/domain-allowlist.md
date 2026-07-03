@@ -1,5 +1,5 @@
 ---
-applies-to: src/utils/profile-loader.ts, src/utils/domain-verification.ts, src/utils/domain-suffix.ts, src/modules/expo-onebox/android/**/BackgroundConfigWorker.kt, src/modules/expo-onebox/ios/core/BackgroundConfigRefresh.swift
+applies-to: src/utils/domain-verification.ts, src/utils/domain-suffix.ts, src/modules/expo-onebox/android/**/BackgroundConfigWorker.kt, src/modules/expo-onebox/ios/core/BackgroundConfigRefresh.swift
 loaded-when: reviewer flags plaintext domain in any Claude-facing file; investigator touches apply=1 / accelerator fallback / BG refresh; implementer adds new auto-apply path
 updated-on: new-convention
 ---
@@ -7,7 +7,7 @@ updated-on: new-convention
 # domain-allowlist
 
 ## rule
-`KNOWN_DOMAIN_SHA256` (TS) + `DEFAULT_KNOWN_DOMAIN_SHA256(_LIST)` (TS) + Kotlin + Swift mirrors hold sha256 digests of trusted domains/suffixes. **The pre-image (plaintext hostname) MUST NOT appear** in any source file, comment, test fixture, commit, PR description, log line, i18n string, or `CHANGELOG.md` — in this repo or the next-door OneBox Tauri repo.
+`DEFAULT_KNOWN_DOMAIN_SHA256_LIST` (TS, `src/utils/domain-verification.ts`) + Kotlin + Swift mirrors hold sha256 digests of trusted domains/suffixes. **The pre-image (plaintext hostname) MUST NOT appear** in any source file, comment, test fixture, commit, PR description, log line, i18n string, or `CHANGELOG.md` — in this repo or the next-door OneBox Tauri repo.
 
 ## why
 category: bug (security).

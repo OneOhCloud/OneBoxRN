@@ -4,7 +4,7 @@ import type { NodeStoreState } from '@/contexts/vpn/node-store-core';
 import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 
-export { GATEWAY_GROUP_TAG, type NodeItem } from '@/contexts/vpn/node-store-core';
+export { type NodeItem } from '@/contexts/vpn/node-store-core';
 
 // ─── Hook ────────────────────────────────────────────────────
 //

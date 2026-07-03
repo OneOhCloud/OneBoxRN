@@ -6,7 +6,7 @@ import { mediumImpact } from '@/components/ui/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { fmtBytes } from '@/utils';
+import { formatBytes } from '@/utils/format-bytes';
 import { ALERT, useAccentBlue, useHairlineColor, useSilver } from '@/constants/ios26-palette';
 
 export function ProfileRow({
@@ -35,8 +35,8 @@ export function ProfileRow({
         : 0;
 
     const metaText = hasTraffic
-        ? `${fmtBytes(sub.usedTraffic)} · ${Math.round(pct)}% ${i18n.t('traffic_used')}`
-        : i18n.t('sub_empty_desc');
+        ? `${formatBytes(sub.usedTraffic)} · ${Math.round(pct)}% ${i18n.t('traffic_used')}`
+        : i18n.t('profile_empty_desc');
 
     const handlePress = () => {
         mediumImpact();

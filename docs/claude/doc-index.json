@@ -17,6 +17,7 @@
   "src/modules/expo-onebox/ios/core/ConfigFetcher.swift": ["docs/claude/config-fetch-policy.md"],
   "src/tasks/config-refresh.ts": ["docs/claude/config-fetch-policy.md"],
   "src/database/helper.ts": ["docs/claude/config-fetch-policy.md"],
+  "src/database/config-template.ts": ["docs/claude/config-fetch-policy.md"],
   "src/utils/config-fetch-policy.ts": ["docs/claude/config-fetch-policy.md"],
 
   "src/modules/expo-onebox/helper/Makefile": ["docs/claude/sing-box-upgrade.md"],
@@ -35,5 +36,9 @@
 
   "app.config.ts": ["docs/claude/terminology-exceptions.md"],
   "src/lang": ["docs/claude/terminology-exceptions.md"],
-  "src/database/sqlite3.tsx": ["docs/claude/terminology-exceptions.md"]
+  "src/database/sqlite3.tsx": ["docs/claude/terminology-exceptions.md"],
+  "src/app": ["docs/claude/terminology-exceptions.md"],
+  "src/components": ["docs/claude/terminology-exceptions.md"],
+  "src/hooks": ["docs/claude/terminology-exceptions.md"],
+  "src/modules/expo-onebox": ["docs/claude/terminology-exceptions.md"]
 }

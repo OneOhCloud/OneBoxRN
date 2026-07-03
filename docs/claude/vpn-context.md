@@ -33,8 +33,14 @@ Presentation stays in the UI layer: actions return typed results; callers map th
 ## node state
 Proxy-node list / current node / testing window live in the module-level node store (`src/contexts/vpn/node-store.ts`), read via `useProxyNodeState()` (`useSyncExternalStore`, log-sink pattern) so high-frequency group updates never re-render `useVpn` consumers. `src/hooks/use-proxy-nodes.ts` is a thin selector that only decides *when* to reset/trigger.
 
-## read-only exception
-reading static info (`getStatus`, `isBackgroundConfigRefreshRegistered`, `getLibBoxVersion`, `getStartConfig`, `fetchSubscription`, etc.) directly from `ExpoOneBoxModule` is acceptable in dev / debug surfaces (`src/app/config/dev.tsx`, `src/app/dev-smoke.tsx`), background task registrations (`src/tasks/config-refresh.ts`), and native utilities (`src/utils/domain-verification.ts` `setVerificationData`). writes to VPN state always via context. dev-surface write exception: `src/components/dev/log-level-card.tsx` calls `setCoreLogLevel` (log-filter setter, not VPN state).
+## bridge access outside the context (non-VPN-state)
+The binding rule is narrow: only the VPN runtime-state mutations — `start`, `stop`, `selectProxyNode`, `triggerURLTest`, and event `addListener` — must route through `VpnContext`. That is exactly the set the acceptance grep below enforces.
+
+Every other bridge method is not a VPN-state mutation and may be called directly where it belongs — including from production setup code, screens, hooks, and background tasks. This is a capability rule, not a location allow-list; the enumerated call sites are illustrative, not exhaustive. Current sanctioned direct callers:
+- reads: `getStatus` (`src/app/_layout.tsx`), `getLibBoxVersion` (`src/app/(tabs)/settings.tsx`, `src/utils.ts`), `fetchProfileConfig` (`src/hooks/use-import-flow.ts`), `getBestDns` (`src/database/helper.ts`), plus static reads on dev surfaces (`src/app/config/dev.tsx`, `src/app/dev-smoke.tsx`) and BG task registration (`src/tasks/config-refresh.ts`).
+- one-time setup writes that are not VPN state: `copy2CacheDbPath` / `repairSQLiteDirectory` (`src/database/sqlite3.tsx`), `checkBatteryOptimizationExemption` / `requestBatteryOptimizationExemption` (`src/app/_layout.tsx`), `setCoreLogLevel` (log-filter setter; inside `src/contexts/vpn-context.tsx` and the dev `src/components/dev/log-level-card.tsx`), `setVerificationData` (`src/utils/domain-verification.ts`).
+
+Add a one-line justification comment at non-obvious call sites. The acceptance grep — not this list — is the single enforcement gate; keep it current when the mutation surface changes.
 
 ## event emitter
 native → JS events (`onStatusChange`, `onGroupUpdate`, traffic updates, log lines) are subscribed once inside `vpn-context`. additional subscribers elsewhere = duplicate listeners + missed teardown on re-mount. transient `onStatusChange` waits belong in `stopAndAwaitStopped` (context-internal), never in screens.

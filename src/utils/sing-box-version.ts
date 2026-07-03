@@ -4,13 +4,11 @@
  * `ExpoOneBox.getLibBoxVersion()` is the authoritative accessor — it
  * returns whatever Libbox was compiled with (driven by SING_BOX_TAG in
  * src/modules/expo-onebox/helper/Makefile, which the gomobile build
- * bakes into the binary). Keeping a parallel hand-maintained constant
- * in `definition.ts` only invites drift; always call these helpers
- * instead.
+ * bakes into the binary). Always call these helpers rather than
+ * hand-maintaining a parallel version constant, which only invites drift.
  *
- * Output shape is `v<MAJOR>.<MINOR>.<PATCH>` (matching native), so
- * `startsWith('v1.12')` / `startsWith('v1.13')` style checks keep
- * working against historical code.
+ * Output is bare `MAJOR.MINOR.PATCH` (no `v` prefix), matching the native
+ * accessor — callers comparing against literals must not include a `v`.
  */
 
 import ExpoOneBox from '@/modules/expo-onebox';
@@ -34,12 +32,4 @@ export function getSingBoxVersion(): string {
 export function getSingBoxMajorVersion(): string {
     const [major = '0', minor = '0'] = getSingBoxVersion().split('.');
     return `${major}.${minor}`;
-}
-
-/**
- * Patch component — e.g. `"8"` for `1.13.8`. Used by the template URL
- * resolver to pick `conf/1.13.8/` once the sing-box patch reaches 8+.
- */
-export function getSingBoxPatchVersion(): string {
-    return getSingBoxVersion().split('.')[2] ?? '0';
 }

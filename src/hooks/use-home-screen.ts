@@ -1,4 +1,4 @@
-import type { SubInfo } from '@/utils';
+import type { ProfileQuota } from '@/utils';
 import i18n from '@/constants/language';
 import { useVpn } from '@/contexts/vpn-context';
 import { startFailureErrorCode } from '@/contexts/vpn/actions';
@@ -13,7 +13,7 @@ import { Alert, Platform } from 'react-native';
 
 interface ActiveProfileSnapshot {
     hasConfig: boolean;
-    subInfo: SubInfo;
+    profileQuota: ProfileQuota;
     name: string | null;
 }
 
@@ -21,7 +21,7 @@ function readActiveProfile(): ActiveProfileSnapshot {
     const active = ProfileStore.getActive();
     return {
         hasConfig: !!active?.configContent,
-        subInfo: {
+        profileQuota: {
             used: active?.usedTraffic ?? 0,
             total: active?.totalTraffic ?? 1,
             expire: active?.expireTime ?? 0,
@@ -119,7 +119,7 @@ export function useHomeScreen() {
         connected,
         loading,
         hasConfig: snapshot.hasConfig,
-        subInfo: snapshot.subInfo,
+        profileQuota: snapshot.profileQuota,
         profileName: snapshot.name,
         importUrlVisible,
         setImportUrlVisible,

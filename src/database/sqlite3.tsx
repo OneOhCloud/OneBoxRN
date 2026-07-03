@@ -3,66 +3,18 @@ import React from 'react';
 import { Platform } from 'react-native';
 import ExpoOneBox from '../modules/expo-onebox';
 
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 let initialized = false;
 
 // LEGACY (v0→1): `subscriptions` / `subscription_configs` were created for a
 // profile model that never shipped a UI writer (verified via git history,
 // 2026-07). Runtime profile CRUD lives exclusively in ProfileStore (kv.ts,
-// kv_store rows). These CREATE statements are migration-frozen — shipped
-// migration steps are never rewritten (devices exist at user_version 1/2) —
-// do not add readers or writers. Table names are a documented terminology
-// exemption (docs/claude/terminology-exceptions.md). Data is orphaned and
-// empty on all installs; a future vN migration may DROP them.
-
-export async function migrateDbIfNeeded(db: SQLiteDatabase) {
-    const result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
-    let currentDbVersion = result?.user_version ?? 0;
-
-    if (currentDbVersion >= DATABASE_VERSION) {
-        return;
-    }
-
-    if (currentDbVersion === 0) {
-        await db.execAsync(`
-            PRAGMA journal_mode = WAL;
-
-            CREATE TABLE IF NOT EXISTS subscriptions (
-                id                INTEGER PRIMARY KEY AUTOINCREMENT,
-                identifier        TEXT NOT NULL UNIQUE,
-                name              TEXT,
-                used_traffic      INTEGER DEFAULT 0,
-                total_traffic     INTEGER DEFAULT 1,
-                subscription_url  TEXT,
-                official_website  TEXT,
-                expire_time       INTEGER DEFAULT (strftime('%s', 'now', '+30 days')),
-                last_update_time  INTEGER DEFAULT (strftime('%s', 'now'))
-            );
-
-            CREATE TABLE IF NOT EXISTS subscription_configs (
-                id             INTEGER PRIMARY KEY AUTOINCREMENT,
-                identifier     TEXT NOT NULL,
-                config_content TEXT,
-                FOREIGN KEY (identifier) REFERENCES subscriptions(identifier) ON DELETE CASCADE
-            );
-
-            PRAGMA foreign_keys = ON;
-        `);
-        currentDbVersion = 1;
-    }
-
-    if (currentDbVersion === 1) {
-        await db.execAsync(`
-            CREATE TABLE IF NOT EXISTS kv_store (
-                key   TEXT PRIMARY KEY NOT NULL,
-                value TEXT
-            );
-        `);
-        currentDbVersion = 2;
-    }
-
-    await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
-}
+// kv_store rows). The v0→1 CREATE below is migration-frozen — shipped steps are
+// never rewritten (devices exist at user_version 1/2). Since the data is
+// orphaned and empty on all installs, the v2→3 step drops the tables. Their
+// names remain a documented terminology exemption
+// (docs/claude/terminology-exceptions.md) because the frozen v0→1 text keeps
+// them; do not add readers or writers.
 
 function migrateDbIfNeededSync(db: SQLiteDatabase) {
     const result = db.getFirstSync<{ user_version: number }>('PRAGMA user_version');
@@ -108,6 +60,16 @@ function migrateDbIfNeededSync(db: SQLiteDatabase) {
             );
         `);
         currentDbVersion = 2;
+    }
+
+    if (currentDbVersion === 2) {
+        // Drop the orphaned LEGACY tables — empty on every install, no readers
+        // or writers. All profile data lives in kv_store (unaffected).
+        db.execSync(`
+            DROP TABLE IF EXISTS subscription_configs;
+            DROP TABLE IF EXISTS subscriptions;
+        `);
+        currentDbVersion = 3;
     }
 
     db.execSync(`PRAGMA user_version = ${DATABASE_VERSION}`);

@@ -12,7 +12,7 @@
  *   - Every direct dependency in `package.json` that reaches the
  *     native layer (`expo-*`, `react-native-*`, `@/modules/*`) needs
  *     one entry.
- *   - Pure-JS libs (i18n-js, tailwind-merge, jsonc-parser …) do NOT
+ *   - Pure-JS libs (i18n-js, jsonc-parser …) do NOT
  *     need entries — their failure mode is a bundler / import error
  *     that is already visible at app launch.
  *   - The check should NOT mutate observable state:
@@ -184,13 +184,6 @@ export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
         ctx.log(`backgroundColor=${bg === null ? '(null)' : String(bg)}`);
     }),
 
-    smoke('expo-web-browser', 'expo-web-browser', async (ctx) => {
-        const WebBrowser = await import('expo-web-browser');
-        // maybeCompleteAuthSession is always safe — returns early when there is no pending session.
-        const result = WebBrowser.maybeCompleteAuthSession();
-        ctx.log(`maybeCompleteAuthSession.type=${result.type}`);
-    }),
-
     // ── React Native add-ons (all self-install on import) ────────────────────
     smoke('react-native-gesture-handler', 'react-native-gesture-handler', async (ctx) => {
         const mod = await import('react-native-gesture-handler');
@@ -226,12 +219,6 @@ export const SMOKE_IMPORT_ENTRIES: readonly TestCase[] = [
         const mod = await import('react-native-worklets');
         ctx.log(`exports=${Object.keys(mod).slice(0, 6).join(',')}`);
         expect(Object.keys(mod).length > 0, 'module must export at least one symbol');
-    }),
-
-    smoke('react-native-nitro-modules', 'react-native-nitro-modules', async (ctx) => {
-        const mod = await import('react-native-nitro-modules');
-        ctx.log(`NitroModules defined=${!!mod.NitroModules}`);
-        expect(!!mod.NitroModules, 'NitroModules runtime must exist');
     }),
 
     // ── Heavy pure-JS UI kits (self-install worklets/handlers on import) ─────

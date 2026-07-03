@@ -1,11 +1,6 @@
 import type { TaskStatus, TriggerSource } from '@/database/kv';
 
-export function formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
-}
+export { formatBytes } from './format-bytes';
 
 export function taskStatusColor(status: TaskStatus): string {
     switch (status) {

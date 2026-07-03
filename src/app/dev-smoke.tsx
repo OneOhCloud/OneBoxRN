@@ -33,6 +33,7 @@ import {
 } from '@/debug/import-tests/runner';
 import { SMOKE_IMPORT_ENTRIES } from '@/debug/smoke-imports/entries';
 import { useTheme } from '@/hooks/use-theme';
+import { jsLog } from '@/utils/log-sink';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
@@ -157,10 +158,16 @@ export default function DevSmokeScreen() {
         setRunning(true);
         setResults(initialResults());
         setExpanded(new Set());
+        let final: TestResult[] = [];
         try {
-            await runAll(FULL_SUITE, (_r, all) => setResults(all.slice()));
+            await runAll(FULL_SUITE, (_r, all) => { final = all; setResults(all.slice()); });
         } finally {
             setRunning(false);
+            const failing = final.filter(r => r.status === 'fail' || r.status === 'error');
+            const pass = final.filter(r => r.status === 'pass').length;
+            // Machine-parseable acceptance marker (see CLAUDE.md dev harness).
+            jsLog.info(`[[HARNESS]] op=devsmoke phase=done total=${final.length} pass=${pass} fail=${failing.length}` +
+                (failing.length ? ` failures=${failing.map(r => r.id).join(',')}` : ''));
         }
     };
 

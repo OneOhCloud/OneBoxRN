@@ -1,18 +1,5 @@
-import {
-    ALLOWLAN_STORE_KEY,
-    configType,
-    ENABLE_BYPASS_ROUTER_STORE_KEY,
-    ENABLE_TUN_STORE_KEY,
-    STAGE_VERSION_STORE_KEY,
-    StageVersionType,
-    USE_DHCP_STORE_KEY,
-    USER_AGENT_STORE_KEY,
-} from '@/definition';
-import { getSingBoxMajorVersion } from '@/utils/sing-box-version';
 import { emptyRuleSet, RULE_ACTIONS, type RuleAction, type RuleSet } from './custom-rules';
 import { kvDelete, kvGet, kvSet } from './kv';
-
-export const LANGUAGE_STORE_KEY = 'language';
 
 // ─── SQLite-backed store wrapper ─────────────────────────────────────────────
 // All values are stored as strings in kv_store.
@@ -78,38 +65,6 @@ export async function deleteStoreValue(key: string): Promise<void> {
     store.delete(key);
 }
 
-export const setLanguage = async (language: string) => setStoreValue(LANGUAGE_STORE_KEY, language);
-
-export async function getEnableTun(): Promise<boolean> {
-    return Boolean(await store.get(ENABLE_TUN_STORE_KEY));
-}
-
-export async function setEnableTun(value: boolean): Promise<void> {
-    store.set(ENABLE_TUN_STORE_KEY, value);
-}
-
-export async function getAllowLan(): Promise<boolean> {
-    return Boolean(await store.get(ALLOWLAN_STORE_KEY));
-}
-
-export async function setAllowLan(value: boolean): Promise<void> {
-    store.set(ALLOWLAN_STORE_KEY, value);
-}
-
-
-export async function isBypassRouterEnabled(): Promise<boolean> {
-    return Boolean(await store.get(ENABLE_BYPASS_ROUTER_STORE_KEY));
-}
-
-export async function getUseDHCP(): Promise<boolean> {
-    const b = await store.get(USE_DHCP_STORE_KEY);
-    return b === undefined || b === null ? false : Boolean(b);
-}
-
-export async function setUseDHCP(value: boolean): Promise<void> {
-    store.set(USE_DHCP_STORE_KEY, value);
-}
-
 export async function setCustomRuleSet(key: RuleAction, config: RuleSet): Promise<void> {
     store.set(`custom_ruleset_${key}`, JSON.stringify(config));
 }
@@ -138,51 +93,4 @@ export async function getAllCustomRuleSets(): Promise<Record<RuleAction, RuleSet
         RULE_ACTIONS.map((action) => getCustomRuleSet(action)),
     );
     return { reject, direct, proxy };
-}
-
-export async function setDirectDNS(dnsServers: string): Promise<void> {
-    store.set('direct_dns', dnsServers);
-}
-
-export async function getDirectDNS(): Promise<string> {
-    const s = store.getRaw('direct_dns');
-    return s || '223.5.5.5';
-}
-
-export async function getUserAgent(): Promise<string> {
-    return (store.getRaw(USER_AGENT_STORE_KEY)) || 'default';
-}
-
-export async function setUserAgent(ua: string): Promise<void> {
-    store.set(USER_AGENT_STORE_KEY, ua);
-}
-
-export async function getConfigTemplateURLKey(mode: configType): Promise<string> {
-    return `key-sing-box-${getSingBoxMajorVersion()}-${mode}-template-path`;
-}
-
-export async function getConfigTemplateURL(mode: configType): Promise<string> {
-    const cacheKey = await getConfigTemplateURLKey(mode);
-    const defaultUrl = await getDefaultConfigTemplateURL(mode);
-    return (await getStoreValue(cacheKey, defaultUrl)) as string;
-}
-
-export async function setConfigTemplateURL(mode: configType, url: string): Promise<void> {
-    const cacheKey = await getConfigTemplateURLKey(mode);
-    await setStoreValue(cacheKey, url);
-}
-
-export async function getDefaultConfigTemplateURL(mode: configType): Promise<string> {
-    const remoteUrl = 'https://onebox-updater.oneoh.cloud/conf-template';
-    const stageVersion: StageVersionType = await getStoreValue(STAGE_VERSION_STORE_KEY);
-    const ver = getSingBoxMajorVersion();
-
-    switch (mode) {
-        case 'tun-rules':
-            return `${remoteUrl}/raw/refs/heads/${stageVersion}/conf/${ver}/zh-cn/tun-rules.jsonc`;
-        case 'tun-global':
-            return `${remoteUrl}/raw/refs/heads/${stageVersion}/conf/${ver}/zh-cn/tun-global.jsonc`;
-        default:
-            throw new Error(`Unsupported config type: ${mode}`);
-    }
 }

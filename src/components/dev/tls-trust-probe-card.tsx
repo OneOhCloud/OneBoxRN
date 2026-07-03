@@ -30,7 +30,7 @@ export function TlsTrustProbeCard() {
         mediumImpact();
         setBusy(true);
         try {
-            const response = await ExpoOneBox.fetchSubscription(invalidCertUrl, getSingBoxUserAgent());
+            const response = await ExpoOneBox.fetchProfileConfig(invalidCertUrl, getSingBoxUserAgent());
             // Any response at all means the TLS chain was accepted → bypass.
             Alert.alert(
                 'Invalid-cert probe: FAIL',
@@ -57,7 +57,7 @@ export function TlsTrustProbeCard() {
         }
         setBusy(true);
         try {
-            const response = await ExpoOneBox.fetchSubscription(url, getSingBoxUserAgent());
+            const response = await ExpoOneBox.fetchProfileConfig(url, getSingBoxUserAgent());
             const ok = response.statusCode >= 200 && response.statusCode < 300;
             Alert.alert(
                 ok ? 'Valid-host probe: PASS' : 'Valid-host probe: CHECK',

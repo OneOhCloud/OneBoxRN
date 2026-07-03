@@ -161,16 +161,6 @@ export function migrateV1ProfileToMulti(): void {
 
 export const SBConfig = {
     getConfigLink: (): string | null => ProfileStore.getActive()?.url ?? null,
-    setConfigLink: (url: string) => {
-        const a = ProfileStore.getActive();
-        if (a) ProfileStore.update(a.id, { url });
-    },
-
-    getConfigName: (): string => ProfileStore.getActive()?.name ?? 'default',
-    setConfigName: (name: string) => {
-        const a = ProfileStore.getActive();
-        if (a) ProfileStore.update(a.id, { name });
-    },
 
     getUsedTraffic: (): number => ProfileStore.getActive()?.usedTraffic ?? 0,
     setUsedTraffic: (n: number) => {
@@ -349,22 +339,6 @@ export const LastFailure = {
     },
     clear(): void {
         kvDelete(LAST_FAILURE_KEY);
-    },
-};
-
-// ─── Pending Trigger ─────────────────────────────────────────────────────────
-
-const PENDING_TRIGGER_KEY = 'pending_task_trigger';
-
-/** Temporary flag to pass trigger source into the worker callback */
-export const PendingTrigger = {
-    set(source: TriggerSource): void {
-        kvSet(PENDING_TRIGGER_KEY, source);
-    },
-    consume(): TriggerSource {
-        const val = kvGet(PENDING_TRIGGER_KEY) as TriggerSource | null;
-        kvDelete(PENDING_TRIGGER_KEY);
-        return val ?? 'auto';
     },
 };
 

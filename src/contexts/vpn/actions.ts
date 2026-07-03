@@ -203,8 +203,14 @@ export function createVpnActions(deps: VpnActionDeps): VpnActions {
 
     async function selectNode(tag: string): Promise<SelectNodeResult> {
         try {
-            await bridge.selectProxyNode(tag);
-            // Same "set after success" ordering as the previous call site.
+            // Error channel diverges by platform: iOS rejects on failure, Android
+            // resolves `false`. Honour the boolean so a failed selection never
+            // gets optimistically marked as the current node (UI would otherwise
+            // report a switch that never happened on Android).
+            const ok = await bridge.selectProxyNode(tag);
+            if (!ok) {
+                return { ok: false, message: '' };
+            }
             nodeStore.markCurrentNode(tag);
             return { ok: true };
         } catch (e) {

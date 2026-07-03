@@ -81,16 +81,6 @@ export function clearLogSink(): void {
     notify(null);
 }
 
-export function getLogSnapshot(): LogEntry[] {
-    return buffer;
-}
-
-// Legacy low-level subscribe — kept for any non-React consumer.
-export function subscribeLogSink(listener: (entry: LogEntry) => void): () => void {
-    const wrapped: Listener = (e) => { if (e) listener(e); };
-    return subscribe(wrapped);
-}
-
 // ── React hook ──────────────────────────────────────────────
 
 /**

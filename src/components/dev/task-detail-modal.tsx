@@ -4,6 +4,8 @@ import i18n from '@/constants/language';
 import { Fonts, Spacing, TabularNums } from '@/constants/theme';
 import type { TaskRecord } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
+import { formatDuration } from '@/utils/dev-utils';
+import { formatBytes } from '@/utils/format-bytes';
 import * as Clipboard from 'expo-clipboard';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -392,19 +394,6 @@ function formatTime(timestamp: string): string {
     } catch {
         return '—';
     }
-}
-
-function formatDuration(ms: number): string {
-    if (ms < 1000) return `${ms.toFixed(0)}ms`;
-    return `${(ms / 1000).toFixed(1)}s`;
-}
-
-function formatBytes(bytes: number): string {
-    if (!bytes || bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }
 
 function formatExpire(timestamp: number): string {

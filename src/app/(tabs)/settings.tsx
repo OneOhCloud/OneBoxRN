@@ -9,7 +9,7 @@ import i18n from '@/constants/language';
 import { Fonts, MaxContentWidth, TabScreenEdges } from '@/constants/theme';
 import { useVpn } from '@/contexts/vpn-context';
 import { useTheme } from '@/hooks/use-theme';
-import ExpoOneBox from '@/modules/expo-onebox';
+import { getSingBoxVersion } from '@/utils/sing-box-version';
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
@@ -56,7 +56,7 @@ export default function SettingsScreen() {
         Platform.OS === 'web'
             ? String(Constants.expoConfig?.extra?.webBuildNumber ?? '—')
             : Application.nativeBuildVersion ?? String(Constants.nativeBuildVersion ?? '—');
-    const coreVersion = ExpoOneBox.getLibBoxVersion() || '—';
+    const coreVersion = getSingBoxVersion();
 
     const versionLine = showBuild
         ? `v${appVersion}(${buildVersion})-${coreVersion}`
