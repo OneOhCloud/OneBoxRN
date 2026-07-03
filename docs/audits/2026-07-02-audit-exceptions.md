@@ -86,3 +86,36 @@ would require a persisted-key migration on installed devices for **zero function
 benefit** — there is no cross-platform key sharing — so the per-platform naming is kept
 as-is (audit C15). This is a **native runtime** exemption; revisit only if the two stores
 are ever unified (e.g. behind a shared Go-side store).
+
+## D3c-08 heterogeneous config fetcher (iOS NWConnection vs Android OkHttp)
+
+The two `ConfigFetcher` implementations are **platform-native by necessity**, not
+accidental duplication. The iOS side hand-rolls HTTP/1.1 over `NWConnection`
+specifically to (a) resolve the host through a best-of-N DNS probe and connect to the
+returned IP while keeping the original hostname as the TLS SNI — bypassing local DNS
+poisoning, a core requirement for the app's censored-network users — and (b) accept a
+gzip body that the accelerator returns without a `Content-Encoding` header. Android
+gets the same behavior from OkHttp with a custom `Dns`. Go's `net/http` (and libbox's
+already-bound `LibboxNewHTTPClient`, which wraps `http.Client`) exposes neither the
+custom-resolver-plus-SNI split nor the header-less gzip path, so **reusing it would
+regress the poisoning bypass**.
+
+**Drift risk is mitigated, not ignored.** The two fetchers share the transport-neutral
+`ConfigFetchResult` contract, and every pure/fragile piece is golden-locked against one
+cross-platform spec: the fetch→accelerator decision (`golden/fetch-fallback-decision.json`
++ the JVM `FetchWithFallbackTest`), the DNS A-record parser (`golden/dns-arecord.json`),
+the `subscription-userinfo` parser (`golden/userinfo.json`), and — new in this pass — the
+iOS hand-written chunked-transfer decoder (`golden/http-chunked.json` + `HttpChunkedGoldenCheck`),
+which is the single riskiest hand-rolled part OkHttp handles for Android.
+
+**Full transport unification (one shared Go fetcher) is a scoped, deferred Batch-4
+delivery**, not a surgical change: (1) `helper/Makefile`'s `build` target does
+`rm -rf sing-box` and re-clones the pinned tag from GitHub every run, so the fetcher
+cannot live inside sing-box — it needs a new **tracked** Go package plus a gomobile-bind
+restructure to bundle it alongside the pristine clone; (2) that rebuild re-clones the
+engine over the network and would break the working build if the clone fails; (3) the
+Go fetcher must reproduce the best-DNS/SNI/header-less-gzip/redirect behavior exactly or
+every user's config fetch breaks on both platforms; (4) that security-sensitive change
+**requires iOS real-device regression** (per the repo's "Verified = observed on device"
+rule), which is unavailable in this environment. Revisit when a Go-side network sink is
+scheduled with device access. This is a **native runtime** exemption.
