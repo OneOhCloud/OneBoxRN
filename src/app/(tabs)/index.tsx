@@ -26,6 +26,7 @@ import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, LayoutChangeEvent, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, {
+    cancelAnimation,
     Easing,
     runOnJS,
     useAnimatedStyle,
@@ -82,6 +83,10 @@ function WipeSlot({
             if (finished) runOnJS(setTransitioning)(false);
         });
     }, [showSecond, progress]);
+
+    useEffect(() => () => {
+        cancelAnimation(progress);
+    }, [progress]);
 
     // 布局属性动画豁免（见 docs/claude/terminology-exceptions.md → animation
     // exemptions）：这个擦除揭示本质上就是裁剪动画 —— width/left 本身就是效果。
