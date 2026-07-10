@@ -11,13 +11,18 @@
 import type { ConfigRefreshResult } from '@/modules/expo-onebox/src/ExpoOneBox.types';
 import Constants from 'expo-constants';
 import ExpoOneBox from '@/modules/expo-onebox';
-import { ProfileConfig, TaskLog, kvGet, kvSet } from '@/database/kv';
+import { ProfileConfig, ProfileStore, TaskLog, kvGet, kvSet } from '@/database/kv';
 import { getSingBoxUserAgent } from '@/utils';
 import { initializeVerificationData } from '@/utils/domain-verification';
 import { newFlowId } from '@/utils/flow-events';
 import { logFlowEvent, recordFlowFailure } from '@/utils/flow-log';
 import { CONFIG_REFRESH_KEYS } from '@/constants/cache-keys';
-import { applyRefreshResult, type RefreshApplyDeps } from './config-refresh-core';
+import {
+    applyRefreshResult,
+    resolveResultOriginUrl,
+    type ApplyOutcome,
+    type RefreshApplyDeps,
+} from './config-refresh-core';
 
 const ACCELERATE_URL: string | null =
     (Constants.expoConfig?.extra?.accelerateUrl as string | null) || null;
@@ -121,31 +126,52 @@ export async function executeConfigRefresh(): Promise<ConfigRefreshResult | null
 
 // ─── 前台同步 ──────────────────────────────────────────────────────────
 
+/** syncNativeResultToJS 的可观察结论 —— 供 dev-harness 与日志断言。 */
+export type SyncNativeResultOutcome =
+    | { kind: 'empty' }      // 原生槽为空
+    | { kind: 'no-origin' }  // 结果无 configUrl 且无活动配置可回落
+    | { kind: 'error' }
+    | { kind: 'synced'; legacy: boolean; apply: ApplyOutcome };
+
 /**
- * 读取并清除原生后台任务存储的最近一次结果，然后应用到 ProfileConfig。
+ * 读取并清除原生后台任务存储的最近一次结果，然后应用到其来源 URL 对应的
+ * 配置文件（结果的 configUrl；旧版原生遗留结果缺失时回落活动配置一次）。
  * 每次应用回到前台时调用，让 UI 状态反映后台执行过的刷新。
  */
-export function syncNativeResultToJS(): void {
+export function syncNativeResultToJS(): SyncNativeResultOutcome {
     try {
         const result = ExpoOneBox.getLastConfigRefreshResult();
-        if (!result) return;
-        const url = ProfileConfig.getConfigLink();
-        if (url) {
-            const flowId = newFlowId();
-            logFlowEvent({ event: 'config_refresh', flowId, phase: 'sync', status: 'start' });
-            applyRefreshResult(refreshApplyDeps, { result, url, trigger: 'auto', flowId });
+        if (!result) return { kind: 'empty' };
+        const origin = resolveResultOriginUrl(result, ProfileConfig.getConfigLink());
+        if (!origin.url) {
+            console.warn('[ConfigRefresh] native result has no configUrl and no active profile, dropped');
+            return { kind: 'no-origin' };
         }
+        if (origin.legacy) {
+            console.warn('[ConfigRefresh] legacy native result without configUrl, applying to active profile once');
+        }
+        const flowId = newFlowId();
+        logFlowEvent({ event: 'config_refresh', flowId, phase: 'sync', status: 'start' });
+        const apply = applyRefreshResult(refreshApplyDeps, {
+            result,
+            url: origin.url,
+            trigger: 'auto',
+            flowId,
+        });
+        return { kind: 'synced', legacy: origin.legacy, apply };
     } catch (e) {
         console.warn('[ConfigRefresh] syncNativeResultToJS error:', e);
+        return { kind: 'error' };
     }
 }
 
 // ─── 内部 ─────────────────────────────────────────────────────────────────
 
 // 应用逻辑在 config-refresh-core.ts（纯函数，node:test 覆盖）；
-// 这里是它唯一的生产接线点。
+// 这里是它唯一的生产接线点。写入目标由结果的来源 URL 解析（ProfileStore），
+// 而非当前活动配置。
 const refreshApplyDeps: RefreshApplyDeps = {
-    sbConfig: ProfileConfig,
+    profiles: ProfileStore,
     taskLog: TaskLog,
     logFlowEvent,
     recordFlowFailure,

@@ -164,32 +164,19 @@ export function migrateV1ProfileToMulti(): void {
 const MODE_KEY = 'mode';
 const LOG_LEVEL_KEY = 'sing_box_log_level';
 
+// 只读 shim —— 刷新结果的写入路径经 config-refresh-core 按来源 URL 定位
+// 目标配置（ProfileStore.findByUrl + update），这里不提供 active-bound 的
+// 写 API，以杜绝"结果写进当前活动配置"一类的串写。
 export const ProfileConfig = {
     getConfigLink: (): string | null => ProfileStore.getActive()?.url ?? null,
 
     getUsedTraffic: (): number => ProfileStore.getActive()?.usedTraffic ?? 0,
-    setUsedTraffic: (n: number) => {
-        const a = ProfileStore.getActive();
-        if (a) ProfileStore.update(a.id, { usedTraffic: n });
-    },
 
     getTotalTraffic: (): number => ProfileStore.getActive()?.totalTraffic ?? 1,
-    setTotalTraffic: (n: number) => {
-        const a = ProfileStore.getActive();
-        if (a) ProfileStore.update(a.id, { totalTraffic: n });
-    },
 
     getExpireTime: (): number => ProfileStore.getActive()?.expireTime ?? 0,
-    setExpireTime: (t: number) => {
-        const a = ProfileStore.getActive();
-        if (a) ProfileStore.update(a.id, { expireTime: t });
-    },
 
     getConfigContent: (): string => ProfileStore.getActive()?.configContent ?? '',
-    setConfigContent: (content: string) => {
-        const a = ProfileStore.getActive();
-        if (a) ProfileStore.update(a.id, { configContent: content });
-    },
 
     setMode: (mode: ConfigType) => kvSet(MODE_KEY, mode),
     getMode: (): ConfigType    => (kvGet(MODE_KEY) as ConfigType) ?? 'tun-rules',

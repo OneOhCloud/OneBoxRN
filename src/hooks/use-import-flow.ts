@@ -13,6 +13,7 @@ import { ProfileStore } from '@/database/kv';
 import ExpoOneBox from '@/modules/expo-onebox';
 import { getSingBoxUserAgent } from '@/utils';
 import { verifyHostname } from '@/utils/domain-verification';
+import { registerConfigRefreshTask } from '@/tasks/config-refresh';
 import { logFlowEvent, recordFlowFailure } from '@/utils/flow-log';
 import { jsLog } from '@/utils/log-sink';
 import { router } from 'expo-router';
@@ -76,6 +77,7 @@ export function useImportFlow(input: { data?: string; apply?: string }): ImportF
                 fetchConfig: (url, userAgent) => ExpoOneBox.fetchProfileConfig(url, userAgent),
                 userAgent: getSingBoxUserAgent(),
                 profiles: ProfileStore,
+                onActiveProfileChanged: () => { void registerConfigRefreshTask(); },
                 logFlowEvent,
                 recordFlowFailure,
                 haptics: { notifySuccess, notifyError },

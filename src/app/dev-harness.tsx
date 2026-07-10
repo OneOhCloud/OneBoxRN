@@ -14,7 +14,9 @@
 import { useVpn } from '@/contexts/vpn-context';
 import { ProfileConfig } from '@/database/kv';
 import ExpoOneBox from '@/modules/expo-onebox';
+import { executeConfigRefresh, syncNativeResultToJS } from '@/tasks/config-refresh';
 import { getSingBoxUserAgent } from '@/utils';
+import { djb2Hash } from '@/utils/log-redact';
 import { jsLog } from '@/utils/log-sink';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef } from 'react';
@@ -72,6 +74,29 @@ export default function DevHarnessScreen() {
                         vpn.requestRestart();
                         mark(op, 'done', {});
                         break;
+                    case 'refresh': {
+                        // 手动刷新路径：断言原生结果携带 configUrl（只输出 hash，不打原始 URL）。
+                        const r = await executeConfigRefresh();
+                        mark(op, 'done', {
+                            status: r?.status ?? 'no-url',
+                            hasConfigUrl: !!r?.configUrl,
+                            configUrlHash: r?.configUrl ? djb2Hash(r.configUrl) : '',
+                        });
+                        break;
+                    }
+                    case 'sync-refresh': {
+                        // 前台同步路径：显式标记 apply 的写入目标决策。
+                        const outcome = syncNativeResultToJS();
+                        mark(op, 'done', {
+                            kind: outcome.kind,
+                            legacy: outcome.kind === 'synced' ? outcome.legacy : '',
+                            applyStatus: outcome.kind === 'synced' ? outcome.apply.status : '',
+                            targetProfileIdHash: outcome.kind === 'synced' && outcome.apply.status !== 'dropped'
+                                ? djb2Hash(outcome.apply.targetProfileId)
+                                : '',
+                        });
+                        break;
+                    }
                     case 'fetch': {
                         // 验证该 bridge 方法在运行时可解析。
                         // 网络错误没关系 —— 它证明方法存在

@@ -14,7 +14,7 @@ import { Fonts, MaxContentWidth, TabScreenEdges } from '@/constants/theme';
 import { ProfileStore, type Profile } from '@/database/kv';
 import { useTheme } from '@/hooks/use-theme';
 import { useVpn } from '@/contexts/vpn-context';
-import { executeConfigRefresh } from '@/tasks/config-refresh';
+import { executeConfigRefresh, registerConfigRefreshTask } from '@/tasks/config-refresh';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import { Alert, FlatList, RefreshControl, View } from 'react-native';
@@ -64,6 +64,9 @@ export default function ProfilesScreen() {
     const handleActivate = useCallback((id: string) => {
         ProfileStore.setActiveId(id);
         setActiveId(id);
+        // 原生后台刷新注册的是单一 URL —— 活动配置变更后重注册，
+        // 使后台刷新跟随用户实际使用的配置（内部自 catch，fire-and-forget）。
+        void registerConfigRefreshTask();
         // 带防抖 + 进行中守卫的重启。与 VpnContext.setMode 共用，
         // 使快速的模式 + 配置切换合并为每个静默期一次重启，而非相互竞争。
         requestRestart();

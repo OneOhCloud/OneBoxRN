@@ -377,4 +377,25 @@ describe('createImportFlowMachine', () => {
             extraInfo: { upload: 0, download: 0, total: 0, expire: 0 },
         });
     });
+
+    // 默认 harness 不注入 onActiveProfileChanged —— 上面的全部用例即已覆盖
+    // "未注入不抛"。这里只锁定注入后的调用次数。
+    it('onActiveProfileChanged fires exactly once after the store step', async () => {
+        let notified = 0;
+        const h = makeHarness({ onActiveProfileChanged: () => { notified += 1; } });
+        const { final } = await runToEnd({ data: DATA_OK, apply: undefined }, h);
+        assert.equal(final.phase, 'success');
+        assert.equal(notified, 1);
+    });
+
+    it('onActiveProfileChanged is not called when the download fails', async () => {
+        let notified = 0;
+        const h = makeHarness({
+            onActiveProfileChanged: () => { notified += 1; },
+            fetchConfig: () => Promise.resolve(okResponse({ statusCode: 404, body: '' })),
+        });
+        const { final } = await runToEnd({ data: DATA_OK, apply: undefined }, h);
+        assert.equal(final.phase, 'error');
+        assert.equal(notified, 0);
+    });
 });

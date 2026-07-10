@@ -1,7 +1,7 @@
 ---
-applies-to: src/modules/expo-onebox/android/src/main/java/expo/modules/onebox/oneoh/cloud/helper/ConfigFetcher.kt, src/modules/expo-onebox/android/src/main/java/expo/modules/onebox/oneoh/cloud/helper/BackgroundConfigWorker.kt, src/modules/expo-onebox/ios/core/ConfigFetcher.swift, src/modules/expo-onebox/ios/core/BackgroundConfigRefresh.swift, src/tasks/config-refresh.ts, src/database/helper.ts, src/database/config-template.ts, src/utils/config-fetch-policy.ts
+applies-to: src/modules/expo-onebox/android/src/main/java/expo/modules/onebox/oneoh/cloud/helper/ConfigFetcher.kt, src/modules/expo-onebox/android/src/main/java/expo/modules/onebox/oneoh/cloud/helper/BackgroundConfigWorker.kt, src/modules/expo-onebox/ios/core/ConfigFetcher.swift, src/modules/expo-onebox/ios/core/BackgroundConfigRefresh.swift, src/tasks/config-refresh.ts, src/tasks/config-refresh-core.ts, src/database/helper.ts, src/database/config-template.ts, src/utils/config-fetch-policy.ts
 loaded-when: 任一平台上对 config 抓取、加速器回落、刷新持久化或抓取错误处理的任何改动
-updated-on: 2026-07 F-03/F-04 remediation
+updated-on: 2026-07 configUrl 来源绑定（刷新结果按来源 URL 落库）
 ---
 
 # config-fetch-policy
@@ -55,6 +55,21 @@ Network.framework，仅带 SNI——不用 `sec_protocol_options_set_verify_bloc
 `last_result`）只由**真正的后台**运行写入。手动前台刷新直接返回给
 JS，绝不持久化（防止重复回放）。`getLastConfigRefreshResult`
 读取即清除。两平台一致。
+
+来源绑定（configUrl）：
+- `ConfigRefreshResult` 在全部四个桥接层携带 `configUrl` = 发起本次抓取的
+  主配置 URL（区别于 `actualUrl`）。后台 worker 与前台 `executeConfigRefreshNow`
+  的结果都必须填充（Kotlin `executeRefreshWith` 末尾 `copy`；Swift
+  `executeRefreshWith` 薄包装——各自单点覆盖全部分支）。
+- JS 应用侧（`config-refresh-core.ts applyRefreshResult`）按来源 URL 经
+  `ProfileStore.findByUrl` 解析写入目标——**绝不默认写当前活动配置**。
+  `ProfileConfig` 不提供 active-bound 的流量/内容写 API。
+- 来源 URL 无匹配配置（已删除/更换）→ 整个结果丢弃：零 KV/TaskLog 写入，
+  仅一条 `[EVT] … status=skip detail=…dropped=no-matching-profile`。
+- 结果缺 `configUrl`（升级前旧原生版本存的遗留槽，read-and-clear 至多出现
+  一次）→ 一次性回落到活动配置 URL 并发 warn（`resolveResultOriginUrl`）。
+- 原生注册的后台 URL 跟随活动配置：启动、UI 激活切换、导入置活动
+  （`onActiveProfileChanged`）都会重注册 `registerConfigRefreshTask()`。
 
 ## 日志脱敏
 绝不记录：完整的 config URL（路径/查询可能携带 token）、完整的加速 URL、原始的

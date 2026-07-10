@@ -67,6 +67,11 @@ export interface ImportFlowDeps {
     fetchConfig(url: string, userAgent: string): Promise<ConfigFetchResult>;
     userAgent: string;
     profiles: Pick<ProfileStoreApi, 'findByUrl' | 'upsertByUrl'>;
+    /**
+     * upsertByUrl 会把导入的配置置为活动项 —— 活动项变更后调用（可选），
+     * 供调用方重注册后台刷新任务，使原生注册的 URL 跟随活动配置。
+     */
+    onActiveProfileChanged?(): void;
     logFlowEvent(event: FlowEvent): void;
     recordFlowFailure(event: FlowEvent): void;
     haptics: { notifySuccess(): void; notifyError(): void };
@@ -292,6 +297,7 @@ export function createImportFlowMachine(
             expireTime: expire,
             configContent: content,
         });
+        deps.onActiveProfileChanged?.();
         const extraInfo: ImportExtraInfo = { upload, download, total, expire };
         deps.haptics.notifySuccess();
         deps.log.info(`[Config] download success: bytes=${content.length}, name=${JSON.stringify(name)}, hasTraffic=${total > 0}, hasExpire=${expire > 0}, elapsedMs=${now() - downloadStartedAt}`);
