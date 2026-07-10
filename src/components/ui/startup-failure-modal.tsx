@@ -19,6 +19,12 @@ export type StartupFailureInfo = {
     type?: string;
     status?: number;
     statusName?: string;
+    /** 消息被本地化替换时保留的原生 token，便于与原生日志对照。 */
+    rawMessage?: string;
+    /** 本次启动所用配置的指纹（长度 + djb2），不含配置内容。 */
+    configFingerprint?: string;
+    /** 失败时刻的最近日志快照（已格式化的行）。 */
+    recentLogs?: string[];
 };
 
 type StartupFailureModalProps = {
@@ -315,7 +321,12 @@ function buildDetailText(info: StartupFailureInfo): string {
     if (info.type) rows.push(`${i18n.t('startup_error_type')}: ${info.type}`);
     if (typeof info.status === 'number') rows.push(`${i18n.t('startup_error_status')}: ${info.status}`);
     if (info.statusName) rows.push(`${i18n.t('startup_error_status_name')}: ${info.statusName}`);
+    if (info.rawMessage) rows.push(`${i18n.t('startup_error_raw_token')}: ${info.rawMessage}`);
+    if (info.configFingerprint) rows.push(`${i18n.t('startup_error_config_fingerprint')}: ${info.configFingerprint}`);
     rows.push('', `${i18n.t('startup_error_message')}:`, info.message || i18n.t('startup_error_empty_message'));
+    if (info.recentLogs?.length) {
+        rows.push('', `${i18n.t('startup_error_recent_logs')}:`, ...info.recentLogs);
+    }
     return rows.join('\n');
 }
 

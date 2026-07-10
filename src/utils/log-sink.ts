@@ -79,6 +79,15 @@ export function clearLogSink(): void {
     notify(null);
 }
 
+/**
+ * 返回缓冲区里最近的 count 条日志（时间正序）。
+ * 供启动失败诊断在失败时刻快照上下文 —— 不订阅、不触发通知。
+ */
+export function getRecentLogs(count: number): LogEntry[] {
+    if (count <= 0) return [];
+    return buffer.slice(-count);
+}
+
 // ── React hook ──────────────────────────────────────────────
 
 /**

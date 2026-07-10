@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ImportUrlModalProps {
     visible: boolean;
@@ -62,7 +62,9 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
             presentationStyle="fullScreen"
             backdropColor={theme.background}
         >
-            <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: theme.background }}>
+            {/* 不用 SafeAreaView：RN Modal 内的原生 SafeAreaView 首次呈现时 inset 为 0
+                （Fabric 已知问题），头部会顶进状态栏；根 Provider 的 insets 首帧即正确。 */}
+            <View style={{ flex: 1, backgroundColor: theme.background, paddingTop: insets.top }}>
                 {/* 头部 */}
                 <View
                     style={{
@@ -188,7 +190,7 @@ export function ImportUrlModal({ visible, onClose }: ImportUrlModalProps) {
                         </Pressable>
                     </View>
                 </ScrollView>
-            </SafeAreaView>
+            </View>
         </Modal>
     );
 }

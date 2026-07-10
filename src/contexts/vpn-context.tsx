@@ -4,7 +4,12 @@ import { getProcessedConfig, refreshDirectDns } from '@/database/helper';
 import { ProfileConfig } from '@/database/kv';
 import { getStoreValue } from '@/database/store';
 import { ConfigType } from '@/definition';
-import { emitLog, jsLog } from '@/utils/log-sink';
+import { emitLog, getRecentLogs, jsLog } from '@/utils/log-sink';
+import {
+    configFingerprintOf,
+    DIAGNOSTIC_LOG_COUNT,
+    formatDiagnosticLogLine,
+} from '@/utils/startup-diagnostics';
 import { startupErrorTokenToKey } from '@/utils/startup-error-tokens';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
@@ -143,9 +148,22 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         const message = tokenKey ? i18n.t(tokenKey) : (raw || i18n.t('startup_error_empty_message'));
         jsLog.warn('[VPN] Start failed:', message);
         emitLog({ source: 'native', level: 'error', message: `[StartFailed] ${message}` });
+        // 失败时刻的诊断快照：最近日志 + 本次启动配置的指纹，随弹窗一起可复制
+        // （见 startup-diagnostics.ts）。在 emitLog 之后采集，让 [StartFailed]
+        // 行本身也进入快照。
+        const recentLogs = getRecentLogs(DIAGNOSTIC_LOG_COUNT).map(formatDiagnosticLogLine);
+        let configFingerprint: string | undefined;
+        try {
+            configFingerprint = configFingerprintOf(ExpoOneBox.getStartConfig()) ?? undefined;
+        } catch (e) {
+            jsLog.warn('[VPN] getStartConfig for diagnostics failed:', e);
+        }
         setStartupFailure({
             ...info,
             message,
+            rawMessage: tokenKey ? raw : undefined,
+            configFingerprint,
+            recentLogs,
             occurredAt: new Date().toISOString(),
         });
     }, []);
