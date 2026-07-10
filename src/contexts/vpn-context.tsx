@@ -6,7 +6,7 @@ import { getStoreValue } from '@/database/store';
 import { ConfigType } from '@/definition';
 import { emitLog, getRecentLogs, jsLog } from '@/utils/log-sink';
 import {
-    configFingerprintOf,
+    describeConfigFingerprints,
     DIAGNOSTIC_LOG_COUNT,
     formatDiagnosticLogLine,
 } from '@/utils/startup-diagnostics';
@@ -152,11 +152,17 @@ export function VpnProvider({ children }: { children: React.ReactNode }) {
         // （见 startup-diagnostics.ts）。在 emitLog 之后采集，让 [StartFailed]
         // 行本身也进入快照。
         const recentLogs = getRecentLogs(DIAGNOSTIC_LOG_COUNT).map(formatDiagnosticLogLine);
+        // merged = 实际下发原生的合并配置；profile = ProfileStore 存储的原始
+        // 内容。分开列是为了回答“存储的配置字节是否变了”（merged 会随
+        // directDNS 等环境值波动）。
         let configFingerprint: string | undefined;
         try {
-            configFingerprint = configFingerprintOf(ExpoOneBox.getStartConfig()) ?? undefined;
+            configFingerprint = describeConfigFingerprints({
+                merged: ExpoOneBox.getStartConfig(),
+                profile: ProfileConfig.getConfigContent(),
+            }) ?? undefined;
         } catch (e) {
-            jsLog.warn('[VPN] getStartConfig for diagnostics failed:', e);
+            jsLog.warn('[VPN] fingerprint for diagnostics failed:', e);
         }
         setStartupFailure({
             ...info,

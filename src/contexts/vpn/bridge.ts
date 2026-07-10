@@ -4,11 +4,18 @@
  */
 
 import ExpoOneBox from '@/modules/expo-onebox';
+import { jsLog } from '@/utils/log-sink';
+import { configFingerprintOf } from '@/utils/startup-diagnostics';
 import type { VpnBridge } from './types';
 
 export const expoOneBoxBridge: VpnBridge = {
     getStatus: () => ExpoOneBox.getStatus(),
-    start: (config) => ExpoOneBox.start(config),
+    start: (config) => {
+        // 每次真正下发原生的 start 都留指纹——失败弹窗的日志快照与后续成功
+        // 启动可据此比对“是否同一份配置”（间歇性启动失败的排查线索）。
+        jsLog.info(`[VPN] start config ${configFingerprintOf(config) ?? '(empty)'}`);
+        return ExpoOneBox.start(config);
+    },
     stop: () => ExpoOneBox.stop(),
     checkVpnPermission: () => ExpoOneBox.checkVpnPermission(),
     requestVpnPermission: () => ExpoOneBox.requestVpnPermission(),

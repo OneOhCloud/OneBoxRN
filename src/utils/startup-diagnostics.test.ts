@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { djb2Hash } from './log-redact.ts';
 import type { LogEntry } from './log-sink.ts';
-import { configFingerprintOf, formatDiagnosticLogLine } from './startup-diagnostics.ts';
+import {
+    configFingerprintOf,
+    describeConfigFingerprints,
+    formatDiagnosticLogLine,
+} from './startup-diagnostics.ts';
 
 function entry(overrides: Partial<LogEntry>): LogEntry {
     return {
@@ -42,5 +46,27 @@ describe('configFingerprintOf', () => {
 
     it('returns null for empty config', () => {
         assert.equal(configFingerprintOf(''), null);
+    });
+});
+
+describe('describeConfigFingerprints', () => {
+    it('joins merged and profile fingerprints', () => {
+        const described = describeConfigFingerprints({ merged: '{"a":1}', profile: '{"b":2}' });
+        assert.equal(
+            described,
+            `merged ${configFingerprintOf('{"a":1}')} · profile ${configFingerprintOf('{"b":2}')}`,
+        );
+    });
+
+    it('omits missing parts', () => {
+        const merged = describeConfigFingerprints({ merged: '{"a":1}' });
+        assert.equal(merged, `merged ${configFingerprintOf('{"a":1}')}`);
+        const profile = describeConfigFingerprints({ profile: '{"b":2}', merged: null });
+        assert.equal(profile, `profile ${configFingerprintOf('{"b":2}')}`);
+    });
+
+    it('returns null when both parts are empty', () => {
+        assert.equal(describeConfigFingerprints({}), null);
+        assert.equal(describeConfigFingerprints({ merged: '', profile: null }), null);
     });
 });

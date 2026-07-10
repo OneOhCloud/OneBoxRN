@@ -33,3 +33,19 @@ export function configFingerprintOf(config: string): string | null {
     if (!config) return null;
     return `len=${config.length} djb2=#${djb2Hash(config)}`;
 }
+
+/**
+ * 失败详情用的组合指纹：merged 是实际下发原生的合并后配置，profile 是
+ * ProfileStore 里存储的原始内容。两者分开列——merged 会随 directDNS 等
+ * 环境值变化，profile 才回答"存储的配置字节是否变了"。
+ */
+export function describeConfigFingerprints(
+    parts: { merged?: string | null; profile?: string | null },
+): string | null {
+    const segments: string[] = [];
+    const merged = parts.merged ? configFingerprintOf(parts.merged) : null;
+    const profile = parts.profile ? configFingerprintOf(parts.profile) : null;
+    if (merged) segments.push(`merged ${merged}`);
+    if (profile) segments.push(`profile ${profile}`);
+    return segments.length > 0 ? segments.join(' · ') : null;
+}
