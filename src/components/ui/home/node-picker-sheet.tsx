@@ -4,6 +4,7 @@ import i18n from '@/constants/language';
 import { Fonts } from '@/constants/theme';
 import { NodeItem } from '@/hooks/use-proxy-nodes';
 import { useTheme } from '@/hooks/use-theme';
+import { Ionicons } from '@expo/vector-icons';
 import {
     BottomSheetBackdrop,
     BottomSheetBackdropProps,
@@ -11,7 +12,7 @@ import {
     BottomSheetModal,
 } from '@gorhom/bottom-sheet';
 import { ForwardedRef, forwardRef, memo, useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface SheetItemProps {
@@ -70,7 +71,7 @@ const SheetItem = memo(function SheetItem({ item, index, selected, autoResolvedN
                 {label}
             </Text>
 
-            <NodeSignal delay={item.delay} testing={item.testing} />
+            <NodeSignal delay={item.delay} testing={item.testing} stale={item.stale} />
         </Pressable>
     );
 });
@@ -105,13 +106,17 @@ export interface NodePickerSheetProps {
     nodes: NodeItem[];
     currentNode: string;
     autoResolvedNode: string | null;
+    /** 显式测速窗口是否在途——按钮转圈并禁用，防连点。 */
+    sweepActive: boolean;
     onSelect: (tag: string) => void;
+    /** 手动触发一轮全量测速（节流在 action 层）。 */
+    onTestLatency: () => void;
     onDismiss?: () => void;
 }
 
 export const NodePickerSheet = forwardRef<NodePickerSheetHandle, NodePickerSheetProps>(
     function NodePickerSheet(
-        { nodes, currentNode, autoResolvedNode, onSelect, onDismiss }: NodePickerSheetProps,
+        { nodes, currentNode, autoResolvedNode, sweepActive, onSelect, onTestLatency, onDismiss }: NodePickerSheetProps,
         ref: ForwardedRef<NodePickerSheetHandle>,
     ) {
         const theme = useTheme();
@@ -159,6 +164,32 @@ export const NodePickerSheet = forwardRef<NodePickerSheetHandle, NodePickerSheet
                             {currentLabel}
                         </Text>
                     </View>
+                    <Pressable
+                        onPress={onTestLatency}
+                        disabled={sweepActive || nodes.length === 0}
+                        style={({ pressed }) => [
+                            styles.testButton,
+                            {
+                                borderColor: `${accent}55`,
+                                backgroundColor: pressed ? `${accent}14` : 'transparent',
+                                opacity: nodes.length === 0 ? 0.4 : 1,
+                            },
+                        ]}
+                    >
+                        {sweepActive ? (
+                            <ActivityIndicator size="small" color={accent} />
+                        ) : (
+                            <Ionicons name="speedometer-outline" size={14} color={accent} />
+                        )}
+                        <Text
+                            style={[
+                                styles.testButtonText,
+                                { color: accent, fontFamily: Fonts?.rounded },
+                            ]}
+                        >
+                            {i18n.t('latency_test')}
+                        </Text>
+                    </Pressable>
                     <View
                         style={[
                             styles.count,
@@ -230,6 +261,20 @@ const styles = StyleSheet.create({
         borderRadius: 999,
         borderWidth: 1,
         alignItems: 'center',
+    },
+    testButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        paddingHorizontal: 12,
+        paddingVertical: 5,
+        borderRadius: 999,
+        borderWidth: 1,
+    },
+    testButtonText: {
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 0.2,
     },
     countText: {
         fontSize: 12,

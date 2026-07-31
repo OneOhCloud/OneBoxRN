@@ -74,6 +74,12 @@ export default function DevHarnessScreen() {
                         vpn.requestRestart();
                         mark(op, 'done', {});
                         break;
+                    case 'test-nodes':
+                        // 驱动一轮节点测速；实际是否发出经由 actions 的
+                        // `[VPN] URLTest …` 日志断言（STARTED 门禁/节流可观察）。
+                        vpn.triggerNodeTests();
+                        mark(op, 'done', { status: vpn.status });
+                        break;
                     case 'refresh': {
                         // 手动刷新路径：断言原生结果携带 configUrl（只输出 hash，不打原始 URL）。
                         const r = await executeConfigRefresh();

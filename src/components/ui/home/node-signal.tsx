@@ -43,14 +43,17 @@ function levelColor(level: SignalLevel): string {
 interface NodeSignalProps {
     delay: number;
     testing?: boolean;
+    /** 数值已陈旧（由 node store 在事件应用时评估）——整体降淡显示。 */
+    stale?: boolean;
 }
 
 /**
  * 四格信号强度指示器 + 等宽字体延迟读数。
  * 五个等级：None / Weak / Medium / Strong / Full。
+ * 陈旧数值以次级色 + 降淡呈现，区别于新鲜等级色。
  * 纯 RN——iOS 与 Android 渲染完全一致。
  */
-export function NodeSignal({ delay, testing }: NodeSignalProps) {
+export function NodeSignal({ delay, testing, stale: staleProp }: NodeSignalProps) {
     const theme = useTheme();
     const hairline = useHairlineColor();
 
@@ -63,11 +66,12 @@ export function NodeSignal({ delay, testing }: NodeSignalProps) {
     }
 
     const level = getSignalLevel(delay);
-    const color = levelColor(level) || theme.textSecondary;
+    const stale = staleProp === true && level > 0;
+    const color = stale ? theme.textSecondary : levelColor(level) || theme.textSecondary;
     const lit = level;
 
     return (
-        <View style={styles.wrap}>
+        <View style={[styles.wrap, stale && styles.stale]}>
             <View style={styles.bars}>
                 {Array.from({ length: TOTAL_BARS }).map((_, i) => (
                     <View
@@ -102,6 +106,9 @@ const styles = StyleSheet.create({
         gap: 6,
         minWidth: 60,
         justifyContent: 'flex-end',
+    },
+    stale: {
+        opacity: 0.55,
     },
     bars: {
         flexDirection: 'row',

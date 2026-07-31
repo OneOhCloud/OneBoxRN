@@ -4,6 +4,7 @@ import {
     buildSingBoxConfig,
     extractSystemDns,
     FALLBACK_DNS,
+    URLTEST_PROBE_URL,
     type ConfigMergeDeps,
     type SingBoxConfigLike,
 } from './config-merge-core.ts';
@@ -86,9 +87,9 @@ function ruleSets(): Record<RuleAction, RuleSet> {
 // rule（`??=` 会创建缺失的数组，含空数组）；clash_api 被删除但 experimental
 // section 保留。
 
-const GOLDEN_TUN_RULES = '{"log":{"disabled":false,"level":"info","timestamp":false},"dns":{"servers":[{"tag":"system","type":"udp","server":"1.2.3.4","server_port":53,"connect_timeout":"5s"},{"tag":"remote","type":"fakeip","inet4_range":"198.18.0.0/15"}],"final":"remote"},"inbounds":[{"tag":"tun","type":"tun","stack":"gvisor","route_exclude_address":["10.0.0.0/8","192.168.50.0/24"]}],"outbounds":[{"tag":"direct","type":"direct"},{"tag":"ExitGateway","type":"selector","outbounds":["auto","node-a","node-b"]},{"tag":"auto","type":"urltest","outbounds":["node-a","node-b"]},{"tag":"node-a","type":"vless","server":"a.example.invalid","domain_resolver":"system"},{"tag":"node-b","type":"trojan","server":"b.example.invalid","domain_resolver":"system"}],"route":{"rules":[{"domain":["reject-tag.oneoh.cloud","ads.example.invalid"],"action":"reject","domain_suffix":[".track.invalid"],"ip_cidr":[]},{"domain":["direct-tag.oneoh.cloud"],"outbound":"direct"},{"domain":["proxy-tag.oneoh.cloud"],"outbound":"ExitGateway","domain_suffix":[],"ip_cidr":["203.0.113.0/24"]}],"final":"ExitGateway"},"experimental":{"cache_file":{"enabled":true}}}';
+const GOLDEN_TUN_RULES = '{"log":{"disabled":false,"level":"info","timestamp":false},"dns":{"servers":[{"tag":"system","type":"udp","server":"1.2.3.4","server_port":53,"connect_timeout":"5s"},{"tag":"remote","type":"fakeip","inet4_range":"198.18.0.0/15"}],"final":"remote"},"inbounds":[{"tag":"tun","type":"tun","stack":"gvisor","route_exclude_address":["10.0.0.0/8","192.168.50.0/24"]}],"outbounds":[{"tag":"direct","type":"direct"},{"tag":"ExitGateway","type":"selector","outbounds":["auto","node-a","node-b"]},{"tag":"auto","type":"urltest","outbounds":["node-a","node-b"],"url":"http://www.gstatic.com/generate_204"},{"tag":"node-a","type":"vless","server":"a.example.invalid","domain_resolver":"system"},{"tag":"node-b","type":"trojan","server":"b.example.invalid","domain_resolver":"system"}],"route":{"rules":[{"domain":["reject-tag.oneoh.cloud","ads.example.invalid"],"action":"reject","domain_suffix":[".track.invalid"],"ip_cidr":[]},{"domain":["direct-tag.oneoh.cloud"],"outbound":"direct"},{"domain":["proxy-tag.oneoh.cloud"],"outbound":"ExitGateway","domain_suffix":[],"ip_cidr":["203.0.113.0/24"]}],"final":"ExitGateway"},"experimental":{"cache_file":{"enabled":true}}}';
 
-const GOLDEN_TUN_GLOBAL = '{"log":{"disabled":false,"level":"info","timestamp":false},"dns":{"servers":[{"tag":"system","type":"udp","server":"1.2.3.4","server_port":53,"connect_timeout":"5s"},{"tag":"remote","type":"fakeip","inet4_range":"198.18.0.0/15"}],"final":"remote"},"inbounds":[{"tag":"tun","type":"tun","stack":"gvisor","route_exclude_address":["10.0.0.0/8","192.168.50.0/24"]}],"outbounds":[{"tag":"direct","type":"direct"},{"tag":"ExitGateway","type":"selector","outbounds":["auto","node-a","node-b"]},{"tag":"auto","type":"urltest","outbounds":["node-a","node-b"]},{"tag":"node-a","type":"vless","server":"a.example.invalid","domain_resolver":"system"},{"tag":"node-b","type":"trojan","server":"b.example.invalid","domain_resolver":"system"}],"route":{"rules":[{"domain":["reject-tag.oneoh.cloud"],"action":"reject"},{"domain":["direct-tag.oneoh.cloud"],"outbound":"direct"},{"domain":["proxy-tag.oneoh.cloud"],"outbound":"ExitGateway"}],"final":"ExitGateway"},"experimental":{"cache_file":{"enabled":true}}}';
+const GOLDEN_TUN_GLOBAL = '{"log":{"disabled":false,"level":"info","timestamp":false},"dns":{"servers":[{"tag":"system","type":"udp","server":"1.2.3.4","server_port":53,"connect_timeout":"5s"},{"tag":"remote","type":"fakeip","inet4_range":"198.18.0.0/15"}],"final":"remote"},"inbounds":[{"tag":"tun","type":"tun","stack":"gvisor","route_exclude_address":["10.0.0.0/8","192.168.50.0/24"]}],"outbounds":[{"tag":"direct","type":"direct"},{"tag":"ExitGateway","type":"selector","outbounds":["auto","node-a","node-b"]},{"tag":"auto","type":"urltest","outbounds":["node-a","node-b"],"url":"http://www.gstatic.com/generate_204"},{"tag":"node-a","type":"vless","server":"a.example.invalid","domain_resolver":"system"},{"tag":"node-b","type":"trojan","server":"b.example.invalid","domain_resolver":"system"}],"route":{"rules":[{"domain":["reject-tag.oneoh.cloud"],"action":"reject"},{"domain":["direct-tag.oneoh.cloud"],"outbound":"direct"},{"domain":["proxy-tag.oneoh.cloud"],"outbound":"ExitGateway"}],"final":"ExitGateway"},"experimental":{"cache_file":{"enabled":true}}}';
 
 // ─── 测试脚手架 ─────────────────────────────────────────────────────────────────
 
@@ -215,6 +216,20 @@ describe('buildSingBoxConfig', () => {
         assert.equal(Object.keys(out).at(-1), 'log');
     });
 
+    it('urltest probe URL: a template-provided url is overwritten by the single source', async () => {
+        // 模板（外部 conf-template 仓库）自带 https google 探测；合并期覆写是
+        // 探测口径的单一来源——不依赖模板变更即可保证 http gstatic 口径。
+        const template = JSON.parse(JSON.stringify(TEMPLATE)) as SingBoxConfigLike;
+        template.outbounds![2].url = 'https://www.google.com/generate_204';
+        const h = makeHarness({ template });
+        const out = JSON.parse(
+            await buildSingBoxConfig(h.deps, { mode: 'tun-global', userConfigContent: USER_CONFIG_CONTENT }),
+        ) as SingBoxConfigLike;
+        const urltestGroups = out.outbounds!.filter((o) => o.type === 'urltest');
+        assert.equal(urltestGroups.length, 1);
+        assert.equal(urltestGroups[0].url, URLTEST_PROBE_URL);
+    });
+
     it('log transcript: exact ordered lines for tun-rules', async () => {
         const h = makeHarness();
         await buildSingBoxConfig(h.deps, { mode: 'tun-rules', userConfigContent: USER_CONFIG_CONTENT });
@@ -224,6 +239,7 @@ describe('buildSingBoxConfig', () => {
             ['info', ['[Config] rewriteConfig: inject DNS, strip unused fields']],
             ['info', ['[Config] direct DNS:', '1.2.3.4']],
             ['info', ['[Config] core log level → info']],
+            ['info', ['[Config] urltest probe → http://www.gstatic.com/generate_204']],
             ['warn', ['[Config] Skipping server with duplicate tag: "auto"']],
         ]);
     });
@@ -236,6 +252,7 @@ describe('buildSingBoxConfig', () => {
             ['info', ['[Config] rewriteConfig: inject DNS, strip unused fields']],
             ['info', ['[Config] direct DNS:', '1.2.3.4']],
             ['info', ['[Config] core log level → info']],
+            ['info', ['[Config] urltest probe → http://www.gstatic.com/generate_204']],
             ['warn', ['[Config] Skipping server with duplicate tag: "auto"']],
         ]);
     });

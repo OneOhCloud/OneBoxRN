@@ -29,6 +29,7 @@
     "inbound_connections": "入站连接",
     "insufficient_permission": "权限不足",
     "invalid_link_hint": "请输入以 https:// 开头的链接",
+    "latency_test": "测速",
     "logs_clear": "清除",
     "logs_empty": "暂无日志",
     "logs_title": "日志",

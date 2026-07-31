@@ -220,17 +220,20 @@ export default function HomeScreen() {
             setActiveProfileId(ProfileStore.getActiveId());
         }, [])
     );
-    const { selectNode } = useVpn();
+    const { selectNode, triggerNodeTests } = useVpn();
     const {
         nodes,
         currentNode,
         autoResolvedNode,
         isLoading: isNodeLoading,
-    } = useProxyNodes(connected, activeProfileId);
+        isSweeping,
+    } = useProxyNodes(activeProfileId);
 
     const openNodePicker = useCallback(() => {
         nodeSheetRef.current?.present();
-    }, []);
+        // 打开面板即刷新一轮延迟（action 层 10s 节流挡住反复开合）。
+        triggerNodeTests();
+    }, [triggerNodeTests]);
 
     const handleNodeSelect = useCallback(async (tag: string) => {
         nodeSheetRef.current?.dismiss();
@@ -349,7 +352,9 @@ export default function HomeScreen() {
                 nodes={nodes}
                 currentNode={currentNode}
                 autoResolvedNode={autoResolvedNode}
+                sweepActive={isSweeping}
                 onSelect={handleNodeSelect}
+                onTestLatency={triggerNodeTests}
             />
         </ThemedView>
     );

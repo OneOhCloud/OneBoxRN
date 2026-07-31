@@ -90,6 +90,14 @@ export interface ConfigMergeInput {
 export const FALLBACK_DNS = '119.29.29.29';
 
 /**
+ * 测速探测 URL 的单一来源（合并期统一覆写模板里的 urltest 组）。
+ * 纯 http：与 Clash 系客户端同口径——不含 TLS 往返，数值可比且明显低于模板
+ * 自带的 https google 探测；被墙场景也不会因 https 探测失败而删掉可用节点的
+ * 延迟历史。设备实测（TUIC 27 节点）https 口径中位数 ~550ms。
+ */
+export const URLTEST_PROBE_URL = 'http://www.gstatic.com/generate_204';
+
+/**
  * 从合并后的配置中读回 "direct" DNS 的单一来源 —— `dns.servers[tag='system'].server`
  * 的值必须与 Settings UI 从 KV 读到的值逐字节一致（契约见 helper.ts 中
  * refreshDirectDns 的注释）。
@@ -135,6 +143,12 @@ async function rewriteConfig(deps: ConfigMergeDeps, newConfig: SingBoxConfigLike
     if (!newConfig.log) newConfig.log = {};
     newConfig.log.level = level;
     deps.log.info(`[Config] core log level → ${level}`);
+    for (const outbound of newConfig.outbounds ?? []) {
+        if (outbound.type === 'urltest') {
+            outbound.url = URLTEST_PROBE_URL;
+        }
+    }
+    deps.log.info(`[Config] urltest probe → ${URLTEST_PROBE_URL}`);
 }
 
 function injectServerNodes(

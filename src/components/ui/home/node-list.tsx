@@ -134,7 +134,11 @@ export function NodeList({
                 </View>
 
                 {currentItem && (
-                    <NodeSignal delay={currentItem.delay} testing={currentItem.testing} />
+                    <NodeSignal
+                        delay={currentItem.delay}
+                        testing={currentItem.testing}
+                        stale={currentItem.stale}
+                    />
                 )}
             </Pressable>
 

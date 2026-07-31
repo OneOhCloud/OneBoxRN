@@ -29,6 +29,7 @@
     "inbound_connections": "Inbound",
     "insufficient_permission": "Insufficient Permission",
     "invalid_link_hint": "Please enter a link starting with https://",
+    "latency_test": "Test Latency",
     "logs_clear": "Clear",
     "logs_empty": "No logs yet",
     "logs_title": "Logs",

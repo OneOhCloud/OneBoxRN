@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { VPN_STATUS } from '../../modules/expo-onebox/src/ExpoOneBox.types.ts';
-import { createVpnActions, stopAndAwaitStopped, type VpnActionDeps } from './actions.ts';
+import { createVpnActions, stopAndAwaitStopped, TRIGGER_THROTTLE_MS, type VpnActionDeps } from './actions.ts';
 import { createNodeStore } from './node-store-core.ts';
 import {
     createFakeBridge,
@@ -291,27 +291,98 @@ describe('createVpnActions node actions', () => {
         assert.equal(nodeStore.getSnapshot().currentNode, '');
     });
 
-    it('triggerNodeTests opens the window and fires both group tests', async () => {
+    it('triggerNodeTests opens the window and fires only the auto group test', async () => {
+        // 单轮扫描：对 selector 的第二次触发会让每个节点被两条探测同时打，
+        // 并发翻倍互相挤占 → 延迟虚高（本轮修复的核心回归锁）。
         const timers = createFakeTimers();
         const bridge = createFakeBridge(VPN_STATUS.STARTED);
         const nodeStore = createNodeStore({ timers: timers.host });
         const actions = createVpnActions(makeDeps(bridge, timers, { nodeStore }));
         actions.triggerNodeTests();
         assert.equal(nodeStore.getSnapshot().isLoading, true);
+        assert.equal(nodeStore.getSnapshot().isSweeping, true);
         assert.deepEqual(
             bridge.calls.filter((c) => c.startsWith('triggerURLTest:')),
-            ['triggerURLTest:ExitGateway', 'triggerURLTest:auto'],
+            ['triggerURLTest:auto'],
         );
         await flushMicrotasks();
     });
 
-    it('resetNodes clears the store', () => {
+    it('triggerNodeTests outside STARTED neither calls the bridge nor opens a window', () => {
+        const timers = createFakeTimers();
+        const bridge = createFakeBridge(VPN_STATUS.STARTING);
+        const nodeStore = createNodeStore({ timers: timers.host });
+        const actions = createVpnActions(makeDeps(bridge, timers, { nodeStore }));
+        actions.triggerNodeTests();
+        assert.deepEqual(bridge.calls, []);
+        assert.equal(nodeStore.getSnapshot().isLoading, false);
+        assert.equal(nodeStore.getSnapshot().isSweeping, false);
+        assert.equal(timers.pendingCount(), 0);
+    });
+
+    it('a native false cancels the testing window', async () => {
+        const timers = createFakeTimers();
+        const bridge = createFakeBridge(VPN_STATUS.STARTED);
+        bridge.behaviors.triggerURLTest = () => Promise.resolve(false);
+        const nodeStore = createNodeStore({ timers: timers.host });
+        const actions = createVpnActions(makeDeps(bridge, timers, { nodeStore }));
+        actions.triggerNodeTests();
+        assert.equal(nodeStore.getSnapshot().isSweeping, true);
+        await flushMicrotasks();
+        assert.equal(nodeStore.getSnapshot().isSweeping, false);
+        assert.equal(nodeStore.getSnapshot().isLoading, false);
+        assert.equal(timers.pendingCount(), 0);
+    });
+
+    it('a native rejection cancels the testing window', async () => {
+        const timers = createFakeTimers();
+        const bridge = createFakeBridge(VPN_STATUS.STARTED);
+        bridge.behaviors.triggerURLTest = () => Promise.reject(new Error('ipc dead'));
+        const nodeStore = createNodeStore({ timers: timers.host });
+        const actions = createVpnActions(makeDeps(bridge, timers, { nodeStore }));
+        actions.triggerNodeTests();
+        await flushMicrotasks();
+        assert.equal(nodeStore.getSnapshot().isSweeping, false);
+        assert.equal(nodeStore.getSnapshot().isLoading, false);
+    });
+
+    it('throttles repeat triggers within the window and allows them after it', async () => {
         const timers = createFakeTimers();
         const bridge = createFakeBridge(VPN_STATUS.STARTED);
         const nodeStore = createNodeStore({ timers: timers.host });
-        const actions = createVpnActions(makeDeps(bridge, timers, { nodeStore }));
+        let nowMs = 0;
+        const actions = createVpnActions(
+            makeDeps(bridge, timers, { nodeStore, now: () => nowMs }),
+        );
+
+        actions.triggerNodeTests();
+        nowMs = TRIGGER_THROTTLE_MS - 1;
+        actions.triggerNodeTests();
+        assert.equal(bridge.calls.filter((c) => c.startsWith('triggerURLTest:')).length, 1);
+
+        nowMs = TRIGGER_THROTTLE_MS;
+        actions.triggerNodeTests();
+        assert.equal(bridge.calls.filter((c) => c.startsWith('triggerURLTest:')).length, 2);
+        await flushMicrotasks();
+    });
+
+    it('resetNodes clears the store and the trigger throttle', async () => {
+        const timers = createFakeTimers();
+        const bridge = createFakeBridge(VPN_STATUS.STARTED);
+        const nodeStore = createNodeStore({ timers: timers.host });
+        let nowMs = 0;
+        const actions = createVpnActions(
+            makeDeps(bridge, timers, { nodeStore, now: () => nowMs }),
+        );
         nodeStore.markCurrentNode('x');
+        actions.triggerNodeTests();
         actions.resetNodes();
         assert.equal(nodeStore.getSnapshot().currentNode, '');
+
+        // 断开→快速重连场景：节流已清，立即可再测。
+        nowMs = 1;
+        actions.triggerNodeTests();
+        assert.equal(bridge.calls.filter((c) => c.startsWith('triggerURLTest:')).length, 2);
+        await flushMicrotasks();
     });
 });

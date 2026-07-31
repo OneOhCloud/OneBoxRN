@@ -21,7 +21,7 @@ constraint: `ExpoOneBoxModule` 的修改表面只在 `src/contexts/vpn-context.t
 | `stop` | `(options?: {timeoutMs?}) => Promise<StopResult>` | 在 STOPPED 事件时 resolve；结果 `stopped` / `already-stopped` / `timeout`（默认 10 s）/ `stop-rejected`（+300 ms 宽限） |
 | `requestRestart` | `() => void` | 去抖（250 ms）、带在途守卫、以最新 config 恰好重跑一次的重启；隧道关闭时为 no-op |
 | `selectNode` | `(tag) => Promise<SelectNodeResult>` | 原生 select + 在 node store 中乐观更新当前节点 |
-| `triggerNodeTests` | `() => void` | 打开 12 s 测试窗口 + 触发两个 group 的 URL 测试 |
+| `triggerNodeTests` | `() => void` | STARTED 门禁 + 10 s 节流；打开 12 s 测试窗口并只触发 `auto` 组单轮 URL 测试（对 selector 的第二轮会让节点被双探测挤占→延迟虚高）；原生返回 false / reject 时立即关窗收口 spinner |
 | `resetNodes` | `() => void` | 清空 node store（断开 / 切换配置文件） |
 | `setMode` | `(mode) => void` | 持久化模式 + `requestRestart()` |
 

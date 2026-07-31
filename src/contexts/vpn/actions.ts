@@ -20,12 +20,14 @@ import type {
 } from './types.ts';
 import { defaultTimers } from './types.ts';
 import type { NodeStore } from './node-store-core.ts';
-import { AUTO_GROUP_TAG, GATEWAY_GROUP_TAG } from './node-store-core.ts';
+import { AUTO_GROUP_TAG } from './node-store-core.ts';
 import { errorCodeFromMessage } from '../../utils/config-fetch-policy.ts';
 
 const DEFAULT_STOP_TIMEOUT_MS = 10_000;
 /** 原生 stop() 在 reject 后仍可能发出 STOPPED —— 宽限窗口。 */
 const STOP_REJECT_GRACE_MS = 300;
+/** 测速触发节流：面板开合 / 前台反复切换不重复扫描。 */
+export const TRIGGER_THROTTLE_MS = 10_000;
 
 /**
  * 把启动失败映射到用于遥测的共享 errorCode 词表。
@@ -107,6 +109,8 @@ export interface VpnActionDeps {
     nodeStore: NodeStore;
     log: VpnLogger;
     timers?: TimerHost;
+    /** 测速触发节流用时钟；测试注入假时钟。 */
+    now?: () => number;
 }
 
 export interface VpnActions {
@@ -119,7 +123,10 @@ export interface VpnActions {
 
 export function createVpnActions(deps: VpnActionDeps): VpnActions {
     const timers = deps.timers ?? defaultTimers;
+    const now = deps.now ?? Date.now;
     const { bridge, platform, nodeStore, log } = deps;
+    // 负无穷哨兵：首次触发永不被节流（0 会在时钟起点挡住第一次触发）。
+    let lastTriggerAt = Number.NEGATIVE_INFINITY;
 
     async function ensureVpnPermission(): Promise<boolean> {
         if (platform !== 'android') return true;
@@ -211,14 +218,40 @@ export function createVpnActions(deps: VpnActionDeps): VpnActions {
     }
 
     function triggerNodeTests(): void {
+        // daemon 在非 STARTED 时拒绝 URLTest——不开窗，避免出现一个永远等不到
+        // 结果的测试窗口（STARTING 期间的连接触发由 hook 在转入 STARTED 时补发）。
+        if (bridge.getStatus() !== VPN_STATUS.STARTED) {
+            log.info('[VPN] URLTest skipped: not started');
+            return;
+        }
+        // 面板反复开合等场景的节流；内核侧的在途 `checking` 守卫会把残余的
+        // 并发强制触发变为 no-op。
+        const t = now();
+        if (t - lastTriggerAt < TRIGGER_THROTTLE_MS) return;
+        lastTriggerAt = t;
+
         nodeStore.beginTestingWindow();
-        // 一次性触发以立即出结果；后续测试由 sing-box 内部的 `interval`
-        // 配置驱动。
-        void bridge.triggerURLTest(GATEWAY_GROUP_TAG).catch(() => {});
-        void bridge.triggerURLTest(AUTO_GROUP_TAG).catch(() => {});
+        log.info('[VPN] URLTest sweep triggered (auto)');
+        // 只测 auto（urltest 组，含全部节点）：对 selector 触发会走 daemon 的
+        // fallback 批量路径，用另一个探测 URL 把每个节点同时打第二遍——并发
+        // 翻倍互相挤占导致延迟虚高，失败轮还会删掉成功轮的历史记录。
+        bridge.triggerURLTest(AUTO_GROUP_TAG).then(
+            (ok) => {
+                if (!ok) {
+                    nodeStore.cancelTestingWindow();
+                    log.warn('[VPN] URLTest trigger failed (native returned false)');
+                }
+            },
+            (e: unknown) => {
+                nodeStore.cancelTestingWindow();
+                log.warn(`[VPN] URLTest trigger rejected: ${errorMessage(e)}`);
+            },
+        );
     }
 
     function resetNodes(): void {
+        // 清节流：断开→重连（10s 内）后必须能立即重新测速。
+        lastTriggerAt = Number.NEGATIVE_INFINITY;
         nodeStore.reset();
     }
 
