@@ -2,7 +2,7 @@
 
 ## 项目概览
 
-React Native VPN 应用。Expo SDK 57 + Expo Router。核心引擎：sing-box v1.13.15（单一来源：`src/modules/expo-onebox/helper/Makefile` 中的 `SING_BOX_TAG`）。目标平台：iOS、Android、Web。
+React Native VPN 应用。Expo SDK 57 + Expo Router。核心引擎：sing-box v1.14.0-beta.10（单一来源：`src/modules/expo-onebox/helper/Makefile` 中的 `SING_BOX_TAG`）。目标平台：iOS、Android、Web。
 
 ---
 

@@ -40,7 +40,7 @@ export function getConfigTemplateCacheKey(mode: ConfigType): string {
  * `SING_BOX_TAG` 冻结。
  */
 export function getDefaultConfigTemplate(mode: ConfigType, majorVersion: string): string {
-    if (majorVersion === '1.12' || majorVersion === '1.13') {
+    if (majorVersion === '1.12' || majorVersion === '1.13' || majorVersion === '1.14') {
         const tpl = BUILT_IN_TEMPLATE_OBJECTS[mode];
         if (!tpl) throw new Error(`Unsupported config type: ${mode}`);
         return JSON.stringify(tpl);
@@ -52,7 +52,7 @@ export function getDefaultConfigTemplate(mode: ConfigType, majorVersion: string)
 
 const TEMPLATE_MODES: ConfigType[] = ['tun-rules', 'tun-global'];
 
-const REMOTE_TEMPLATE_BASE = 'https://onebox-updater.oneoh.cloud/conf-template/raw/refs/heads/main/conf';
+const REMOTE_TEMPLATE_BASE = 'https://onebox-updater.oneoh.cloud/conf-template/raw/refs/heads/dev/conf';
 
 function getRemoteTemplateUrl(mode: ConfigType): string {
     const versionPath = resolveVersionPath(parseSingBoxVersion(getSingBoxVersion()));

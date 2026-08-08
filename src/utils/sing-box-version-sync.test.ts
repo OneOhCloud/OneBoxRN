@@ -11,14 +11,14 @@ const WEB_STUB = 'src/modules/expo-onebox/src/ExpoOneBoxModule.web.ts';
 
 function makefileSingBoxVersion(): string {
     const text = readFileSync(MAKEFILE, 'utf8');
-    const m = text.match(/SING_BOX_TAG\s*=\s*"?v?([0-9]+\.[0-9]+\.[0-9]+)"?/);
+    const m = text.match(/SING_BOX_TAG\s*=\s*"?v?([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?)"?/);
     assert.ok(m, `SING_BOX_TAG not found in ${MAKEFILE}`);
     return m![1];
 }
 
 function webStubSingBoxVersion(): string {
     const text = readFileSync(WEB_STUB, 'utf8');
-    const m = text.match(/WEB_STUB_SING_BOX_VERSION\s*=\s*'([0-9]+\.[0-9]+\.[0-9]+)'/);
+    const m = text.match(/WEB_STUB_SING_BOX_VERSION\s*=\s*'([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?)'/);
     assert.ok(m, `WEB_STUB_SING_BOX_VERSION not found in ${WEB_STUB}`);
     return m![1];
 }

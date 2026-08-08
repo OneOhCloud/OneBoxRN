@@ -22,11 +22,11 @@
  * 与实时拉取总是就使用哪个 conf/<version>/zh-cn/ 目录达成一致。
  *
  * 分支：
- *   - 默认 stable。设置 CONF_TEMPLATE_BRANCH=beta|dev 切换非稳定通道。
+ *   - dev 分支默认使用 dev。发布构建显式设置其它通道。
  *
  * 离线回落：
- *   - 若拉取失败但上次运行已生成 generated.ts，则保留它并以警告退出 0。
- *     全新 checkout 且无网络时脚本快速失败——没有 generated.ts 应用无法打包。
+ *   - 仅当上次生成文件的分支和精确内核版本都匹配时才允许离线复用。
+ *     否则快速失败，避免把旧 schema 烘焙进新内核构建。
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
@@ -34,13 +34,14 @@ import { parse as parseJsonc, type ParseError } from 'jsonc-parser';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { parseSingBoxVersion, resolveVersionPath, type SingBoxVersion } from '../src/utils/sing-box-template-path.ts';
+import { canReuseGeneratedTemplateSnapshot } from '../src/utils/generated-template-snapshot.ts';
 
 // ---------------------------------------------------------------------------
 // 配置
 // ---------------------------------------------------------------------------
 
 const REPO = 'OneOhCloud/conf-template';
-const BRANCH = process.env.CONF_TEMPLATE_BRANCH ?? 'stable';
+const BRANCH = process.env.CONF_TEMPLATE_BRANCH ?? 'dev';
 
 /**
  * OneBoxRN 只发布 TUN 模式。需与 src/definition.ts 中的 ConfigType 保持同步。
@@ -78,8 +79,8 @@ type BuildSingBoxVersion = SingBoxVersion & {
 
 function readSingBoxVersion(): BuildSingBoxVersion {
     const text = readFileSync(HELPER_MAKEFILE, 'utf-8');
-    // 典型行：SING_BOX_TAG = "v1.13.8"（空白数量不限）。
-    const match = text.match(/^\s*SING_BOX_TAG\s*=\s*"?(v?[\d.]+)"?\s*$/m);
+    // 典型行：SING_BOX_TAG = "v1.14.0-beta.10"（空白数量不限）。
+    const match = text.match(/^\s*SING_BOX_TAG\s*=\s*"?(v?\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?)"?\s*$/m);
     if (!match) {
         throw new Error(
             `could not find SING_BOX_TAG in ${HELPER_MAKEFILE} — ` +
@@ -116,13 +117,12 @@ async function fetchText(url: string, label: string): Promise<string> {
  */
 async function fetchLatestSha(): Promise<string> {
     try {
-        const res = await fetch(
+        const text = await fetchText(
             `https://api.github.com/repos/${REPO}/branches/${BRANCH}`,
-            { headers: { 'User-Agent': 'oneboxrn-sync-templates' } },
+            `branch metadata for ${BRANCH}`,
         );
-        if (!res.ok) return 'unknown';
-        const json = (await res.json()) as { commit?: { sha?: string } };
-        return json?.commit?.sha ?? 'unknown';
+        const json = JSON.parse(text) as { commit?: { sha?: string } };
+        return json.commit?.sha ?? 'unknown';
     } catch {
         return 'unknown';
     }
@@ -224,14 +224,18 @@ async function main(): Promise<void> {
         fetched = results.slice(1) as FetchedMode[];
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
-        // 离线回落：保留上次运行遗留的 generated.ts。
         if (existsSync(OUTPUT_PATH)) {
-            console.warn(
-                `[sync-templates] fetch failed (${msg}); keeping existing snapshot at ${OUTPUT_PATH}`,
-            );
-            return;
+            const snapshot = readFileSync(OUTPUT_PATH, 'utf-8');
+            if (canReuseGeneratedTemplateSnapshot(snapshot, BRANCH, version.tag)) {
+                console.warn(
+                    `[sync-templates] fetch failed (${msg}); keeping matching snapshot at ${OUTPUT_PATH}`,
+                );
+                return;
+            }
         }
-        throw e;
+        throw new Error(
+            `template fetch failed and no reusable ${BRANCH}/${version.tag} snapshot exists: ${msg}`,
+        );
     }
 
     const content = emitGeneratedFile(version, versionPath, commitSha, fetched);

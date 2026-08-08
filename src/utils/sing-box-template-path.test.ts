@@ -12,6 +12,15 @@ describe('parseSingBoxVersion', () => {
         assert.deepEqual(parseSingBoxVersion('1.13.0'), { major: '1', minor: '13', patch: 0 });
     });
 
+    it('parses a prerelease without truncating its identity', () => {
+        assert.deepEqual(parseSingBoxVersion('v1.14.0-beta.10'), {
+            major: '1',
+            minor: '14',
+            patch: 0,
+            prerelease: 'beta.10',
+        });
+    });
+
     it('throws on empty string', () => {
         assert.throws(() => parseSingBoxVersion(''), /empty/);
     });
@@ -46,8 +55,12 @@ describe('resolveVersionPath', () => {
         assert.equal(resolveVersionPath(parseSingBoxVersion('1.12.5')), '1.12');
     });
 
-    it('1.14.0 throws unsupported', () => {
-        assert.throws(() => resolveVersionPath(parseSingBoxVersion('1.14.0')), /Unsupported/);
+    it('1.14 prereleases use the 1.14 bucket', () => {
+        assert.equal(resolveVersionPath(parseSingBoxVersion('v1.14.0-beta.10')), '1.14');
+    });
+
+    it('rejects a malformed prerelease', () => {
+        assert.throws(() => parseSingBoxVersion('v1.14.0-'), /malformed/);
     });
 
     it('2.0.0 throws unsupported', () => {

@@ -9,7 +9,10 @@ export type SingBoxVersion = {
     major: string;
     minor: string;
     patch: number;
+    prerelease?: string;
 };
+
+const VERSION_PATTERN = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*))?$/;
 
 /**
  * 把裸版本字符串（例如 `"1.13.8"`）解析成各组成部分。
@@ -17,26 +20,34 @@ export type SingBoxVersion = {
  */
 export function parseSingBoxVersion(bare: string): SingBoxVersion {
     if (!bare) throw new Error(`parseSingBoxVersion: empty version string`);
-    const parts = bare.split('.');
+    const normalized = bare.startsWith('v') ? bare.slice(1) : bare;
+    const parts = normalized.split('.');
     if (parts.length < 3) {
         throw new Error(`parseSingBoxVersion: expected MAJOR.MINOR.PATCH, got "${bare}"`);
     }
-    const [major, minor, patchStr] = parts;
-    const patch = parseInt(patchStr!, 10);
-    if (!major || !minor || Number.isNaN(patch)) {
+    const match = VERSION_PATTERN.exec(normalized);
+    if (!match) {
         throw new Error(`parseSingBoxVersion: malformed version "${bare}"`);
     }
-    return { major, minor, patch };
+    const parsed: SingBoxVersion = {
+        major: match[1],
+        minor: match[2],
+        patch: Number(match[3]),
+    };
+    if (match[4]) parsed.prerelease = match[4];
+    return parsed;
 }
 
 /**
  * 把解析后的版本映射到模板仓库里 `conf/<dir>/` 使用的路径段。规则：
+ *   - 1.14.x              →  "1.14"
  *   - 1.13.x  patch >= 8  →  "1.13.8"
  *   - 1.13.x  patch <  8  →  "1.13"
  *   - 1.12.x              →  "1.12"
  *   - 其它                →  抛错
  */
 export function resolveVersionPath(v: SingBoxVersion): string {
+    if (v.major === '1' && v.minor === '14') return '1.14';
     if (v.major === '1' && v.minor === '13' && v.patch >= 8) return '1.13.8';
     if (v.major === '1' && v.minor === '13') return '1.13';
     if (v.major === '1' && v.minor === '12') return '1.12';
