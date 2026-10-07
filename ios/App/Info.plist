@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>OneBoxM</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<!-- 深链 OS 注册：scheme 字面量在此为 OS 语法所需第二处，解析唯一出处仍是 Core/ImportLink。 -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>oneoh-networktools</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- 相机用途声明（扫码导入配置）：zh 本地化在 InfoPlist.xcstrings。 -->
+	<key>NSCameraUsageDescription</key>
+	<string>OneBoxM uses the camera to scan QR codes to import configs.</string>
+	<!-- 外链构建期注入：值来自 make links 生成的 Links.xcconfig（gitignored），
+	     构建期变量替换落值；键名与 Android BuildConfig 字段同名对齐。 -->
+	<!-- 后台自动更新配置：标识符与 RefreshTask.identifier 逐字一致，
+	     不一致时系统静默不投递。macOS 无 BGTaskScheduler，那端走 NSBackgroundActivityScheduler，
+	     无需本键，故只在 iOS 的 Info.plist 声明。 -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>cloud.oneoh.networktools.config-refresh</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+	<key>ACCELERATE_URL</key>
+	<string>$(ACCELERATE_URL)</string>
+	<key>ENGINE_VERSION</key>
+	<string>$(ENGINE_VERSION)</string>
+	<key>PRIVACY_URL</key>
+	<string>$(PRIVACY_URL)</string>
+	<key>WEBSITE_URL</key>
+	<string>$(WEBSITE_URL)</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>

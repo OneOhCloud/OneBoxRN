@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 仅 debug sourceSet：命令 harness 只在 debug 构建被合并进 manifest，绝不进 release。 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- adb 驱动的开发期命令入口；命令清单见 HarnessReceiver 的 op=help。 -->
+        <receiver
+            android:name="cloud.oneoh.oneboxn.debug.HarnessReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="cloud.oneoh.oneboxn.HARNESS" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- iOS App Store 导出选项。
+     signingStyle=manual —— 手工表不联网：描述文件从本机取，导出全程不跟 Apple 要签名资产。
+     自动签名反过来必须现建，而现建要 Admin 权限的 API key（命令行读不到 Xcode 账号）。
+     在没有那把 key 的前提下，手工表是唯一走得通的一条。
+     代价是这张表要跟包内 bundle id 一一对应，漏一个只在导出期报
+     “No profiles for … were found”——故 engine/store/export-profiles.test.ts 有一条门禁按
+     project.pbxproj 的内嵌扩展清单核对本表。 -->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>signingCertificate</key>
+	<string>Apple Distribution</string>
+	<key>teamID</key>
+	<string>GN2W3N34TM</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>cloud.oneoh.networktools</key>
+		<string>cloud.oneoh.networktools AppStore 2026</string>
+		<key>cloud.oneoh.networktools.tunnel</key>
+		<string>cloud.oneoh.networktools.tunnel AppStore 2026</string>
+		<key>cloud.oneoh.networktools.control</key>
+		<string>cloud.oneoh.networktools.control AppStore 2026</string>
+	</dict>
+	<key>stripSwiftSymbols</key>
+	<true/>
+	<key>uploadSymbols</key>
+	<true/>
+</dict>
+</plist>

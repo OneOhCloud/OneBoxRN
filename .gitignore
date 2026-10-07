@@ -1,0 +1,63 @@
+# ── 通用 ──
+.DS_Store
+*.log
+
+# ── 引擎产物与上游 clone（gitignored 大产物）──
+engine/upstream/
+android/app/libs/*.aar
+ios/Engine.xcframework/
+ios/EngineKit/EngineLink.xcframework/
+ios/EngineKit/Sources/EngineKit/include/EngineFFI.h
+ios/EngineKit/Sources/EngineKit/include/*.objc.h
+ios/EngineKit/Sources/EngineKit/include/ref.h
+
+# ── 模板资产（make templates 产出；含明文域名，绝不入仓）──
+android/app/src/main/assets/templates/
+ios/App/Templates/
+
+# ── Android ──
+android/.gradle/
+# Kotlin 构建守护进程的会话目录：构建期间存在、结束即消失。
+# 不忽略它，`check rule=size` 会在有人跑构建时间歇性变红——那种红查起来最费时间，
+# 因为等你去看的时候文件已经没了。
+android/.kotlin/
+android/local.properties
+android/**/build/
+.idea/
+*.iml
+
+# ── iOS ──
+ios/Links.xcconfig
+ios/build/
+ios/*/build/
+# 本地 SPM 包的构建缓存（Core / EngineKit 各一份）
+ios/*/.build/
+ios/DerivedData/
+**/xcuserdata/
+*.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+# 临时构建产物
+target/
+.env
+.worktrees/
+
+# ── Python 门禁脚本互相 import 时的字节码缓存（Makefile 已禁写，此处兜底）──
+__pycache__/
+*.pyc
+
+# ── 私有资产：只留本机、不入公开仓库；门禁仍按本机全量源码判它们 ──
+# 两行标记之间是私有根的唯一来源：门禁的源码枚举按这一段把私有文件并回扫描面。
+# 每条必须以 `/` 锚定在仓库根。
+# >>> private-assets
+/CLAUDE.md
+/golden/
+/scripts/
+/android/core/src/test/
+/android/app/src/test/
+/android/app/src/androidTest/
+/ios/Core/Tests/
+/ios/AppTests/
+/ios/Performance.xctestplan
+/engine/**/*.test.ts
+/engine/store/fixtures.ts
+# <<< private-assets

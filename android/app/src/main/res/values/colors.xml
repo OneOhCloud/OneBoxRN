@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 品牌底蓝，与 assets/logo 源素材及 iOS 图标同值（RGB 0,145,255）。 -->
+    <color name="ic_launcher_background">#0091FF</color>
+</resources>

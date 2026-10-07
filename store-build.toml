@@ -1,0 +1,16 @@
+[android]
+package = "cloud.oneoh.networktools"
+track = "internal"
+aab = "android/app/build/outputs/bundle/playRelease/app-play-release.aab"
+mapping = "android/app/build/outputs/mapping/playRelease/mapping.txt"
+
+[ios]
+scheme = "OneBoxM"
+bundle_id = "cloud.oneoh.networktools"
+team_id = "GN2W3N34TM"
+signing_certificate = "Apple Distribution"
+project = "ios/OneBoxM.xcodeproj"
+archive = "ios/build/StoreArchive/OneBoxM.xcarchive"
+export_options = "ios/ExportOptions.plist"
+export_dir = "ios/build/StoreExport"
+ipa = "ios/build/StoreExport/OneBoxM.ipa"

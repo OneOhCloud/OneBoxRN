@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- API 28–30 用 requestNetwork 跟踪底层非 VPN 网络（见 EngineBinding.startDefaultInterfaceMonitor）。 -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- 扫码取景。声明 required=false 抵消 CAMERA 权限的隐含特性要求：无相机设备仍可安装（扫码仅是导入的可选入口）。 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+    <application
+        android:name=".App"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.App">
+
+        <!-- 仅放行 shell 侧性能采样（heapprofd/simpleperf），无运行时开销。 -->
+        <profileable android:shell="true" />
+
+        <!-- singleTask：热深链复用既有实例走 onNewIntent，冷/热汇合单一通道。 -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- 深链 OS 注册：scheme 字面量仅此处与 core ImportLink 两处出现（OS 语法所需）。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="oneoh-networktools" android:host="config" />
+            </intent-filter>
+            <!-- 磁贴长按落点：声明了本 action 才由系统打开这里，
+                 否则回落到系统「应用信息」页。独立成块，不并进上面任何一块。 -->
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
+        </activity>
+
+        <!-- 隧道进程（:tun）：OS 隧道入口。 -->
+        <service
+            android:name=".tunnel.TunnelService"
+            android:exported="false"
+            android:foregroundServiceType="systemExempted"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:process=":tun">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
+        <!-- 快捷设置磁贴。与 App 同进程，直接用动作层。
+             exported + BIND_QUICK_SETTINGS_TILE 是系统绑定 TileService 的硬性要求：
+             该权限保证只有系统能绑它，故 exported 不构成对外暴露面。 -->
+        <service
+            android:name=".tile.TunnelTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_fluent_power_24_regular"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- 前台服务通知上「断开」键的落点。
+             **不带 android:process**：故落主进程，那正是 AppActions 所在处——通知本体在 :tun 构建，
+             但这一条广播必须由持有动作层的那个进程接住，否则只能绕开连接意图闸门直接停隧道。 -->
+        <receiver
+            android:name=".tunnel.NotificationActionReceiver"
+            android:exported="false" />
+
+        <!-- 引擎观察的跨进程桥（:tun，Messenger）。不带 BIND_VPN_SERVICE，UI 可 bind 拉流量/分组/日志。 -->
+        <service
+            android:name=".tunnel.MonitorService"
+            android:exported="false"
+            android:process=":tun" />
+
+    </application>
+</manifest>

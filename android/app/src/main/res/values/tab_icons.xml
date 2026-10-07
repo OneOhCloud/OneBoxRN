@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 底部导航的字形位：每一位一个名字，由 `AppTab.icon` 按连接态与选中态取用。
+     位与字形分开声明：换字形只改这里的指向，取用那一侧的五态映射与选中判定不动。
+     主页三相（未连接 / 在途 / 已连接）是自绘仪表的低 / 中 / 高三档（assets/icons）：Fluent 的仪表只有一档；
+     配置的描线 / 实心是 Fluent 调色板的一对；设置是 Fluent 齿轮。 -->
+<resources>
+    <item name="ic_tab_home_idle" type="drawable">@drawable/ic_drawn_gauge_low</item>
+    <item name="ic_tab_home_connecting" type="drawable">@drawable/ic_drawn_gauge_mid</item>
+    <item name="ic_tab_home_connected" type="drawable">@drawable/ic_drawn_gauge_high</item>
+    <item name="ic_tab_profiles" type="drawable">@drawable/ic_fluent_color_24_regular</item>
+    <item name="ic_tab_profiles_selected" type="drawable">@drawable/ic_fluent_color_24_filled</item>
+    <item name="ic_tab_settings" type="drawable">@drawable/ic_fluent_settings_24_regular</item>
+</resources>
