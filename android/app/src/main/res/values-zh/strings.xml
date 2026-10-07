@@ -239,6 +239,7 @@
     <string name="stats_disconnected">未连接</string>
     <string name="stats_disconnected_note">连接后显示实时运行数据</string>
     <string name="stats_stalled">实时数据已中断，正在重连监控通道。隧道仍在正常运行。</string>
+    <string name="stats_engine_memory_note">以上为 sing-box 内核所在隧道进程的内存占用，含 Android 系统运行时开销。如需更低的内存占用，推荐使用 OneBoxN 客户端。</string>
 
     <!-- 本机用量；与上面服务端口径的 usage_* 是两套数，故另起前缀 -->
     <string name="device_usage_today">今日</string>

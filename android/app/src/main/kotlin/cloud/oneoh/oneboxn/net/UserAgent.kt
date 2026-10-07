@@ -4,10 +4,10 @@ import android.os.Build
 import cloud.oneoh.oneboxn.BuildConfig
 import java.util.Locale
 
-// 对外协议契约 UA（命名门禁豁免文件）。
+// 对外协议契约 UA。
 // 配置服务端按 User-Agent 决定下发格式：结构化客户端 UA → 引擎 JSON 配置；
 // 裸 UA → Clash YAML（引擎不认）。这里的客户端标记（SFA）与引擎名（sing-box）
-// 是服务端要求的协议字面量，非本仓自主命名——故本文件列入 Makefile NAMING_EXEMPT。
+// 是服务端要求的协议字面量。
 // 格式：`SFA/<appVer> (android <arch> <os>; sing-box <engineVer>; language <lang>)`。
 object UserAgent {
     private const val CLIENT_TAG = "SFA"

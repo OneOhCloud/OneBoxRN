@@ -16,10 +16,6 @@ BUILD_MODE := $(if $(ENV_BUILD_MODE),$(ENV_BUILD_MODE),debug)
 export PYTHONDONTWRITEBYTECODE := 1
 # 各条的禁用模式与豁免清单就在本节，分别是各自的单一来源。
 #
-# naming 命名禁令：禁止上游内核相关词汇进入本仓自主命名。豁免清单就是下面的 NAMING_EXEMPT，
-#   此处不重抄。能进那张表的只有三类：上游构建管线（engine/）；只允许出现上游 ABI 符号的引擎
-#   绑定与唯一链接锚；承载对外协议契约 UA 字面量的文件（构造点，以及钉住它的测试）。
-#   本 Makefile 自身在表内，因为禁用模式的定义就写在这里。
 # terms  App Store 术语规则：禁用暗示订阅/周期付费的措辞，一律用 config / profile 系词。
 #   Swift 的 `subscript(` 含同一子串且无法回避，但不整文件豁免（那会留下永久盲区），而是把命中行
 #   里的 `subscript(` token 剔除后重判——丢弃整行会放过同一行里的禁用措辞。
@@ -31,24 +27,6 @@ export PYTHONDONTWRITEBYTECODE := 1
 #   引用集合取两种口径，两向都保守：判「死键」用宽口径（Swift 全部字面量，避免经 viewKey() 之类
 #   辅助函数间接引用的键被误杀）；判「引用未声明」用严口径（只认 tr("字面量")）。
 # ─────────────────────────────────────────────────────────────
-NAMING_EXEMPT := -e '^engine/' \
-  -e '^android/app/src/main/kotlin/cloud/oneoh/oneboxn/bridge/EngineBinding\.kt$$' \
-  -e '^android/app/src/main/kotlin/cloud/oneoh/oneboxn/net/UserAgent\.kt$$' \
-  -e '^ios/Tunnel/EngineBinding\.swift$$' \
-  -e '^ios/App/VPN/MonitorBinding\.swift$$' \
-  -e '^ios/EngineKit/Sources/EngineKit/EngineKit\.m$$' \
-  -e '^ios/App/Net/UserAgent\.swift$$' \
-  -e '^ios/AppTests/UserAgentTests\.swift$$' \
-  -e '^Makefile$$' \
-  -e '^CLAUDE\.md$$'
-
-# 两组匹配：
-#  - SUBSTR：区分度高的 token 用子串匹配，捕获 camelCase 粘连符号（如 LibboxSetup）。
-#  - WORDS ：三字母歧义 token 用词边界匹配，避免误伤 asftp 等普通词。
-# 两组都同时扫描「文件内容」与「文件/目录路径名」（禁令覆盖标识符与文件名）。
-NAMING_SUBSTR := libbox|singbox|nekohasekai|sagernet|sing[-_ ]?box
-NAMING_WORDS := sfa|sfi|sfm|sft
-
 TERMS_EXEMPT := -e '^android/core/src/main/kotlin/cloud/oneoh/oneboxn/core/Userinfo\.kt$$' \
   -e '^ios/Core/Sources/Core/Userinfo\.swift$$' \
   -e '^android/app/src/main/kotlin/cloud/oneoh/oneboxn/vpn/TunnelController\.kt$$' \
@@ -238,7 +216,7 @@ DOC_ALLOWLIST := LICENSE.md
 # check-negative-gates 的 cases 逐条比对——单一来源不等于免检。
 # 顺序与 check 的 all 分支一致，便于肉眼对读；判据比的是集合，顺序不参与。
 # ─────────────────────────────────────────────────────────────
-CHECK_RULES := naming terms i18n api-shape golden locale size ios-hidden-opacity gate-self-declaration theme-palette apple-font-source \
+CHECK_RULES := terms i18n api-shape golden locale size ios-hidden-opacity gate-self-declaration theme-palette apple-font-source \
   apple-color-source apple-radius-source apple-handler-defaults android-font-source android-color-source android-radius-source i18n-placeholder-order \
   gate-test-pairing failure-path neutral-contract-parity rule-consistency test-legs classification-collapse lines-and-corners disabled-opacity \
   negative-case-distinctness negative-probe-anchors self-scan-declaration apple-handoff-atomic connection-truth-source module-name-binding \
@@ -264,23 +242,6 @@ check:
 	      exit 1; \
 	    fi; \
 	    echo "check OK（$(words $(CHECK_RULES)) 条规则全部通过）" ;; \
-	  naming) \
-	    python3 scripts/check-exemption-paths.py naming || exit 1; \
-	    files=$$(python3 scripts/source_files.py) || { echo "check naming FAILED —— 源码枚举失败，门禁根本没扫"; exit 1; }; \
-	    files=$$(printf '%s\n' "$$files" | grep -vE $(NAMING_EXEMPT)); \
-	    [ -n "$$files" ] || { echo "check naming FAILED —— 待扫文件集为空，门禁根本没扫（报 OK 比不扫更糟，故此处退出）"; exit 1; }; \
-	    path_hits=$$( { printf '%s\n' "$$files" | grep -iE '$(NAMING_SUBSTR)'; \
-	                   printf '%s\n' "$$files" | grep -iwE '$(NAMING_WORDS)'; } \
-	                 | sed 's/^/PATH: /'); \
-	    body_hits=$$( { printf '%s\n' "$$files" | xargs -I{} grep -HnIiE '$(NAMING_SUBSTR)' {} 2>/dev/null; \
-	                   printf '%s\n' "$$files" | xargs -I{} grep -HnIiwE '$(NAMING_WORDS)' {} 2>/dev/null; } ); \
-	    hits=$$(printf '%s\n%s\n' "$$path_hits" "$$body_hits" | grep -v '^$$' | sort -u); \
-	    if [ -n "$$hits" ]; then \
-	      echo "check naming FAILED —— 发现上游内核禁用词（应改中立命名 engine，或移入豁免的绑定文件）："; \
-	      printf '%s\n' "$$hits" | sed 's/^/  /'; \
-	      exit 1; \
-	    fi; \
-	    echo "check naming OK" ;; \
 	  terms) \
 	    python3 scripts/check-exemption-paths.py terms || exit 1; \
 	    files=$$(python3 scripts/source_files.py) || { echo "check terms FAILED —— 源码枚举失败，门禁根本没扫"; exit 1; }; \

@@ -239,6 +239,7 @@
     <string name="stats_disconnected">Not Connected</string>
     <string name="stats_disconnected_note">Runtime figures appear once connected</string>
     <string name="stats_stalled">Live data interrupted — reconnecting the monitor. The tunnel keeps running.</string>
+    <string name="stats_engine_memory_note">Memory shown above is used by the tunnel process running the sing-box engine, including Android runtime overhead. For a lighter footprint, we recommend the OneBoxN app.</string>
 
     <!-- 本机用量；与上面服务端口径的 usage_* 是两套数，故另起前缀 -->
     <string name="device_usage_today">Today</string>

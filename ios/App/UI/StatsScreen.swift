@@ -54,6 +54,11 @@ struct StatsScreen: View {
                     .fixedSize(horizontal: false, vertical: true)
                     memoryCard
                     speedCard
+                    // 页脚注记：说明内存读数的口径，并给出更省内存的选择（与 OneBoxNative 的有意差异）。
+                    Text(tr("stats_engine_memory_note"))
+                        .font(Theme.TypeScale.subtitle)
+                        .foregroundStyle(Theme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .pageInsets(top: Theme.Spacing.large)
             }

@@ -3860,6 +3860,22 @@
         }
       }
     },
+    "stats_engine_memory_note" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory shown above is used by the tunnel process running the sing-box engine. For a lighter footprint, we recommend the OneBoxN app."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以上为 sing-box 内核所在隧道进程的内存占用。如需更低的内存占用，推荐使用 OneBoxN 客户端。"
+          }
+        }
+      }
+    },
     "stats_memory" : {
       "extractionState" : "stale",
       "localizations" : {
