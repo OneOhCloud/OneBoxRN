@@ -1,7 +1,7 @@
 // MARKETING_VERSION 单一来源。与 Android versionName 对齐。
 // 改版本：make version-set VERSION=x.y.z（同写 Android libs.versions.toml 与本文件）。
 MARKETING_VERSION = 2.0.0
-CURRENT_PROJECT_VERSION = 136
+CURRENT_PROJECT_VERSION = 137
 
 // 外链构建期注入：make links 产出，gitignored（含明文域名，绝不入仓）。
 // 非可选 include：缺文件即构建失败（fail-fast，镜像引擎产物模式）。
