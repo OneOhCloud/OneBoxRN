@@ -17,7 +17,8 @@ final class ObservationSuspensionGate: @unchecked Sendable {
     /// 消费方回调。每个已实例化的观察绑定注册一次（本 App 至多两个），故不做注销。
     /// 回调一律 `[weak]` 捕获宿主，闸门不延长任何人的寿命。
     private var consumers: [(Bool) -> Void] = []
-    private var observers: [NSObjectProtocol] = []
+    /// 观察者连同所属的通知中心一起记：注销必须回到注册的那一个中心。
+    private var registrations: [(center: NotificationCenter, observer: NSObjectProtocol)] = []
 
     /// - Parameter isOpenInitially: 测试注入用；生产走 `MainActor` 那个构造器，从平台读真值。
     init(isOpenInitially: Bool) {
@@ -35,7 +36,7 @@ final class ObservationSuspensionGate: @unchecked Sendable {
     }
 
     deinit {
-        for observer in observers { NotificationCenter.default.removeObserver(observer) }
+        for registration in registrations { registration.center.removeObserver(registration.observer) }
     }
 
     var isOpen: Bool {
@@ -74,7 +75,7 @@ final class ObservationSuspensionGate: @unchecked Sendable {
             self?.set(transition)
         }
         lock.lock()
-        observers.append(observer)
+        registrations.append((center, observer))
         lock.unlock()
     }
 }

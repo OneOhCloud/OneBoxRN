@@ -41,6 +41,8 @@ final class MonitorBinding: NSObject, Monitor, @unchecked Sendable {
     /// 挂起闸门的本地镜像：闸门关着时不建通道——本进程可被挂起，而挂起时
     /// 手里攥着 App Group 容器内的锁会被系统当场杀掉。
     private var suspensionGateOpen: Bool
+    /// 闸门由订阅方持有：它的前后台通知订阅随闸门存亡，装配层不留引用，没人持有就收不到挂起沿。
+    private let suspensionGate: ObservationSuspensionGate
 
     /// 通道的建立 / 失效 / 重建要落 `APP` 源日志，使「`ENGINE` 段为什么不动了」在**应用内**
     /// 就有答案。本类不认识 `LogStore`（那是 App 装配层的东西），只经这个出口把事件报出去。
@@ -58,6 +60,7 @@ final class MonitorBinding: NSObject, Monitor, @unchecked Sendable {
         self.sessionAccess = sessionAccess
         self.channelSource = channelSource
         self.onDiagnostic = onDiagnostic
+        self.suspensionGate = suspensionGate
         // 先给个保守初值再注册：`addConsumer` 一步完成「读当前值 + 订阅后续」，
         // 分两步做的话两步之间的翻转会丢，而丢掉的若是「关」就等于没设防。
         suspensionGateOpen = false
