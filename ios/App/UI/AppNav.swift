@@ -115,6 +115,7 @@ struct AppNav: View {
         // 深链入口：SwiftUI 冷/热启动天然单路径，本层零解析分支，
         // 原串直传唯一解析器 ImportLink.parse。接受 → 携真实载荷；拒绝 → 空载荷落导入页默认态。
         .onOpenURL { url in
+            if ImportLinkOwnership.forwardToPreferredHandler(url) { return }
             tab = .home
             switch ImportLink.parse(url.absoluteString) {
             case .accepted(let payload):

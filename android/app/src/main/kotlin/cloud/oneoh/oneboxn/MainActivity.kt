@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        pendingDeepLink = intent?.dataString
+        pendingDeepLink = intent?.dataString?.let(::importLinkForThisApp)
         pendingHomeTabRequest = requestsHomeTab(intent?.action)
         val app = application as App
         setContent {
@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         // setIntent 使消费时的 data 抹除作用于最新 intent；旧 intent 的深链已消费或本就为空。
         setIntent(intent)
-        pendingDeepLink = intent.dataString
+        pendingDeepLink = intent.dataString?.let(::importLinkForThisApp)
         pendingHomeTabRequest = requestsHomeTab(intent.action)
     }
 
@@ -57,6 +57,18 @@ class MainActivity : ComponentActivity() {
     }
 
     // 消费一次性：action 抹除阻断配置变更重建后把用户从当前 tab 拽回主页。
+    override fun onStart() {
+        super.onStart()
+        ImportLinkOwnership.syncEntry(this)
+    }
+
+    // 转交给 OneBoxN 的链接不留在本 App，同时抹除 intent.data，重建时不再转交第二次。
+    private fun importLinkForThisApp(link: String): String? {
+        if (!ImportLinkOwnership.forwardToPreferredHandler(this, link)) return link
+        intent?.data = null
+        return null
+    }
+
     private fun consumeHomeTabRequest() {
         pendingHomeTabRequest = false
         intent?.action = null

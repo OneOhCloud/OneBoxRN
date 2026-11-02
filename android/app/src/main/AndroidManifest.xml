@@ -16,6 +16,11 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
+    <!-- 深链与 OneBoxN 共用 scheme，需查它是否在设备上（Android 11+ 包可见性）。 -->
+    <queries>
+        <package android:name="cloud.oneoh.oneboxn" />
+    </queries>
+
     <application
         android:name=".App"
         android:icon="@mipmap/ic_launcher"
@@ -36,19 +41,26 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- 深链 OS 注册：scheme 字面量仅此处与 core ImportLink 两处出现（OS 语法所需）。 -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="oneoh-networktools" android:host="config" />
-            </intent-filter>
             <!-- 磁贴长按落点：声明了本 action 才由系统打开这里，
                  否则回落到系统「应用信息」页。独立成块，不并进上面任何一块。 -->
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
             </intent-filter>
         </activity>
+
+        <!-- 深链 OS 注册：scheme 字面量仅此处与 core ImportLink 两处出现（OS 语法所需）。
+             挂在 alias 上而不在 MainActivity 上：OneBoxN 在设备上时由 ImportLinkOwnership 停用本入口。 -->
+        <activity-alias
+            android:name=".ImportLinkEntry"
+            android:exported="true"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="oneoh-networktools" android:host="config" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- 隧道进程（:tun）：OS 隧道入口。 -->
         <service
