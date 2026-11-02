@@ -85,6 +85,11 @@ fun AppNav(
         }
         return
     }
+    val forcedUpgradeRequired by actions.forcedUpgradeRequired.collectAsStateWithLifecycle()
+    if (forcedUpgradeRequired) {
+        ForcedUpgradeScreen()
+        return
+    }
 
     var tab by rememberSaveable { mutableStateOf(AppTab.HOME) }
     // 首页入口的仪表读连接态：与电源砖读同一个首页状态（同一个 ViewModel 实例），两处不会各自漂移。

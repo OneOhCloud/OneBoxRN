@@ -6,6 +6,7 @@ import cloud.oneoh.oneboxn.core.ConfigRefresh
 import cloud.oneoh.oneboxn.core.DomainVerify
 import cloud.oneoh.oneboxn.core.FetchAttempt
 import cloud.oneoh.oneboxn.core.FetchRoute
+import cloud.oneoh.oneboxn.core.ForcedUpgrade
 import cloud.oneoh.oneboxn.core.RefreshRecord
 import cloud.oneoh.oneboxn.core.RefreshRecordOutcome
 import cloud.oneoh.oneboxn.core.RefreshRecordStore
@@ -13,6 +14,7 @@ import cloud.oneoh.oneboxn.core.RefreshTrigger
 import cloud.oneoh.oneboxn.core.ConfigChange
 import cloud.oneoh.oneboxn.core.ConfigChangeDisposition
 import cloud.oneoh.oneboxn.core.ConfigFingerprint
+import cloud.oneoh.oneboxn.core.TunnelSessionPhase
 import cloud.oneoh.oneboxn.core.directDnsProbeAllowed
 import cloud.oneoh.oneboxn.core.EngineStatus
 import cloud.oneoh.oneboxn.core.ImportFlow
@@ -57,6 +59,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -184,6 +188,11 @@ class AppActions(
     override val activeConfigContent: StateFlow<String> = dataRepository.activeConfigContent
     override val rules: StateFlow<List<Rule>> = dataRepository.rules
 
+    /** 配置全部来自指定来源：应用只呈现强制升级页，隧道不得运行。 */
+    val forcedUpgradeRequired: StateFlow<Boolean> =
+        profiles.map { list -> ForcedUpgrade.isRequired(list.map { it.url }) }
+            .stateIn(scope, SharingStarted.Eagerly, false)
+
     // 启动失败诊断：OS 广播通道优先，Monitor 通道（onError 事件 + 持久化兜底）补位；
     // 两通道各自在下次成功启动清空，合并值随之回 null。
     // 诊断与其观察时刻是一个值（FailureDiagnostic）：并列两条流会让「错误已到、时刻未到」
@@ -285,6 +294,14 @@ class AppActions(
         scope.launch {
             combine(connected, status) { running, phase -> !running && phase == EngineStatus.STOPPED }
                 .collect { idle -> if (idle) reclaimUsageRecords() }
+        }
+        // 强制升级期间隧道不得运行：磁贴等 App 外入口也能拉起它，所以每次进入运行都再断一次。
+        scope.launch {
+            combine(forcedUpgradeRequired, connected, status) { required, osConnected, engineStatus ->
+                required && sessionPhase(osConnected, engineStatus) != TunnelSessionPhase.NOT_RUNNING
+            }
+                .distinctUntilChanged()
+                .collect { mustStop -> if (mustStop) disconnect() }
         }
     }
 

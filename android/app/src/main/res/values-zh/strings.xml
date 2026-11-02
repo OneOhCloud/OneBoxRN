@@ -281,6 +281,9 @@
     <string name="tile_state_disconnected">未连接</string>
     <string name="update_available_title">有新版本 %1$s</string>
     <string name="update_action_update">更新</string>
+    <string name="forced_upgrade_title">请更新到新版</string>
+    <string name="forced_upgrade_caption">当前配置只能在新版客户端中使用，安装新版后即可继续连接。</string>
+    <string name="forced_upgrade_action">获取新版</string>
     <string name="update_section_title">软件更新</string>
     <string name="update_check_now">检查更新</string>
     <string name="update_checking">正在检查新版本…</string>

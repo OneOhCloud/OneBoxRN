@@ -4352,6 +4352,57 @@
         }
       }
     },
+    "forced_upgrade_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update required"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请更新到新版"
+          }
+        }
+      }
+    },
+    "forced_upgrade_caption" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your configs now work only with the new client. Install it to keep connecting."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前配置只能在新版客户端中使用，安装新版后即可继续连接。"
+          }
+        }
+      }
+    },
+    "forced_upgrade_action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get New Version"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "获取新版"
+          }
+        }
+      }
+    },
     "update_action_view" : {
       "extractionState" : "manual",
       "localizations" : {

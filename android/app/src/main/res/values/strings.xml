@@ -281,6 +281,9 @@
     <string name="tile_state_disconnected">Not Connected</string>
     <string name="update_available_title">New version %1$s available</string>
     <string name="update_action_update">Update</string>
+    <string name="forced_upgrade_title">Update required</string>
+    <string name="forced_upgrade_caption">Your configs now work only with the new client. Install it to keep connecting.</string>
+    <string name="forced_upgrade_action">Get New Version</string>
     <string name="update_section_title">Software Update</string>
     <string name="update_check_now">Check for Updates</string>
     <string name="update_checking">Checking for New Version…</string>

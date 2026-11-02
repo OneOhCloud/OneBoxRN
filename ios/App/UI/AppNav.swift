@@ -78,6 +78,14 @@ struct AppNav: View {
     }
 
     var body: some View {
+        if actions.forcedUpgradeRequired {
+            ForcedUpgradeScreen(actions: actions)
+        } else {
+            navigation
+        }
+    }
+
+    private var navigation: some View {
         shell
         // 启动失败全局弹层——lastError 由空变非空即弹；非空间迁移（同次失败重复上报）不重复打断。
         .onChange(of: actions.lastError) { previous, current in

@@ -204,6 +204,12 @@ final class AppActions: ImportActions {
     var sessionStartedAt: Date? { controller.sessionStartedAt }
     var onDemandEnabled: Bool { controller.onDemandEnabled }
     var status: EngineStatus { client.status }
+    /// 配置全部来自指定来源：应用只呈现强制升级页，隧道不得运行。
+    var forcedUpgradeRequired: Bool { ForcedUpgrade.isRequired(profileUrls: profiles.map(\.url)) }
+    /// 强制升级期间隧道仍在运行或正在启动：须断开。
+    var forcedUpgradeBlocksTunnel: Bool {
+        forcedUpgradeRequired && sessionPhase(osConnected: connected, engineStatus: status) != .notRunning
+    }
     var traffic: Traffic { client.traffic }
     /// 读数是否已不可信（观察通道断流，或本次会话尚无帧）。呈现方据此走「—」而非旧数字。
     var trafficStale: Bool { client.trafficStale }
