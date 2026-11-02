@@ -346,8 +346,6 @@ private final class PlatformBridge: NSObject, LibboxPlatformInterfaceProtocol, L
 
     func usePlatformAutoDetectControl() -> Bool { false }
 
-    func useProcFS() -> Bool { false }
-
     func findConnectionOwner(
         _ ipProtocol: Int32,
         sourceAddress: String?,

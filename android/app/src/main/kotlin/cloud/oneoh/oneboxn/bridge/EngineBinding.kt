@@ -276,8 +276,6 @@ class EngineBinding(
 
         override fun usePlatformAutoDetectInterfaceControl(): Boolean = true
 
-        override fun useProcFS(): Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-
         override fun findConnectionOwner(
             ipProtocol: Int,
             sourceAddress: String,
@@ -285,12 +283,16 @@ class EngineBinding(
             destinationAddress: String,
             destinationPort: Int,
         ): ConnectionOwner {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) error("android: findConnectionOwner needs API 29+")
-            val uid = connectivity.getConnectionOwnerUid(
-                ipProtocol,
-                InetSocketAddress(sourceAddress, sourcePort),
-                InetSocketAddress(destinationAddress, destinationPort),
-            )
+            // API 29 之前系统不给查连接归属，只能由引擎读 procfs。
+            val uid = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                Libbox.findConnectionOwner(ipProtocol, sourceAddress, sourcePort, destinationAddress, destinationPort).userId
+            } else {
+                connectivity.getConnectionOwnerUid(
+                    ipProtocol,
+                    InetSocketAddress(sourceAddress, sourcePort),
+                    InetSocketAddress(destinationAddress, destinationPort),
+                )
+            }
             if (uid == Process.INVALID_UID) error("android: connection owner not found")
             val packages = context.packageManager.getPackagesForUid(uid)
             return ConnectionOwner().apply {

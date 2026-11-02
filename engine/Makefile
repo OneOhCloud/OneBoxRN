@@ -7,7 +7,7 @@
 # target 名与根 Makefile 的 dispatch 对齐：android / apple / clean
 # （根 Makefile：engine-android → $(MAKE) -C engine android；engine-apple → apple）。
 
-UPSTREAM_TAG  := v1.14.2
+UPSTREAM_TAG  := v1.14.4
 UPSTREAM_REPO := https://github.com/SagerNet/sing-box.git
 UPSTREAM_DIR  := upstream
 BUILD_ENTRY   := cmd/internal/build_libbox
